@@ -6,6 +6,7 @@ interface Producto {
   nombre: string;
   precio: number;
   tipo: 'comida' | 'bebida';
+  tipo_impuesto?: string;
   imagen?: string;
 }
 
@@ -217,7 +218,7 @@ export default function PuntoDeVentaView() {
         <button
           onClick={() => {
             localStorage.removeItem('usuario');
-            window.location.reload();
+            window.location.href = '/login';
           }}
           style={{
             background: '#d32f2f',
@@ -716,22 +717,29 @@ export default function PuntoDeVentaView() {
                       printWindow2.close();
                     }
                       try {
-                        // Cálculo correcto de sub_total, isv_15, isv_18 y total
-                        const subTotal = seleccionados.reduce((sum, p) => {
-                          if (p.tipo === 'comida') {
-                            return sum + ((p.precio / 1.15) * p.cantidad);
-                          } else if (p.tipo === 'bebida') {
-                            return sum + ((p.precio / 1.18) * p.cantidad);
+                        // Cálculo correcto de sub_total, isv_15, isv_18 y total según tipo_impuesto de cada producto
+                        let subTotal = 0;
+                        let isv15 = 0;
+                        let isv18 = 0;
+                        for (const p of seleccionados) {
+                          // Buscar el producto en la lista de productos para obtener tipo_impuesto
+                          const prod = productos.find(prod => prod.id === p.id);
+                          const tipoImpuesto = prod?.tipo_impuesto || 'venta';
+                          if (tipoImpuesto === 'venta') {
+                            // ISV 15%
+                            const base = p.precio / 1.15;
+                            subTotal += base * p.cantidad;
+                            isv15 += (p.precio - base) * p.cantidad;
+                          } else if (tipoImpuesto === 'alcohol') {
+                            // ISV 18%
+                            const base = p.precio / 1.18;
+                            subTotal += base * p.cantidad;
+                            isv18 += (p.precio - base) * p.cantidad;
                           } else {
-                            return sum + (p.precio * p.cantidad);
+                            // Sin impuesto
+                            subTotal += p.precio * p.cantidad;
                           }
-                        }, 0);
-                        const isv15 = seleccionados
-                          .filter(p => p.tipo === 'comida')
-                          .reduce((sum, p) => sum + ((p.precio - (p.precio / 1.15)) * p.cantidad), 0);
-                        const isv18 = seleccionados
-                          .filter(p => p.tipo === 'bebida')
-                          .reduce((sum, p) => sum + ((p.precio - (p.precio / 1.18)) * p.cantidad), 0);
+                        }
                         if (facturaActual === 'Límite alcanzado') {
                           alert('¡Se ha alcanzado el límite de facturas para este cajero!');
                           return;
