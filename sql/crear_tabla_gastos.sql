@@ -1,0 +1,6 @@
+CREATE TABLE gastos (
+  id SERIAL PRIMARY KEY,
+  fecha DATE NOT NULL,
+  monto NUMERIC(12,2) NOT NULL,
+  motivo TEXT NOT NULL
+);
