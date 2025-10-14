@@ -28,12 +28,19 @@ const PagoModal: React.FC<PagoModalProps> = ({ isOpen, onClose, factura, onPagoC
     setLoading(true);
     setError('');
     setSuccess(false);
+    // Obtener usuario actual
+    let usuarioActual = null;
+    try {
+      const stored = localStorage.getItem('usuario');
+      usuarioActual = stored ? JSON.parse(stored) : null;
+    } catch {}
     const pago = {
       tipo,
       monto: parseFloat(monto),
       referencia: referencia || null,
       tarjeta: tarjeta || null,
       factura: factura || null,
+      cajero: usuarioActual?.nombre || null,
     };
     const { error } = await supabase.from('pagos').insert([pago]);
     setLoading(false);

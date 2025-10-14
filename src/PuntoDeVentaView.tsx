@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PagoModal from './PagoModal';
+import RegistroCierreView from './RegistroCierreView';
 import { createClient } from '@supabase/supabase-js';
 
 interface Producto {
@@ -34,7 +35,8 @@ const usuarioActual = (() => {
   }
 })();
 
-export default function PuntoDeVentaView() {
+export default function PuntoDeVentaView({ setView }: { setView?: (view: 'home' | 'puntoDeVenta' | 'admin' | 'usuarios' | 'inventario' | 'cai' | 'resultados' | 'gastos' | 'facturasEmitidas' | 'apertura' | 'resultadosCaja') => void }) {
+  const [showCierre, setShowCierre] = useState(false);
   const [facturaActual, setFacturaActual] = useState<string>('');
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [showClienteModal, setShowClienteModal] = useState(false);
@@ -210,71 +212,41 @@ export default function PuntoDeVentaView() {
             }}
           >Volver</button>
         )}
+        {/* Botón de cerrar sesión oculto */}
+        <button style={{ display: 'none' }}>Cerrar sesión</button>
+        {/* Botón para registrar cierre de caja */}
         <button
-          onClick={() => {
-            localStorage.removeItem('usuario');
-              {/* Modal para requerir factura */}
-              {showFacturaModal && (
-                <div style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  width: '100vw',
-                  height: '100vh',
-                  background: 'rgba(0,0,0,0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  zIndex: 9999,
-                }}>
-                  <div style={{
-                    background: '#fff',
-                    borderRadius: 16,
-                    boxShadow: '0 8px 32px rgba(25, 118, 210, 0.18)',
-                    padding: 32,
-                    minWidth: 350,
-                    maxWidth: 420,
-                    width: '100%',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 18,
-                  }}>
-                    <h3 style={{ color: '#1976d2', marginBottom: 12 }}>¿Requiere factura?</h3>
-                    <div style={{ display: 'flex', gap: 32, justifyContent: 'center' }}>
-                      <button
-                        onClick={async () => {
-                          setShowFacturaModal(false);
-                          setShowPagoModal(true);
-                        }}
-                        style={{ background: '#388e3c', color: '#fff', borderRadius: 8, border: 'none', padding: '10px 32px', fontWeight: 600, fontSize: 16 }}
-                      >Sí</button>
-                      <button
-                        onClick={async () => {
-                          setShowFacturaModal(false);
-                          setShowPagoModal(true);
-                        }}
-                        style={{ background: '#1976d2', color: '#fff', borderRadius: 8, border: 'none', padding: '10px 32px', fontWeight: 600, fontSize: 16 }}
-                      >No</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            window.location.href = '/login';
-          }}
           style={{
-            background: '#d32f2f',
-            color: '#fff',
+            background: '#fbc02d',
+            color: '#333',
             border: 'none',
             borderRadius: 8,
             padding: '10px 22px',
             fontWeight: 700,
             fontSize: 16,
             cursor: 'pointer',
-            boxShadow: '0 2px 8px #d32f2f22',
+            boxShadow: '0 2px 8px #fbc02d44',
           }}
-        >Cerrar sesión</button>
+          onClick={() => setShowCierre(true)}
+        >Registrar cierre de caja</button>
+
+        {showCierre && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.18)', zIndex: 99999 }}>
+            <RegistroCierreView 
+              usuarioActual={usuarioActual} 
+              caja={caiInfo?.caja_asignada || ''} 
+              onCierreGuardado={() => {
+                if (setView) {
+                  setView('resultadosCaja');
+                }
+              }}
+            />
+            <button
+              style={{ position: 'absolute', top: 24, right: 32, background: '#d32f2f', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontWeight: 700, fontSize: 16, cursor: 'pointer', zIndex: 100000 }}
+              onClick={() => setShowCierre(false)}
+            >Cerrar</button>
+          </div>
+  )}
       </div>
 
       {/* Modal de pago (fuera del bloque del botón) */}
