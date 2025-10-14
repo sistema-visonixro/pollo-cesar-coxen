@@ -1,0 +1,9 @@
+CREATE TABLE pagos (
+  id SERIAL PRIMARY KEY,
+  tipo VARCHAR(20) NOT NULL,
+  monto NUMERIC(12,2) NOT NULL,
+  referencia VARCHAR(50),
+  tarjeta VARCHAR(30),
+  factura VARCHAR(30),
+  fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
