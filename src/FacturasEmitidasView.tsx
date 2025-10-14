@@ -1,4 +1,23 @@
 
+// Tipos agregados para corregir errores de compilación
+export interface Factura {
+	id: number;
+	fecha_hora: string;
+	factura: string;
+	cai: string;
+	cajero: string;
+	caja?: string;
+	sub_total: string;
+	isv_15: string;
+	isv_18: string;
+	total: string;
+	productos: string;
+	cliente: string;
+}
+
+export interface FacturasEmitidasViewProps {
+	onBack?: () => void;
+}
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 
