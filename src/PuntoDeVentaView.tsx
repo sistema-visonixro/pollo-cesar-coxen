@@ -38,6 +38,17 @@ export default function PuntoDeVentaView() {
   const [showFacturaModal, setShowFacturaModal] = useState(false);
   const [nombreCliente, setNombreCliente] = useState('');
   const [caiInfo, setCaiInfo] = useState<{ caja_asignada: string; nombre_cajero: string; cai: string } | null>(null);
+  const [online, setOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine);
+    window.addEventListener('online', updateOnline);
+    window.addEventListener('offline', updateOnline);
+    return () => {
+      window.removeEventListener('online', updateOnline);
+      window.removeEventListener('offline', updateOnline);
+    };
+  }, []);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [seleccionados, setSeleccionados] = useState<Seleccion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,6 +181,21 @@ export default function PuntoDeVentaView() {
       alignItems: 'center',
       zIndex: 999,
     }}>
+      {/* Indicador de conexión */}
+      <div style={{ position: 'absolute', top: 18, left: 32, zIndex: 10001, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{
+          width: 16,
+          height: 16,
+          borderRadius: '50%',
+          background: online ? '#43a047' : '#d32f2f',
+          border: '2px solid #fff',
+          boxShadow: '0 0 4px #0002',
+          display: 'inline-block',
+        }} />
+        <span style={{ color: online ? '#43a047' : '#d32f2f', fontWeight: 700, fontSize: 15 }}>
+          {online ? 'Conectado' : 'Sin conexión'}
+        </span>
+      </div>
       {/* Botón cerrar sesión y volver si es admin */}
       <div style={{ position: 'absolute', top: 18, right: 32, display: 'flex', gap: 12, zIndex: 10000 }}>
         {usuarioActual?.rol === 'admin' && (
