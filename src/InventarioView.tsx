@@ -104,24 +104,24 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
         imagen: imagenUrl,
       };
 
-  // let result;
+      // let result;
       if (editId) {
-  const { error } = await supabase
+        const { error } = await supabase
           .from("productos")
           .update(body)
           .eq("id", editId)
           .select()
           .single();
         if (error) throw error;
-  // result = data;
+        // result = data;
       } else {
-  const { error } = await supabase
+        const { error } = await supabase
           .from("productos")
           .insert([body])
           .select()
           .single();
         if (error) throw error;
-  // result = data;
+        // result = data;
       }
 
       setShowModal(false);

@@ -138,10 +138,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
     setForm(usuario);
   };
 
-  const handleNew = () => { // Se usa en el código
-    setEditId(null);
-    setForm({});
-  };
+  // const handleNew = () => {}; // Eliminado para evitar error TS6133
 
   return (
     <div
@@ -505,8 +502,8 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
 
         {/* Formulario */}
         <div className="form-section">
-          <h3 style={{ color: "var(--text-primary)", marginBottom: "1rem" }}>
-            {editId ? "✏️ Editar Usuario" : "👤 Nuevo Usuario"}
+          <h3 style={{ color: "#ffffff", marginBottom: '1rem' }}>
+            {editId ? '✏️ Editar Usuario' : '👤 Nuevo Usuario'}
           </h3>
           <form onSubmit={handleSubmit} className="form-grid">
             <input

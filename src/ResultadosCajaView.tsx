@@ -8,7 +8,7 @@ export default function ResultadosCajaView() {
   const [clave, setClave] = useState("");
   const [validando, setValidando] = useState(false);
   const [correcto, setCorrecto] = useState(false);
-  const [mostrarCerrar, setMostrarCerrar] = useState(false); // Se usa en el código
+  // const [mostrarCerrar, setMostrarCerrar] = useState(false); // Eliminado para evitar error TS6133
 
   useEffect(() => {
     const fetchCierres = async () => {
@@ -396,7 +396,7 @@ export default function ResultadosCajaView() {
                                 setCorrecto(true);
                                 setTimeout(() => {
                                   setCorrecto(false);
-                                  setMostrarCerrar(true);
+                                  // setMostrarCerrar(true); // Eliminado para evitar error TS2304
                                 }, 100);
                               }, 800);
                             } else {
