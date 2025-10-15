@@ -65,7 +65,7 @@ export default function PuntoDeVentaView({
     nombre_cajero: string;
     cai: string;
   } | null>(null);
-  const [online, setOnline] = useState(navigator.onLine);
+  const [online] = useState(navigator.onLine);
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [seleccionados, setSeleccionados] = useState<Seleccion[]>([]);

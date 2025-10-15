@@ -138,7 +138,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
     setForm(usuario);
   };
 
-  const handleNew = () => {
+  const handleNew = () => { // Se usa en el código
     setEditId(null);
     setForm({});
   };

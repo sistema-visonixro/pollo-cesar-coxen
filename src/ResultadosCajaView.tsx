@@ -8,7 +8,7 @@ export default function ResultadosCajaView() {
   const [clave, setClave] = useState("");
   const [validando, setValidando] = useState(false);
   const [correcto, setCorrecto] = useState(false);
-  const [mostrarCerrar, setMostrarCerrar] = useState(false);
+  const [mostrarCerrar, setMostrarCerrar] = useState(false); // Se usa en el código
 
   useEffect(() => {
     const fetchCierres = async () => {
