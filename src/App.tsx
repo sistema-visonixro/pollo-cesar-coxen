@@ -273,9 +273,11 @@ function App() {
   // Vista por defecto (home) - puedes agregar un componente Home si existe
   return (
     <div style={{ textAlign: "center", marginTop: 40 }}>
-      {/* Elementos de bienvenida, código y cerrar sesión ocultos globalmente */}
-      <p>Bienvenido, {user?.nombre}. Selecciona una opción.</p>
-      <button onClick={handleLogout}>Cerrar Sesión</button>
+      
+      <p style={{ fontSize: 22, fontWeight: 700, color: "#1976d2", marginBottom: 18 }}>
+        Bienvenido, {user?.nombre}. 
+      </p>
+      
     </div>
   );
 }
