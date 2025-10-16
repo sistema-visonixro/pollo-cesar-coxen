@@ -1,21 +1,25 @@
 {
   "name": "Punto de Venta",
-  "short_name": "PDV",
-  "start_url": ".",
+  "short_name": "Pollos Cesar",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1976d2",
-  "description": "Sistema de punto de venta",
+  "description": "Sistema de punto de venta para gestionar transacciones comerciales de forma eficiente.",
   "icons": [
     {
-      "src": "https://i.imgur.com/4M9UCRM.jpeg",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/jpeg"
+      "type": "image/png"
     },
     {
-      "src": "https://i.imgur.com/4M9UCRM.jpeg",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/jpeg"
+      "type": "image/png"
     }
-  ]
+  ],
+  "lang": "es",
+  "scope": "/",
+  "orientation": "portrait",
+  "prefer_related_applications": false
 }
