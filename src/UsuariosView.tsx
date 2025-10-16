@@ -19,6 +19,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Partial<Usuario>>({});
+  const [showModal, setShowModal] = useState(false);
   // Lista de cajas sugeridas (puedes modificar o cargar dinámicamente)
   const cajasDisponibles = [
     "LOCAL1",
@@ -514,34 +515,106 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
           </div>
         )}
 
-        {/* Formulario */}
-        <div className="form-section">
-          <h3 style={{ color: "#ffffff", marginBottom: "1rem" }}>
-            {editId ? "✏️ Editar Usuario" : "👤 Nuevo Usuario"}
-          </h3>
-          <form onSubmit={handleSubmit} className="form-grid">
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Nombre completo"
-              value={form.nombre || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, nombre: e.target.value }))
-              }
-              required
-              style={{ color: '#43a047', fontWeight: 700 }}
-            />
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Código único"
-              value={form.codigo || ""}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, codigo: e.target.value }))
-              }
-              required
-              style={{ color: '#43a047', fontWeight: 700 }}
-            />
+        {/* Botón para abrir modal de nuevo usuario */}
+        <div style={{ textAlign: 'center', margin: '2rem 0' }}>
+          <button
+            style={{
+              background: '#1976d2',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: '12px 32px',
+              fontWeight: 700,
+              fontSize: 18,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px #1976d222',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+            onClick={() => {
+              setEditId(null);
+              setForm({});
+              setShowModal(true);
+            }}
+          >
+            <span role="img" aria-label="nuevo usuario">👤</span> Nuevo Usuario
+          </button>
+        </div>
+
+        {/* Modal para crear/editar usuario */}
+        {showModal && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0,0,0,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999
+            }}
+            onClick={() => setShowModal(false)}
+          >
+            <div
+              style={{
+                background: '#222',
+                borderRadius: 16,
+                padding: 32,
+                minWidth: 320,
+                maxWidth: 400,
+                width: '100%',
+                boxShadow: '0 8px 32px #0008',
+                position: 'relative',
+                color: '#fff',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  position: 'absolute',
+                  top: 12,
+                  right: 12,
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: 24,
+                  cursor: 'pointer',
+                }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+              <h3 style={{ color: "#ffffff", marginBottom: "1rem" }}>
+                {editId ? "✏️ Editar Usuario" : "👤 Nuevo Usuario"}
+              </h3>
+              <form onSubmit={handleSubmit} className="form-grid">
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Nombre completo"
+                  value={form.nombre || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, nombre: e.target.value }))
+                  }
+                  required
+                  style={{ color: '#43a047', fontWeight: 700 }}
+                />
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Código único"
+                  value={form.codigo || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, codigo: e.target.value }))
+                  }
+                  required
+                  style={{ color: '#43a047', fontWeight: 700 }}
+                />
             <input
               className="form-input"
               type="password"
@@ -597,7 +670,10 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
             </button>
           </form>
         </div>
-      </main>
+        {/* Fin del modal */}
+        </div>
+      )}
+    </main>
     </div>
   );
 }
