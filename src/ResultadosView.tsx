@@ -35,7 +35,7 @@ export default function ResultadosView({ onBack, onVerFacturasEmitidas }: Result
   }, [desde, hasta]);
 
   // Si el usuario no es admin, mostrar mensaje y bloquear acceso
-  if (!usuarioActual || usuarioActual.rol !== 'admin') {
+  if (!usuarioActual || (usuarioActual.rol !== 'admin' && usuarioActual.rol !== 'Admin')) {
     return (
       <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: 24, fontWeight: 700 }}>
         Acceso restringido: solo administradores pueden ver el dashboard financiero.
