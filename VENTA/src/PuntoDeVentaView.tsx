@@ -48,15 +48,17 @@ export default function PuntoDeVentaView() {
   useEffect(() => {
     async function fetchCaiYFactura() {
       if (!usuarioActual) return;
+      // Usar id y caja del usuario logueado
       const { data: caiData } = await supabase
         .from('cai_facturas')
         .select('*')
         .eq('cajero_id', usuarioActual.id)
+        .eq('caja_asignada', usuarioActual.caja)
         .single();
       if (caiData) {
         setCaiInfo({
           caja_asignada: caiData.caja_asignada,
-          nombre_cajero: usuarioActual.nombre,
+          nombre_cajero: usuarioActual.usuario,
           cai: caiData.cai,
         });
         const rango_inicio = parseInt(caiData.rango_desde);
@@ -65,7 +67,7 @@ export default function PuntoDeVentaView() {
         const { data: facturasData } = await supabase
           .from('facturas')
           .select('factura')
-          .eq('cajero', usuarioActual.nombre)
+          .eq('cajero_id', usuarioActual.id)
           .eq('caja', caja);
         let maxFactura = rango_inicio - 1;
         if (facturasData && facturasData.length > 0) {
@@ -624,8 +626,9 @@ export default function PuntoDeVentaView() {
                       const factura = facturaActual;
                       const venta = {
                         fecha_hora: new Date().toISOString(),
-                        cajero: usuarioActual?.nombre || '',
-                        caja: caiInfo?.caja_asignada || '',
+                        cajero: usuarioActual?.usuario || '',
+                        cajero_id: usuarioActual?.id || '',
+                        caja: caiInfo?.caja_asignada || usuarioActual?.caja || '',
                         cai: caiInfo && caiInfo.cai ? caiInfo.cai : '',
                         factura,
                         cliente: nombreCliente,

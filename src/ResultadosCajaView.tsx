@@ -10,6 +10,16 @@ export default function ResultadosCajaView() {
   const [correcto, setCorrecto] = useState(false);
   // const [mostrarCerrar, setMostrarCerrar] = useState(false); // Eliminado para evitar error TS6133
 
+  // Obtener usuario actual de localStorage
+  const usuarioActual = (() => {
+    try {
+      const stored = localStorage.getItem("usuario");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   useEffect(() => {
     const fetchCierres = async () => {
       setLoading(true);
@@ -23,12 +33,17 @@ export default function ResultadosCajaView() {
       // Consultar registros de tipo 'cierre' entre las 00:00 y 23:59 del día actual
       const fechaInicio = `${fechaHoy} 00:00:00`;
       const fechaFin = `${fechaHoy} 23:59:59`;
-      const { data, error } = await supabase
+      let query = supabase
         .from("cierres")
         .select("*")
         .eq("tipo_registro", "cierre")
         .gte("fecha", fechaInicio)
         .lte("fecha", fechaFin);
+      // Si el usuario es cajero, filtrar por su id
+      if (usuarioActual && usuarioActual.rol === "cajero") {
+        query = query.eq("cajero_id", usuarioActual.id);
+      }
+      const { data, error } = await query;
       if (!error && data) {
         setCierres(data);
       }
@@ -205,7 +220,22 @@ export default function ResultadosCajaView() {
                 DIFERENCIA
               </h3>
               {cierres.length > 0 &&
-                cierres.map((cierre, idx) => {
+                cierres
+                  .filter(cierre => {
+                    // Filtrar por usuario actual y fecha actual
+                    if (!usuarioActual) return false;
+                    const hoy = new Date();
+                    const yyyy = hoy.getFullYear();
+                    const mm = String(hoy.getMonth() + 1).padStart(2, "0");
+                    const dd = String(hoy.getDate()).padStart(2, "0");
+                    const fechaHoy = `${yyyy}-${mm}-${dd}`;
+                    const fechaCierre = cierre.fecha?.slice(0, 10);
+                    return (
+                      cierre.cajero_id === usuarioActual.id &&
+                      fechaCierre === fechaHoy
+                    );
+                  })
+                  .map((cierre, idx) => {
                   // Parsear valores numéricos
                   const fondoFijoRegistrado =
                     parseFloat(cierre.fondo_fijo_registrado) || 0;

@@ -14,6 +14,7 @@ interface Usuario {
   id: string;
   nombre: string;
   rol: string;
+  caja?: string;
 }
 
 const API_URL = "https://zyziaizfmfvtibhpqwda.supabase.co/rest/v1/cai_facturas";
@@ -66,8 +67,17 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
     setError("");
     setLoading(true);
 
+    // Si hay cajero seleccionado, rellenar la caja automáticamente
+    let cajaAuto = form.caja_asignada;
+    if (form.cajero_id) {
+      const cajero = usuarios.find(u => u.id === form.cajero_id);
+      if (cajero && cajero.caja) {
+        cajaAuto = cajero.caja;
+      }
+    }
     const body = {
       ...form,
+      caja_asignada: cajaAuto,
       rango_desde: Number(form.rango_desde),
       rango_hasta: Number(form.rango_hasta),
     };
@@ -621,12 +631,19 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Caja asignada (ej: Caja 1)"
-                  value={form.caja_asignada || ""}
+                  placeholder="Caja asignada (se autocompleta)"
+                  value={(() => {
+                    if (form.cajero_id) {
+                      const cajero = usuarios.find(u => u.id === form.cajero_id);
+                      return cajero && cajero.caja ? cajero.caja : (form.caja_asignada || "");
+                    }
+                    return form.caja_asignada || "";
+                  })()}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, caja_asignada: e.target.value }))
                   }
                   required
+                  readOnly={!!form.cajero_id}
                 />
                 <select
                   className="form-select"

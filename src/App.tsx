@@ -1,5 +1,5 @@
+import React, { useState, useEffect } from "react";
 import CierresAdminView from "./CierresAdminView";
-import { useState, useEffect } from "react";
 import Login from "./Login";
 import CajaOperadaView from "./CajaOperadaView";
 import Landing from "./Landing";
@@ -18,6 +18,10 @@ import FacturasEmitidasView from "./FacturasEmitidasView";
 import EtiquetasView from "./EtiquetasView";
 import ReciboView from "./ReciboView";
 import "./App.css";
+import { supabase } from "./supabaseClient";
+
+// Asumimos que supabase está disponible globalmente o importado; si no, agrégalo como import
+// import { supabase } from './supabase'; // Descomenta y ajusta si es necesario
 
 function App() {
   const [user, setUser] = useState<any>(() => {
@@ -45,6 +49,29 @@ function App() {
   const [aperturaPendiente, setAperturaPendiente] = useState(false);
   const [cajaApertura, setCajaApertura] = useState<string | null>(null);
 
+  // Verificar id de usuario en localStorage al cargar la app
+  useEffect(() => {
+    // Solo ejecutar si no estamos ya en /login
+    if (window.location.pathname === "/login") return;
+    try {
+      const stored = localStorage.getItem("usuario");
+      const usuario = stored ? JSON.parse(stored) : null;
+      if (!usuario || !usuario.id) {
+        localStorage.removeItem("usuario");
+        localStorage.removeItem("rol");
+        localStorage.removeItem("caja");
+        localStorage.removeItem("id");
+        window.location.href = "/login";
+      }
+    } catch {
+      localStorage.removeItem("usuario");
+      localStorage.removeItem("rol");
+      localStorage.removeItem("caja");
+      localStorage.removeItem("id");
+      window.location.href = "/login";
+    }
+  }, []);
+
   // Cuando el usuario inicia sesión, mostrar landing
   useEffect(() => {
     if (user) {
@@ -52,43 +79,47 @@ function App() {
     }
   }, [user]);
 
-  // Cuando termina el landing, mostrar la vista según el rol
+  // Cuando termina el landing, mostrar la vista según el rol y lógica de caja
   const handleLandingFinish = async () => {
     setShowLanding(false);
-    if (user.rol === "Admin") {
-      setView("admin");
-    } else if (user.rol === "cajero") {
-      // Obtener caja desde cai_facturas
-      const caja = await obtenerCajaCajero(user.id);
-      setCajaApertura(caja);
-      // Verificar apertura de caja
-      const tieneApertura = await verificarAperturaHoy(user.nombre, caja || "");
-      // Verificar si ya existe cierre registrado hoy y consultar diferencia/observacion
+
+    if (!user) return;
+
+    // Obtener caja del cajero
+    const caja = await obtenerCajaCajero(user.id);
+    setCajaApertura(caja);
+
+    // Verificar apertura hoy solo si caja no es null
+    let tieneApertura = false;
+    if (caja) {
+      tieneApertura = await verificarAperturaHoy(user.id, caja);
+    }
+    
+  if (user.rol === "cajero") {
+      // Lógica para cajeros: verificar cierres de hoy
       const hoy = new Date().toISOString().slice(0, 10);
-      const { data: cierresHoy } = await import("./supabaseClient").then(
-        ({ supabase }) =>
-          supabase
-            .from("cierres")
-            .select("diferencia, observacion")
-            .eq("cajero", user.nombre)
-            .eq("caja", caja)
-            .eq("tipo_registro", "cierre")
-            .gte("fecha", hoy + "T00:00:00")
-            .lte("fecha", hoy + "T23:59:59")
-      );
+      const { data: cierresHoy, error } = await supabase
+        .from("cierres")
+        .select("diferencia, observacion")
+        .eq("cajero", user.nombre)
+        .eq("caja", caja)
+        .eq("tipo_registro", "cierre")
+        .gte("fecha", `${hoy}T00:00:00`)
+        .lte("fecha", `${hoy}T23:59:59`);
+
+      if (error) {
+        console.error("Error al verificar cierres:", error);
+        setView("home");
+        return;
+      }
+
       if (cierresHoy && cierresHoy.length > 0) {
         const cierre = cierresHoy[0];
         if (cierre.diferencia !== 0 && cierre.observacion === "sin aclarar") {
           setView("resultadosCaja");
-        } else if (
-          cierre.diferencia !== 0 &&
-          cierre.observacion === "aclarado"
-        ) {
+        } else if (cierre.diferencia !== 0 && cierre.observacion === "aclarado") {
           setView("cajaOperada");
-        } else if (
-          cierre.diferencia === 0 &&
-          cierre.observacion === "cuadrado"
-        ) {
+        } else if (cierre.diferencia === 0 && cierre.observacion === "cuadrado") {
           setView("cajaOperada");
         } else {
           setView("resultadosCaja");
@@ -99,6 +130,8 @@ function App() {
         setAperturaPendiente(true);
         setView("apertura");
       }
+    } else if (user.rol === "Admin") {
+      setView("admin");
     } else {
       setView("home");
     }
@@ -115,9 +148,10 @@ function App() {
     setUser(null);
     localStorage.removeItem("usuario");
     setView("home");
+    window.location.href = "/login"; // Opcional: redirigir explícitamente
   };
 
-  // Render condicional después de los hooks
+  // Render condicional
   if (!user) {
     return <Login onLogin={handleLogin} />;
   }
@@ -126,6 +160,7 @@ function App() {
     return <Landing onFinish={handleLandingFinish} />;
   }
 
+  // Vistas comunes
   if (view === "resultadosCaja") {
     return (
       <>
@@ -156,7 +191,7 @@ function App() {
     return <ReciboView onBack={() => setView("admin")} />;
   }
 
-  if (view === "usuarios") {
+  if (view === "usuarios" && user?.rol === "Admin") {
     return (
       <>
         <UsuariosView onBack={() => setView("admin")} />
@@ -165,7 +200,7 @@ function App() {
     );
   }
 
-  if (view === "inventario") {
+  if (view === "inventario" && user?.rol === "Admin") {
     return (
       <>
         <InventarioView onBack={() => setView("admin")} />
@@ -174,7 +209,7 @@ function App() {
     );
   }
 
-  if (view === "cai") {
+  if (view === "cai" && user?.rol === "Admin") {
     return (
       <>
         <CaiFacturasView onBack={() => setView("admin")} />
@@ -183,7 +218,7 @@ function App() {
     );
   }
 
-  if (view === "gastos") {
+  if (view === "gastos" && user?.rol === "Admin") {
     return (
       <>
         <GastosView onBack={() => setView("admin")} />
@@ -192,7 +227,7 @@ function App() {
     );
   }
 
-  if (view === "resultados") {
+  if (view === "resultados" && user?.rol === "Admin") {
     return (
       <>
         <ResultadosView
@@ -204,7 +239,7 @@ function App() {
     );
   }
 
-  if (view === "facturasEmitidas") {
+  if (view === "facturasEmitidas" && user?.rol === "Admin") {
     return (
       <>
         <FacturasEmitidasView onBack={() => setView("resultados")} />
@@ -213,7 +248,7 @@ function App() {
     );
   }
 
-  if (view === "apertura" && aperturaPendiente && user) {
+  if (view === "apertura" && aperturaPendiente && user?.rol === "cajero") {
     return (
       <>
         <AperturaView usuarioActual={user} caja={cajaApertura} />
@@ -222,7 +257,7 @@ function App() {
     );
   }
 
-  if (view === "puntoDeVenta") {
+  if (view === "puntoDeVenta" && user?.rol === "cajero") {
     return (
       <>
         <PuntoDeVentaView setView={setView} />
@@ -231,13 +266,16 @@ function App() {
     );
   }
 
-  if (view === "cierreadmin") {
+  if (view === "cierreadmin" && user?.rol === "Admin") {
     return <CierresAdminView onVolver={() => setView("admin")} />;
   }
 
+  // Vista por defecto (home) - puedes agregar un componente Home si existe
   return (
     <div style={{ textAlign: "center", marginTop: 40 }}>
       {/* Elementos de bienvenida, código y cerrar sesión ocultos globalmente */}
+      <p>Bienvenido, {user?.nombre}. Selecciona una opción.</p>
+      <button onClick={handleLogout}>Cerrar Sesión</button>
     </div>
   );
 }

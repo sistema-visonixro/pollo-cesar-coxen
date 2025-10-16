@@ -6,6 +6,7 @@ interface Usuario {
   codigo: string;
   clave: string;
   rol: string;
+  caja?: string;
   ip?: string;
 }
 
@@ -18,6 +19,16 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [form, setForm] = useState<Partial<Usuario>>({});
+  // Lista de cajas sugeridas (puedes modificar o cargar dinámicamente)
+  const cajasDisponibles = [
+    "LOCAL1",
+    "LOCAL2",
+    "caja1",
+    "caja2",
+    "caja3",
+    "caja4",
+    "caja5"
+  ];
   const [editId, setEditId] = useState<string | null>(null);
 
   const API_URL = "https://zyziaizfmfvtibhpqwda.supabase.co/rest/v1/usuarios";
@@ -45,24 +56,20 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
 
   // ✅ CORREGIDO: Cálculos de límites (DESPUÉS de hooks)
   const totalUsuarios = usuarios.length;
-  const adminCount = usuarios.filter((u) => u.rol === "Admin").length;
-  const subAdminCount = usuarios.filter((u) => u.rol === "sub-Admin").length;
+  const adminCount = usuarios.filter((u) => u.rol === "admin").length;
   const cajeroCount = usuarios.filter((u) => u.rol === "cajero").length;
 
   const limiteTotal = totalUsuarios >= 6;
   const limiteAdmin = form.rol === "admin" && adminCount >= 1;
-  const limiteSubAdmin = form.rol === "sub-Admin" && subAdminCount >= 1;
-  const limiteCajero = form.rol === "cajero" && cajeroCount >= 4;
-  const limitePorRol = limiteAdmin || limiteSubAdmin || limiteCajero;
+  const limiteCajero = form.rol === "cajero" && cajeroCount >= 5;
+  const limitePorRol = limiteAdmin || limiteCajero;
 
   const errorLimite = limiteTotal
     ? "No se pueden agregar más de 6 usuarios."
     : limiteAdmin
     ? "Solo puede haber 1 usuario admin."
-    : limiteSubAdmin
-    ? "Solo puede haber 1 usuario sub-Admin."
     : limiteCajero
-    ? "Solo puede haber 4 cajeros."
+    ? "Solo puede haber 5 cajeros."
     : "";
 
   // Crear o editar usuario
@@ -435,7 +442,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
             <div className="stat-label">Administradores</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{subAdminCount}</div>
+            {/* Eliminado subAdminCount, ya no existe sub-admin */}
             <div className="stat-label">Sub-Administradores</div>
           </div>
           <div className="stat-card">
@@ -457,9 +464,11 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
             <table className="table">
               <thead>
                 <tr>
+                  <th>ID</th>
                   <th>Nombre</th>
                   <th>Código</th>
                   <th>Rol</th>
+                  <th>Caja</th>
                   <th>IP</th>
                   <th>Acciones</th>
                 </tr>
@@ -467,9 +476,8 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
               <tbody>
                 {usuarios.map((u) => (
                   <tr key={u.id}>
-                    <td>
-                      <strong>{u.nombre}</strong>
-                    </td>
+                    <td style={{ color: '#43a047', fontWeight: 700 }}>{u.id}</td>
+                    <td><strong>{u.nombre}</strong></td>
                     <td>{u.codigo}</td>
                     <td
                       style={{
@@ -483,6 +491,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                     >
                       {u.rol}
                     </td>
+                    <td style={{ color: '#43a047', fontWeight: 700 }}>{u.caja || '-'}</td>
                     <td>{u.ip || "-"}</td>
                     <td>
                       <button
@@ -520,6 +529,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                 setForm((f) => ({ ...f, nombre: e.target.value }))
               }
               required
+              style={{ color: '#43a047', fontWeight: 700 }}
             />
             <input
               className="form-input"
@@ -530,6 +540,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                 setForm((f) => ({ ...f, codigo: e.target.value }))
               }
               required
+              style={{ color: '#43a047', fontWeight: 700 }}
             />
             <input
               className="form-input"
@@ -540,15 +551,30 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                 setForm((f) => ({ ...f, clave: e.target.value }))
               }
               required
+              style={{ color: '#43a047', fontWeight: 700 }}
             />
             <select
               className="form-input"
               value={form.rol || "cajero"}
               onChange={(e) => setForm((f) => ({ ...f, rol: e.target.value }))}
+              style={{ color: '#43a047', fontWeight: 700 }}
             >
-              <option value="cajero">Cajero</option>
-              <option value="sub-Admin">Sub-Administrador</option>
-              <option value="admin">Administrador</option>
+              {/* Solo mostrar cajero si hay menos de 5 cajeros */}
+              {cajeroCount < 5 && <option value="cajero">Cajero</option>}
+              {/* Solo mostrar admin si no existe uno */}
+              {adminCount === 0 && <option value="admin">Administrador</option>}
+            </select>
+            <select
+              className="form-input"
+              value={form.caja || ""}
+              onChange={e => setForm(f => ({ ...f, caja: e.target.value }))}
+              required
+              style={{ color: '#43a047', fontWeight: 700 }}
+            >
+              <option value="">Selecciona caja</option>
+              {cajasDisponibles.map(caja => (
+                <option key={caja} value={caja}>{caja}</option>
+              ))}
             </select>
             <input
               className="form-input"

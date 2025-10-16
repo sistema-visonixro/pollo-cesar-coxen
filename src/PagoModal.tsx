@@ -56,6 +56,7 @@ const PagoModal: React.FC<PagoModalProps> = ({
       tarjeta: tarjeta || null,
       factura: factura || null,
       cajero: usuarioActual?.nombre || null,
+      cajero_id: usuarioActual?.id || null,
       cliente: cliente || null,
       factura_venta: factura_venta || null,
     };

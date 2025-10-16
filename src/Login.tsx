@@ -20,7 +20,7 @@ export default function Login({ onLogin }: LoginProps) {
     setError("");
     try {
       const res = await fetch(
-        "https://zyziaizfmfvtibhpqwda.supabase.co/rest/v1/usuarios?select=*",
+          "https://zyziaizfmfvtibhpqwda.supabase.co/rest/v1/usuarios?select=*",
         {
           headers: {
             apikey:
@@ -67,11 +67,13 @@ export default function Login({ onLogin }: LoginProps) {
             return;
           }
         }
-        setShowSplash(true);
-        setTimeout(() => {
-          onLogin(user);
-          window.location.reload();
-        }, 2000);
+          setShowSplash(true);
+          setTimeout(() => {
+            // Guardar id, usuario, rol y caja en localStorage
+            localStorage.setItem("usuario", JSON.stringify({ id: user.id, usuario: user.nombre, rol: user.rol, caja: user.caja }));
+            onLogin(user);
+            window.location.reload();
+          }, 2000);
       } else {
         setError("Credenciales incorrectas");
       }

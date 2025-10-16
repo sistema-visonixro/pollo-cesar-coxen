@@ -20,10 +20,28 @@ export default function ResultadosView({ onBack, onVerFacturasEmitidas }: Result
   const [ventasMensuales, setVentasMensuales] = useState<any[]>([]);
   const [balance, setBalance] = useState(0);
   const [mesFiltro, setMesFiltro] = useState('');
+  // Obtener usuario actual de localStorage
+  const usuarioActual = (() => {
+    try {
+      const stored = localStorage.getItem('usuario');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   useEffect(() => {
     fetchDatos();
   }, [desde, hasta]);
+
+  // Si el usuario no es admin, mostrar mensaje y bloquear acceso
+  if (!usuarioActual || usuarioActual.rol !== 'admin') {
+    return (
+      <div style={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a2e', color: '#fff', fontSize: 24, fontWeight: 700 }}>
+        Acceso restringido: solo administradores pueden ver el dashboard financiero.
+      </div>
+    );
+  }
 
   async function fetchDatos() {
     try {

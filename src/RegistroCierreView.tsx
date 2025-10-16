@@ -49,7 +49,7 @@ export default function RegistroCierreView({
       .from("pagos")
       .select("monto, fecha_hora")
       .eq("tipo", "Efectivo")
-      .eq("cajero", usuarioActual?.nombre)
+      .eq("cajero_id", usuarioActual?.id)
       .gte("fecha_hora", desde)
       .lte("fecha_hora", hasta);
     const efectivoDia = pagosEfectivo
@@ -60,7 +60,7 @@ export default function RegistroCierreView({
       .from("pagos")
       .select("monto, fecha_hora")
       .eq("tipo", "Tarjeta")
-      .eq("cajero", usuarioActual?.nombre)
+      .eq("cajero_id", usuarioActual?.id)
       .gte("fecha_hora", desde)
       .lte("fecha_hora", hasta);
     const tarjetaDia = pagosTarjeta
@@ -71,7 +71,7 @@ export default function RegistroCierreView({
       .from("pagos")
       .select("monto, fecha_hora")
       .eq("tipo", "Transferencia")
-      .eq("cajero", usuarioActual?.nombre)
+      .eq("cajero_id", usuarioActual?.id)
       .gte("fecha_hora", desde)
       .lte("fecha_hora", hasta);
     const transferenciasDia = pagosTrans
@@ -88,13 +88,13 @@ export default function RegistroCierreView({
     const hoy = new Date().toISOString().slice(0, 10);
     // Verificar si ya existe apertura hoy SOLO si se está registrando apertura
     const { data: aperturasHoy } = await supabase
-      .from("cierres")
-      .select("id")
-      .eq("tipo_registro", "apertura")
-      .eq("cajero", usuarioActual?.nombre)
-      .eq("caja", caja)
-      .gte("fecha", hoy + "T00:00:00")
-      .lte("fecha", hoy + "T23:59:59");
+  .from("cierres")
+  .select("id")
+  .eq("tipo_registro", "apertura")
+  .eq("cajero_id", usuarioActual?.id)
+  .eq("caja", caja)
+  .gte("fecha", hoy + "T00:00:00")
+  .lte("fecha", hoy + "T23:59:59");
     if (
       fondoFijo &&
       !efectivo &&
@@ -111,13 +111,13 @@ export default function RegistroCierreView({
     }
     // Verificar si ya existe cierre hoy
     const { data: cierresHoy } = await supabase
-      .from("cierres")
-      .select("id")
-      .eq("tipo_registro", "cierre")
-      .eq("cajero", usuarioActual?.nombre)
-      .eq("caja", caja)
-      .gte("fecha", hoy + "T00:00:00")
-      .lte("fecha", hoy + "T23:59:59");
+  .from("cierres")
+  .select("id")
+  .eq("tipo_registro", "cierre")
+  .eq("cajero_id", usuarioActual?.id)
+  .eq("caja", caja)
+  .gte("fecha", hoy + "T00:00:00")
+  .lte("fecha", hoy + "T23:59:59");
     if (
       cierresHoy &&
       cierresHoy.length > 0 &&
@@ -146,29 +146,72 @@ export default function RegistroCierreView({
       } else {
         observacion = "sin aclarar";
       }
-      const cierre = {
-        tipo_registro: "cierre",
-        cajero: usuarioActual?.nombre,
-        caja,
-        fecha: new Date().toISOString(),
-        fondo_fijo_registrado: parseFloat(fondoFijo),
-        fondo_fijo: fondoFijoDia,
-        efectivo_registrado: parseFloat(efectivo),
-        efectivo_dia: efectivoDia,
-        monto_tarjeta_registrado: parseFloat(tarjeta),
-        monto_tarjeta_dia: tarjetaDia,
-        transferencias_registradas: parseFloat(transferencias),
-        transferencias_dia: transferenciasDia,
-        diferencia,
-        observacion,
+      // Determinar si es apertura o cierre
+      type Registro = {
+        tipo_registro: string;
+        cajero: string;
+        cajero_id: string;
+        caja: string;
+        fecha: string;
+        fondo_fijo_registrado: number;
+        fondo_fijo: number;
+        efectivo_registrado: number;
+        efectivo_dia: number;
+        monto_tarjeta_registrado: number;
+        monto_tarjeta_dia: number;
+        transferencias_registradas: number;
+        transferencias_dia: number;
+        diferencia: number;
+        observacion: string;
       };
-      const { error } = await supabase.from("cierres").insert([cierre]);
+
+      let registro: Registro;
+      if (fondoFijo && !efectivo && !tarjeta && !transferencias) {
+        // APERTURA
+        registro = {
+          tipo_registro: "apertura",
+          cajero: usuarioActual?.nombre,
+          cajero_id: usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
+          caja,
+          fecha: new Date().toISOString(),
+          fondo_fijo_registrado: parseFloat(fondoFijo),
+          fondo_fijo: fondoFijoDia,
+          efectivo_registrado: 0,
+          efectivo_dia: 0,
+          monto_tarjeta_registrado: 0,
+          monto_tarjeta_dia: 0,
+          transferencias_registradas: 0,
+          transferencias_dia: 0,
+          diferencia: 0,
+          observacion: "apertura",
+        };
+      } else {
+        // CIERRE
+        registro = {
+          tipo_registro: "cierre",
+          cajero: usuarioActual?.nombre,
+          cajero_id: usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
+          caja,
+          fecha: new Date().toISOString(),
+          fondo_fijo_registrado: parseFloat(fondoFijo),
+          fondo_fijo: fondoFijoDia,
+          efectivo_registrado: parseFloat(efectivo),
+          efectivo_dia: efectivoDia,
+          monto_tarjeta_registrado: parseFloat(tarjeta),
+          monto_tarjeta_dia: tarjetaDia,
+          transferencias_registradas: parseFloat(transferencias),
+          transferencias_dia: transferenciasDia,
+          diferencia,
+          observacion,
+        };
+      }
+      const { error } = await supabase.from("cierres").insert([registro]);
       setLoading(false);
       if (error) {
         alert("Error al guardar: " + error.message);
       } else {
         // Si la diferencia es distinta de 0, redirigir a resultadosCaja
-        if (cierre.diferencia !== 0 && typeof onCierreGuardado === "function") {
+        if (registro.diferencia !== 0 && typeof onCierreGuardado === "function") {
           onCierreGuardado();
         } else if (typeof onCierreGuardado === "function") {
           onCierreGuardado();

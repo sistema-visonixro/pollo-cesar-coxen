@@ -3,7 +3,7 @@ import FondoImagen from "./FondoImagen";
 import { supabase } from "./supabaseClient";
 
 interface AperturaViewProps {
-  usuarioActual: { nombre: string } | null;
+  usuarioActual: { id: string; nombre: string } | null;
   caja: string | null;
 }
 
@@ -47,6 +47,7 @@ export default function AperturaView({
       {
         tipo_registro: "apertura",
         cajero: usuarioActual?.nombre,
+        cajero_id: usuarioActual?.id,
         caja,
         fondo_fijo_registrado: parseFloat(fondoFijo),
         fondo_fijo: 0,
@@ -106,6 +107,26 @@ export default function AperturaView({
           onClick={() => setShowModal(true)}
         >
           Registrar Apertura
+        </button>
+        <button
+          style={{
+            fontSize: 18,
+            padding: "12px 32px",
+            borderRadius: 12,
+            background: "#c62828",
+            color: "#fff",
+            fontWeight: 700,
+            border: "none",
+            boxShadow: "0 2px 8px #c6282822",
+            cursor: "pointer",
+            marginBottom: 16,
+          }}
+          onClick={() => {
+            localStorage.clear();
+            window.location.href = "/login";
+          }}
+        >
+          Cerrar sesión
         </button>
         {showModal && (
           <div
