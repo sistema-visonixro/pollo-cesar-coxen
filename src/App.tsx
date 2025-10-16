@@ -245,7 +245,7 @@ function App() {
 
   return (
     <div style={{ textAlign: "center", marginTop: 40 }}>
-  {/* Elementos de bienvenida, código y cerrar sesión ocultos globalmente */}
+      {/* Elementos de bienvenida, código y cerrar sesión ocultos globalmente */}
     </div>
   );
 }
