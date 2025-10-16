@@ -385,20 +385,18 @@ export default function ResultadosCajaView() {
                         );
                       }
                       if (correcto) {
-                        // Actualizar observacion y recargar automáticamente
+                        // Actualizar observacion SOLO del cierre del usuario actual y recargar automáticamente
                         (async () => {
                           const today = new Date();
                           const yyyy = today.getFullYear();
-                          const mm = String(today.getMonth() + 1).padStart(
-                            2,
-                            "0"
-                          );
+                          const mm = String(today.getMonth() + 1).padStart(2, "0");
                           const dd = String(today.getDate()).padStart(2, "0");
                           const fechaHoy = `${yyyy}-${mm}-${dd}`;
                           const { data: cierreHoy } = await supabase
                             .from("cierres")
                             .select("id")
                             .eq("tipo_registro", "cierre")
+                            .eq("cajero_id", usuarioActual.id)
                             .gte("fecha", fechaHoy + "T00:00:00")
                             .lte("fecha", fechaHoy + "T23:59:59")
                             .single();
@@ -406,7 +404,8 @@ export default function ResultadosCajaView() {
                             await supabase
                               .from("cierres")
                               .update({ observacion: "aclarado" })
-                              .eq("id", cierreHoy.id);
+                              .eq("id", cierreHoy.id)
+                              .eq("cajero_id", usuarioActual.id);
                           }
                           window.location.reload();
                         })();
