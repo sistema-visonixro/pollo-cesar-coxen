@@ -77,6 +77,15 @@ export default function PuntoDeVentaView({
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [seleccionados, setSeleccionados] = useState<Seleccion[]>([]);
+  // Cargar seleccionados desde localStorage al iniciar
+  useEffect(() => {
+    const stored = localStorage.getItem("seleccionados");
+    if (stored) {
+      try {
+        setSeleccionados(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<"comida" | "bebida">("comida");
@@ -210,12 +219,16 @@ export default function PuntoDeVentaView({
   const agregarProducto = (producto: Producto) => {
     setSeleccionados((prev) => {
       const existe = prev.find((p) => p.id === producto.id);
+      let nuevos;
       if (existe) {
-        return prev.map((p) =>
+        nuevos = prev.map((p) =>
           p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
         );
+      } else {
+        nuevos = [...prev, { ...producto, cantidad: 1, tipo: producto.tipo }];
       }
-      return [...prev, { ...producto, cantidad: 1, tipo: producto.tipo }];
+      localStorage.setItem("seleccionados", JSON.stringify(nuevos));
+      return nuevos;
     });
   };
 
@@ -235,6 +248,7 @@ export default function PuntoDeVentaView({
   // Clear all selected products
   const limpiarSeleccion = () => {
     setSeleccionados([]);
+    localStorage.removeItem("seleccionados");
   };
 
   // Calculate total
@@ -622,7 +636,7 @@ export default function PuntoDeVentaView({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                gridTemplateColumns: "repeat(4, 1fr)",
                 gap: 28,
                 maxHeight: "60vh",
                 overflowY: "auto",

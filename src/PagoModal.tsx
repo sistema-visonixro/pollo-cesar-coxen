@@ -33,6 +33,8 @@ const PagoModal: React.FC<PagoModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  // Detectar tema actual
+  const theme = localStorage.getItem("theme") || "lite";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +127,7 @@ const PagoModal: React.FC<PagoModalProps> = ({
                 fontSize: 16,
                 marginBottom: 8,
                 display: "block",
+                color: theme === "dark" ? "#43a047" : undefined,
               }}
             >
               Tipo de pago:
@@ -168,7 +171,9 @@ const PagoModal: React.FC<PagoModalProps> = ({
           </div>
           <div>
             <label style={{ fontWeight: 700, fontSize: 16 }}>
-              Monto (total pedido):
+              <span style={{ color: theme === "dark" ? "#43a047" : undefined }}>
+                Monto (total pedido):
+              </span>
             </label>
             <div
               style={{
@@ -188,7 +193,15 @@ const PagoModal: React.FC<PagoModalProps> = ({
             </div>
           </div>
           <div>
-            <label style={{ fontWeight: 700, fontSize: 16 }}>Recibido:</label>
+            <label
+              style={{
+                fontWeight: 700,
+                fontSize: 16,
+                color: theme === "dark" ? "#43a047" : undefined,
+              }}
+            >
+              Recibido:
+            </label>
             <input
               type="number"
               step="0.01"
@@ -206,7 +219,15 @@ const PagoModal: React.FC<PagoModalProps> = ({
             />
           </div>
           <div>
-            <label style={{ fontWeight: 700, fontSize: 16 }}>Cambio:</label>
+            <label
+              style={{
+                fontWeight: 700,
+                fontSize: 16,
+                color: theme === "dark" ? "#43a047" : undefined,
+              }}
+            >
+              Cambio:
+            </label>
             <input
               type="number"
               value={
@@ -229,7 +250,13 @@ const PagoModal: React.FC<PagoModalProps> = ({
           {(tipo === "Tarjeta" || tipo === "Transferencia") && (
             <>
               <div>
-                <label style={{ fontWeight: 700, fontSize: 16 }}>
+                <label
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 16,
+                    color: theme === "dark" ? "#43a047" : undefined,
+                  }}
+                >
                   Referencia:
                 </label>
                 <input
