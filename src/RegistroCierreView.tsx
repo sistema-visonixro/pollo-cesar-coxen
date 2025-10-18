@@ -23,6 +23,8 @@ export default function RegistroCierreView({
   const [transferencias, setTransferencias] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const [drawerMessage, setDrawerMessage] = useState<string | null>(null);
 
   // Calcular valores automáticos
   async function obtenerValoresAutomaticos() {
@@ -342,24 +344,63 @@ export default function RegistroCierreView({
             marginBottom: 2,
           }}
         />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            background: "#1976d2",
-            color: "#fff",
-            borderRadius: 8,
-            border: "none",
-            padding: "12px 0",
-            fontWeight: 700,
-            fontSize: 20,
-            cursor: "pointer",
-            marginTop: 10,
-            boxShadow: "0 2px 8px #1976d222",
-          }}
-        >
-          {loading ? "Guardando..." : "Guardar cierre"}
-        </button>
+        <div style={{ display: 'flex', gap: 12, marginTop: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                setDrawerLoading(true);
+                setDrawerMessage(null);
+                const { default: qz } = await import("./qz");
+                if (!qz || typeof qz.openCashDrawer !== 'function') {
+                  throw new Error('QZ Tray no disponible');
+                }
+                await qz.openCashDrawer();
+                setDrawerMessage('Gaveta abierta');
+              } catch (err: any) {
+                console.error('Error abriendo gaveta:', err);
+                setDrawerMessage('Error al abrir gaveta');
+              } finally {
+                setDrawerLoading(false);
+                setTimeout(() => setDrawerMessage(null), 3000);
+              }
+            }}
+            disabled={drawerLoading}
+            style={{
+              background: drawerLoading ? '#bdbdbd' : '#fbc02d',
+              color: '#333',
+              borderRadius: 8,
+              border: 'none',
+              padding: '12px 16px',
+              fontWeight: 700,
+              fontSize: 16,
+              cursor: drawerLoading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 2px 8px #fbc02d33',
+            }}
+          >
+            {drawerLoading ? 'Abriendo...' : 'Abrir gaveta'}
+          </button>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              background: '#1976d2',
+              color: '#fff',
+              borderRadius: 8,
+              border: 'none',
+              padding: '12px 0',
+              fontWeight: 700,
+              fontSize: 20,
+              cursor: 'pointer',
+              flex: 1,
+              boxShadow: '0 2px 8px #1976d222',
+            }}
+          >
+            {loading ? 'Guardando...' : 'Guardar cierre'}
+          </button>
+        </div>
+        {drawerMessage && <div style={{ marginTop: 8, fontWeight: 700 }}>{drawerMessage}</div>}
         {error && <div style={{ color: "red", fontWeight: 600 }}>{error}</div>}
         {loading && (
           <div style={{ marginTop: 18, textAlign: "center" }}>

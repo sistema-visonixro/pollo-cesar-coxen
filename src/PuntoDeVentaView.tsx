@@ -74,6 +74,7 @@ export default function PuntoDeVentaView({
     cai: string;
   } | null>(null);
   const online = navigator.onLine;
+  const [printerConnected, setPrinterConnected] = useState<boolean | null>(null);
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [seleccionados, setSeleccionados] = useState<Seleccion[]>([]);
@@ -215,6 +216,53 @@ export default function PuntoDeVentaView({
     };
   }, []);
 
+  // Consultar estado de QZ Tray (impresora) al montar y cuando cambie la conectividad
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { default: qz } = await import("./qz");
+        if (!mounted) return;
+        if (qz && typeof qz.status === "function") {
+          const st = await qz.status();
+          if (!mounted) return;
+          setPrinterConnected(!!st.connected);
+        } else if (qz && typeof qz.isAvailable === "function") {
+          setPrinterConnected(!!qz.isAvailable());
+        } else {
+          setPrinterConnected(false);
+        }
+      } catch (err) {
+        setPrinterConnected(false);
+      }
+    })();
+    // Re-evaluar cuando cambie el estado online (por si QZ se conecta en la misma máquina)
+    const onOnline = () => {
+      (async () => {
+        try {
+          const { default: qz } = await import("./qz");
+          if (qz && typeof qz.status === "function") {
+            const st = await qz.status();
+            setPrinterConnected(!!st.connected);
+          } else if (qz && typeof qz.isAvailable === "function") {
+            setPrinterConnected(!!qz.isAvailable());
+          } else {
+            setPrinterConnected(false);
+          }
+        } catch (err) {
+          setPrinterConnected(false);
+        }
+      })();
+    };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOnline);
+    return () => {
+      mounted = false;
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOnline);
+    };
+  }, [online]);
+
   // Add product to selection
   const agregarProducto = (producto: Producto) => {
     setSeleccionados((prev) => {
@@ -315,6 +363,12 @@ export default function PuntoDeVentaView({
         >
           {online ? "Conectado" : "Sin conexión"}
         </span>
+          {/* Indicador de impresora QZ Tray */}
+          <div style={{ display: "flex", flexDirection: "column", marginLeft: 8 }}>
+            <span style={{ fontSize: 12, color: printerConnected ? "#388e3c" : (printerConnected === null ? "#999" : "#d32f2f"), fontWeight: 700 }}>
+              {printerConnected === null ? "Impresora: desconocida" : printerConnected ? "Impresora conectada" : "Impresora no conectada"}
+            </span>
+          </div>
       </div>
       {/* Botón cerrar sesión, volver y interruptor de tema */}
       <div
@@ -608,13 +662,51 @@ export default function PuntoDeVentaView({
                 </body>
               </html>
             `;
-            const printWindow = window.open("", "", "height=800,width=400");
-            if (printWindow) {
-              printWindow.document.write(printHtml);
-              printWindow.document.close();
-              printWindow.focus();
-              printWindow.print();
-              printWindow.close();
+            try {
+              // Intentar usar QZ Tray si está disponible
+              // Import dinámico para evitar problemas SSR y carga previa
+              const { default: qz } = await import("./qz");
+              if (qz && qz.isAvailable()) {
+                try {
+                  // Conectar si es necesario
+                  if (!qz.isConnected()) {
+                    await qz.connect();
+                  }
+                  // Enviar a imprimir via QZ Tray
+                  await qz.printHTML(printHtml);
+                } catch (err) {
+                  console.error("Error imprimiendo con QZ Tray:", err);
+                  // Fallback a ventana de impresión del navegador
+                  const printWindow = window.open("", "", "height=800,width=400");
+                  if (printWindow) {
+                    printWindow.document.write(printHtml);
+                    printWindow.document.close();
+                    printWindow.focus();
+                    printWindow.print();
+                    printWindow.close();
+                  }
+                }
+              } else {
+                // Fallback si QZ no está cargado
+                const printWindow = window.open("", "", "height=800,width=400");
+                if (printWindow) {
+                  printWindow.document.write(printHtml);
+                  printWindow.document.close();
+                  printWindow.focus();
+                  printWindow.print();
+                  printWindow.close();
+                }
+              }
+            } catch (err) {
+              console.error("Error al intentar imprimir:", err);
+              const printWindow = window.open("", "", "height=800,width=400");
+              if (printWindow) {
+                printWindow.document.write(printHtml);
+                printWindow.document.close();
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+              }
             }
             // Guardar venta en la tabla 'facturas' con nuevos campos
             try {
