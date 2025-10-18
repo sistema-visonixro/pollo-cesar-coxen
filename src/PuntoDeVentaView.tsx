@@ -221,114 +221,18 @@ export default function PuntoDeVentaView({
     let mounted = true;
     (async () => {
       try {
-        console.debug('[qz-diagnostico] Comprobando window.qz...');
-        // Mostrar objeto window.qz si existe
-        // @ts-ignore
-        console.debug('window.qz =>', globalThis.qz);
-
         const { default: qz } = await import("./qz");
         if (!mounted) return;
-
-        // Helper: probar WebSocket directo a un host:port
-        const probeWs = (url: string, timeout = 1500) =>
-          new Promise<boolean>((resolve) => {
-            let done = false;
-            let ws: WebSocket | null = null;
-            try {
-              ws = new WebSocket(url);
-            } catch (e) {
-              resolve(false);
-              return;
-            }
-            const timer = setTimeout(() => {
-              if (ws) try { ws.close(); } catch {}
-              if (!done) {
-                done = true;
-                resolve(false);
-              }
-            }, timeout);
-            ws.onopen = () => {
-              if (!done) {
-                done = true;
-                clearTimeout(timer);
-                try { ws && ws.close(); } catch {}
-                resolve(true);
-              }
-            };
-            ws.onerror = () => {
-              if (!done) {
-                done = true;
-                clearTimeout(timer);
-                try { ws && ws.close(); } catch {}
-                resolve(false);
-              }
-            };
-          });
-
-        // Si qz tiene status/isActive, usarlo primero
         if (qz && typeof qz.status === "function") {
-          try {
-            const st = await qz.status();
-            if (!mounted) return;
-            console.debug('[qz-diagnostico] qz.status =>', st);
-            if (st && st.connected) {
-              setPrinterConnected(true);
-              return;
-            }
-          } catch (e) {
-            console.debug('[qz-diagnostico] qz.status error', e);
-          }
+          const st = await qz.status();
+          if (!mounted) return;
+          setPrinterConnected(!!st.connected);
+        } else if (qz && typeof qz.isAvailable === "function") {
+          setPrinterConnected(!!qz.isAvailable());
+        } else {
+          setPrinterConnected(false);
         }
-
-        // Si llegamos aquí, qz no reportó conectado. Intentar usar isAvailable
-        if (qz && typeof qz.isAvailable === "function") {
-          try {
-            const avail = await qz.isAvailable();
-            console.debug('[qz-diagnostico] qz.isAvailable =>', avail);
-            if (avail) {
-              // aunque esté disponible, puede no estar conectado; intentar conectar o probe WS
-              // Intentar probe directo a puertos comunes
-            }
-          } catch (e) {
-            console.debug('[qz-diagnostico] qz.isAvailable error', e);
-          }
-        }
-
-        // Probar WebSocket directo a puertos comunes
-        const hostsToProbe = [
-          'ws://localhost:8181',
-          'ws://localhost:8182',
-          'wss://localhost:8181',
-          'wss://localhost:8182',
-        ];
-        for (const url of hostsToProbe) {
-          try {
-            const ok = await probeWs(url, 1500);
-            console.debug('[qz-diagnostico] probe', url, ok);
-            if (!mounted) return;
-            if (ok) {
-              setPrinterConnected(true);
-              return;
-            }
-          } catch (e) {
-            console.debug('[qz-diagnostico] probe error', url, e);
-          }
-        }
-
-        // Ultimo intento: si existe qz, preguntar si está disponible
-        if (qz && typeof qz.isAvailable === "function") {
-          try {
-            const avail2 = await qz.isAvailable();
-            setPrinterConnected(!!avail2);
-            return;
-          } catch (e) {
-            console.debug('[qz-diagnostico] isAvailable final error', e);
-          }
-        }
-
-        setPrinterConnected(false);
       } catch (err) {
-        console.debug('[qz-diagnostico] error general', err);
         setPrinterConnected(false);
       }
     })();
@@ -462,7 +366,7 @@ export default function PuntoDeVentaView({
           {/* Indicador de impresora QZ Tray */}
           <div style={{ display: "flex", flexDirection: "column", marginLeft: 8 }}>
             <span style={{ fontSize: 12, color: printerConnected ? "#388e3c" : (printerConnected === null ? "#999" : "#d32f2f"), fontWeight: 700 }}>
-              {printerConnected === null ? "Impresora: desconocida" : printerConnected ? "QZ activo (Impresora conectada)" : "QZ inactivo (Impresora no conectada)"}
+              {printerConnected === null ? "Impresora: desconocida" : printerConnected ? "Impresora conectada" : "Impresora no conectada"}
             </span>
           </div>
       </div>

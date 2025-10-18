@@ -10,10 +10,10 @@
     <link rel="manifest" href="/manifest.json" />
   </head>
   <body>
-  <div id="root"></div>
-  <!-- QZ Tray script: prefer local if you host it in public/js, otherwise load from CDN -->
-  <script src="/src/qz.js"></script>
-  <script type="module" src="/src/main.tsx"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+<!-- Required scripts -->
+<script type="text/javascript" src="js/qz-tray.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
