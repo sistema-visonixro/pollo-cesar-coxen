@@ -378,6 +378,16 @@ export default function ResultadosView({
           margin-bottom: 2rem;
         }
 
+        /* Mobile adjustments: stack columns and make tables scrollable */
+        @media (max-width: 900px) {
+          .content-grid { grid-template-columns: 1fr; }
+          .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+          .table-card { padding: 1rem; }
+          .filters { padding: 1rem; gap: 1rem; }
+        }
+
+        .table-responsive { overflow-x: auto; }
+
         .table-container {
           background: rgba(255,255,255,0.05);
           border-radius: 12px;
@@ -419,6 +429,7 @@ export default function ResultadosView({
         .table {
           width: 100%;
           border-collapse: collapse;
+          min-width: 600px; /* permite scroll en pantallas estrechas */
         }
 
         .table th, .table td {
@@ -465,6 +476,32 @@ export default function ResultadosView({
           .filter-group { justify-content: center; }
           .main-content { padding: 1rem; }
           .header { padding: 1rem; flex-direction: column; gap: 1rem; }
+          /* tablas responsive: mostrar filas como tarjetas */
+          .table {
+            min-width: 0;
+          }
+          .table thead { display: none; }
+          .table tbody tr {
+            display: block;
+            margin-bottom: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 8px;
+          }
+          .table tbody td {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            border: none;
+          }
+          .table tbody td::before {
+            content: attr(data-label) ": ";
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-right: 8px;
+            flex: 0 0 50%;
+            text-align: left;
+          }
         }
       `}</style>
 
@@ -574,7 +611,8 @@ export default function ResultadosView({
                 )}
               </div>
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                <table className="table">
+                <div className="table-responsive">
+                  <table className="table">
                   <thead>
                     <tr>
                       <th>Fecha</th>
@@ -587,17 +625,18 @@ export default function ResultadosView({
                   <tbody>
                     {facturasFiltradas.slice(0, 10).map((f) => (
                       <tr key={f.id}>
-                        <td>{f.fecha_hora?.slice(0, 10)}</td>
-                        <td>{f.cajero}</td>
-                        <td>{f.factura}</td>
-                        <td>{f.cliente}</td>
-                        <td style={{ color: "var(--success)" }}>
+                        <td data-label="Fecha">{f.fecha_hora?.slice(0, 10)}</td>
+                        <td data-label="Cajero">{f.cajero}</td>
+                        <td data-label="Factura">{f.factura}</td>
+                        <td data-label="Cliente">{f.cliente}</td>
+                        <td data-label="Total" style={{ color: "var(--success)" }}>
                           L {parseFloat(f.total || 0).toFixed(2)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -608,7 +647,8 @@ export default function ResultadosView({
                 <h3 className="table-title">💸 Gastos</h3>
               </div>
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
-                <table className="table">
+                <div className="table-responsive">
+                  <table className="table">
                   <thead>
                     <tr>
                       <th>Fecha</th>
@@ -619,15 +659,16 @@ export default function ResultadosView({
                   <tbody>
                     {gastosFiltrados.slice(0, 10).map((g) => (
                       <tr key={g.id}>
-                        <td>{g.fecha}</td>
-                        <td style={{ color: "var(--danger)" }}>
+                        <td data-label="Fecha">{g.fecha}</td>
+                        <td data-label="Monto" style={{ color: "var(--danger)" }}>
                           L {parseFloat(g.monto || 0).toFixed(2)}
                         </td>
-                        <td>{g.motivo}</td>
+                        <td data-label="Motivo">{g.motivo}</td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                  </table>
+                </div>
               </div>
             </div>
           </div>

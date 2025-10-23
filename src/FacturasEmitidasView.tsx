@@ -101,17 +101,17 @@ export default function FacturasEmitidasView({ onBack }: FacturasEmitidasViewPro
 										onMouseEnter={e => (e.currentTarget.style.background = '#e3f0ff')}
 										onMouseLeave={e => (e.currentTarget.style.background = '')}
 									>
-										<td style={{ padding: 10 }}>{f.id}</td>
-										<td style={{ padding: 10 }}>{f.fecha_hora?.replace('T', ' ').slice(0, 19)}</td>
-										<td style={{ padding: 10 }}>{f.factura}</td>
-										<td style={{ padding: 10 }}>{f.cai}</td>
-										<td style={{ padding: 10 }}>{f.cajero}</td>
-										<td style={{ padding: 10 }}>{f.caja || ''}</td>
-										<td style={{ padding: 10 }}>{parseFloat(f.sub_total).toFixed(2)}</td>
-										<td style={{ padding: 10 }}>{parseFloat(f.isv_15).toFixed(2)}</td>
-										<td style={{ padding: 10 }}>{parseFloat(f.isv_18).toFixed(2)}</td>
-										<td style={{ padding: 10, fontWeight: 700, color: '#1976d2' }}>{parseFloat(f.total).toFixed(2)}</td>
-										<td style={{ padding: 10, maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#555' }}>
+										<td data-label="ID" style={{ padding: 10 }}>{f.id}</td>
+										<td data-label="Fecha/Hora" style={{ padding: 10 }}>{f.fecha_hora?.replace('T', ' ').slice(0, 19)}</td>
+										<td data-label="Factura" style={{ padding: 10 }}>{f.factura}</td>
+										<td data-label="CAI" style={{ padding: 10 }}>{f.cai}</td>
+										<td data-label="Cajero" style={{ padding: 10 }}>{f.cajero}</td>
+										<td data-label="Caja" style={{ padding: 10 }}>{f.caja || ''}</td>
+										<td data-label="Sub Total" style={{ padding: 10 }}>{parseFloat(f.sub_total).toFixed(2)}</td>
+										<td data-label="ISV 15%" style={{ padding: 10 }}>{parseFloat(f.isv_15).toFixed(2)}</td>
+										<td data-label="ISV 18%" style={{ padding: 10 }}>{parseFloat(f.isv_18).toFixed(2)}</td>
+										<td data-label="Total" style={{ padding: 10, fontWeight: 700, color: '#1976d2' }}>{parseFloat(f.total).toFixed(2)}</td>
+										<td data-label="Productos" style={{ padding: 10, maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#555' }}>
 											{(() => {
 												try {
 													const arr = JSON.parse(f.productos);
@@ -124,11 +124,11 @@ export default function FacturasEmitidasView({ onBack }: FacturasEmitidasViewPro
 												return '';
 											})()}
 										</td>
-										<td style={{ padding: 10 }}>{f.cliente}</td>
+										<td data-label="Cliente" style={{ padding: 10 }}>{f.cliente}</td>
 									</tr>
 								))}
 							</tbody>
-						</table>
+														</table>
 					)}
 				</div>
 				{onBack && (
@@ -197,6 +197,13 @@ export default function FacturasEmitidasView({ onBack }: FacturasEmitidasViewPro
 				@keyframes spin {
 					0% { transform: rotate(0deg); }
 					100% { transform: rotate(360deg); }
+				}
+				@media (max-width: 768px) {
+					table thead { display: none; }
+					table { min-width: 0; }
+					table tbody tr { display: block; margin-bottom: 12px; background: #fff; border-radius: 8px; padding: 8px; }
+					table tbody td { display: flex; justify-content: space-between; padding: 8px; border: none; }
+					table tbody td::before { content: attr(data-label) ": "; font-weight: 700; color: #1976d2; margin-right: 8px; flex: 0 0 45%; }
 				}
 			`}</style>
 		</div>
