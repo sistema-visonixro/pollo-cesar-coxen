@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { supabase } from "./supabaseClient";
+import { formatToHondurasLocal } from "./utils/fechas";
 
 export interface PagoModalProps {
   isOpen: boolean;
@@ -60,6 +61,9 @@ const PagoModal: React.FC<PagoModalProps> = ({
       cliente: cliente || null,
       factura_venta: factura_venta || null,
     };
+    // Registrar fecha/hora local de Honduras
+    // usar campo fecha_hora para consistencia con otras consultas
+    (pago as any).fecha_hora = formatToHondurasLocal();
     const { error } = await supabase.from("pagos").insert([pago]);
     setLoading(false);
     if (error) {

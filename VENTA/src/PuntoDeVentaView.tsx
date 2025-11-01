@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../src/supabaseClient';
+import { formatToHondurasLocal } from '../../src/utils/fechas';
 
 interface Producto {
   id: string;
@@ -622,9 +623,9 @@ export default function PuntoDeVentaView() {
                       }
                       const factura = facturaActual;
                       const venta = {
-                        fecha_hora: new Date().toISOString(),
+                        fecha_hora: formatToHondurasLocal(),
                         cajero: usuarioActual?.usuario || '',
-                        cajero_id: usuarioActual?.id || '',
+                        cajero_id: usuarioActual?.id || null,
                         caja: caiInfo?.caja_asignada || usuarioActual?.caja || '',
                         cai: caiInfo && caiInfo.cai ? caiInfo.cai : '',
                         factura,
@@ -712,8 +713,9 @@ export default function PuntoDeVentaView() {
                         }
                         const factura = facturaActual;
                         const venta = {
-                          fecha_hora: new Date().toISOString(),
+                          fecha_hora: formatToHondurasLocal(),
                           cajero: usuarioActual?.nombre || '',
+                          cajero_id: usuarioActual?.id || null,
                           caja: caiInfo?.caja_asignada || '',
                           cai: caiInfo && caiInfo.cai ? caiInfo.cai : '',
                           factura,

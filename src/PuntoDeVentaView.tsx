@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import PagoModal from "./PagoModal";
 import RegistroCierreView from "./RegistroCierreView";
 import { supabase } from "./supabaseClient";
-import { getLocalDayRange } from "./utils/fechas";
+import { getLocalDayRange, formatToHondurasLocal } from "./utils/fechas";
 
 interface Producto {
   id: string;
@@ -155,9 +155,23 @@ export default function PuntoDeVentaView({
   const [facturaActual, setFacturaActual] = useState<string>("");
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [showClienteModal, setShowClienteModal] = useState(false);
+  // Modal para envíos de pedido
+  const [showEnvioModal, setShowEnvioModal] = useState(false);
+  const [envioCliente, setEnvioCliente] = useState("");
+  const [envioCelular, setEnvioCelular] = useState("");
+  const [envioTipoPago, setEnvioTipoPago] = useState<"Efectivo" | "Tarjeta" | "Transferencia">("Efectivo");
+  const [envioCosto, setEnvioCosto] = useState<string>("0");
+  const [savingEnvio, setSavingEnvio] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [lastEnvioSaved, setLastEnvioSaved] = useState<any>(null);
   const [showNoConnectionModal, setShowNoConnectionModal] = useState(false);
   // Modal para registrar gasto
   const [showRegistrarGasto, setShowRegistrarGasto] = useState(false);
+  // Modal para listar pedidos del cajero
+  const [showPedidosModal, setShowPedidosModal] = useState(false);
+  const [pedidosList, setPedidosList] = useState<any[]>([]);
+  const [pedidosLoading, setPedidosLoading] = useState(false);
+  const [pedidosProcessingId, setPedidosProcessingId] = useState<number | null>(null);
   const [gastoMonto, setGastoMonto] = useState<string>("");
   const [gastoMotivo, setGastoMotivo] = useState<string>("");
   const [gastoFactura, setGastoFactura] = useState<string>("");
@@ -548,6 +562,35 @@ export default function PuntoDeVentaView({
         transition: "background 0.3s, color 0.3s",
       }}
     >
+      <style>{`
+        .form-input, .form-select {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 10px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 2px 6px rgba(16,24,40,0.04);
+          font-size: 14px;
+          transition: all 0.18s ease;
+          color: #0b1220;
+          appearance: none;
+        }
+        :where(.dark) .form-input, :where(.dark) .form-select {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          color: #e6eef8;
+          box-shadow: none;
+        }
+        .form-input::placeholder { color: #94a3b8; }
+        .form-input:focus, .form-select:focus {
+          outline: none;
+          border-color: #60a5fa;
+          box-shadow: 0 6px 20px rgba(37,99,235,0.12);
+          transform: translateY(-1px);
+        }
+        /* tamaños compactos para formularios dentro de modales */
+        .form-input.small { padding: 8px 10px; font-size: 13px; border-radius: 8px; }
+      `}</style>
       {/* Indicador de conexión */}
       <div
         style={{
@@ -820,6 +863,44 @@ export default function PuntoDeVentaView({
           >
             Registrar gasto
           </button>
+            <button
+              onClick={async () => {
+                // Abrir modal de pedidos del cajero
+                setShowPedidosModal(true);
+                setPedidosLoading(true);
+                try {
+                  const { data, error } = await supabase
+                    .from('pedidos_envio')
+                    .select('*')
+                    .eq('cajero_id', usuarioActual?.id)
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+                  if (!error) setPedidosList(data || []);
+                  else {
+                    console.error('Error cargando pedidos:', error);
+                    setPedidosList([]);
+                  }
+                } catch (e) {
+                  console.error(e);
+                  setPedidosList([]);
+                } finally {
+                  setPedidosLoading(false);
+                }
+              }}
+              style={{
+                fontSize: 16,
+                padding: '10px 22px',
+                borderRadius: 8,
+                background: '#388e3c',
+                color: '#fff',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                marginLeft: 12,
+              }}
+            >
+              Pedidos
+            </button>
         </div>
 
         {showCierre && (
@@ -1069,8 +1150,9 @@ export default function PuntoDeVentaView({
               }
               const factura = facturaActual;
               const venta = {
-                fecha_hora: new Date().toISOString(),
+                fecha_hora: formatToHondurasLocal(),
                 cajero: usuarioActual?.nombre || "",
+                cajero_id: usuarioActual?.id || null,
                 caja: caiInfo?.caja_asignada || "",
                 cai: caiInfo && caiInfo.cai ? caiInfo.cai : "",
                 factura,
@@ -1577,6 +1659,24 @@ export default function PuntoDeVentaView({
             >
               {checkingFactura ? "Verificando..." : "Confirmar Pedido"}
             </button>
+            <button
+              style={{
+                background: "#2e7d32",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 24px",
+                fontWeight: 600,
+                fontSize: 16,
+                cursor: "pointer",
+                marginLeft: 12,
+                opacity: seleccionados.length === 0 ? 0.5 : 1,
+              }}
+              disabled={seleccionados.length === 0}
+              onClick={() => setShowEnvioModal(true)}
+            >
+              pedido
+            </button>
           </div>
         </div>
       </div>
@@ -1659,6 +1759,235 @@ export default function PuntoDeVentaView({
           </div>
         </div>
       )}
+
+      {/* Modal para envío de pedido */}
+      {showEnvioModal && (
+        <div style={{ position: 'fixed', top:0, left:0, width:'100vw', height:'100vh', background: theme === 'lite' ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}>
+          <div style={{ background: theme === 'lite' ? '#fff' : '#1f2937', borderRadius:14, padding:18, minWidth:360, maxWidth:760, width: '92%', boxShadow: '0 12px 40px rgba(2,6,23,0.4)' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+              <h3 style={{ margin:0, color: theme === 'lite' ? '#1f2937' : '#f1f5f9', fontSize:18 }}>pedidos</h3>
+              <button onClick={()=> setShowEnvioModal(false)} style={{ background:'transparent', border:'none', color: theme === 'lite' ? '#374151' : '#cbd5e1', fontWeight:700, cursor:'pointer' }}>X</button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns: '1fr 320px', gap:16, alignItems:'start' }}>
+              <div>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ display:'block', fontSize:13, color: theme === 'lite' ? '#374151' : '#e6eef8', marginBottom:6 }}>Nombre del cliente</label>
+                    <input placeholder="Nombre cliente" value={envioCliente} onChange={e=>setEnvioCliente(e.target.value)} className="form-input" style={{ width:'100%' }} />
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ display:'block', fontSize:13, color: theme === 'lite' ? '#374151' : '#e6eef8', marginBottom:6 }}>Teléfono</label>
+                    <input placeholder="Número de teléfono" value={envioCelular} onChange={e=>setEnvioCelular(e.target.value)} className="form-input" style={{ width:'100%' }} />
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ display:'block', fontSize:13, color: theme === 'lite' ? '#374151' : '#e6eef8', marginBottom:6 }}>Tipo de pago</label>
+                    <select value={envioTipoPago} onChange={e=>setEnvioTipoPago(e.target.value as any)} className="form-input" style={{ width:'100%' }}>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Tarjeta">Tarjeta</option>
+                      <option value="Transferencia">Transferencia</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                  <div style={{ flex:1 }}>
+                    <label style={{ display:'block', fontSize:13, color: theme === 'lite' ? '#374151' : '#e6eef8', marginBottom:6 }}>Costo de envío (L)</label>
+                    <input type="number" step="0.01" value={envioCosto} onChange={e=>setEnvioCosto(e.target.value)} className="form-input" placeholder="0.00" style={{ width:'100%' }} />
+                  </div>
+                </div>
+                <div style={{ marginTop:6, fontSize:13, color: theme === 'lite' ? '#374151' : '#cbd5e1' }}>
+                  <small>Completa los campos del cliente antes de guardar. El botón "Guardar" imprimirá el recibo y la comanda automáticamente (si hay impresora configurada).</small>
+                </div>
+              </div>
+              <div style={{ background: theme === 'lite' ? '#f8fafc' : '#0b1220', borderRadius:10, padding:12, boxShadow: theme === 'lite' ? 'none' : '0 6px 18px rgba(0,0,0,0.6)' }}>
+                <div style={{ fontSize:13, color: theme === 'lite' ? '#374151' : '#e6eef8', marginBottom:8 }}>Resumen</div>
+                <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0' }}><div>Subtotal</div><div>L {total.toFixed(2)}</div></div>
+                <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0' }}><div>Costo envío</div><div>L {Number(envioCosto || 0).toFixed(2)}</div></div>
+                <div style={{ height:1, background: theme === 'lite' ? '#e6eef8' : '#12202e', margin:'8px 0' }} />
+                <div style={{ display:'flex', justifyContent:'space-between', fontWeight:800, fontSize:16 }}><div>Total</div><div>L {(total + Number(envioCosto || 0)).toFixed(2)}</div></div>
+                <div style={{ marginTop:12, display:'flex', gap:8, justifyContent:'flex-end' }}>
+                  <button onClick={()=> setShowEnvioModal(false)} className="btn-secondary" style={{ padding:'10px 14px' }}>Cancelar</button>
+                  <button onClick={async ()=>{
+                // Guardar pedido de envío
+                setSavingEnvio(true);
+                try {
+                  // determinar caja asignada
+                  let cajaAsignada = caiInfo?.caja_asignada;
+                  if (!cajaAsignada) {
+                    try {
+                      const { data: caiData } = await supabase.from('cai_facturas').select('caja_asignada').eq('cajero_id', usuarioActual?.id).single();
+                      cajaAsignada = caiData?.caja_asignada || '';
+                    } catch (e) { cajaAsignada = '' }
+                  }
+                  const productos = seleccionados.map(s=>({ id: s.id, nombre: s.nombre, precio: s.precio, cantidad: s.cantidad }));
+                  const registro = {
+                    productos,
+                    cajero_id: usuarioActual?.id,
+                    caja: cajaAsignada,
+                    fecha: formatToHondurasLocal(),
+                    cliente: envioCliente,
+                    celular: envioCelular,
+                    total: Number(total.toFixed(2)),
+                    costo_envio: parseFloat(envioCosto || '0'),
+                    tipo_pago: envioTipoPago,
+                  };
+                  const { error } = await supabase.from('pedidos_envio').insert([registro]);
+                  if (error) {
+                    console.error('Error insertando pedido de envío:', error);
+                    alert('Error al guardar pedido de envío');
+                  } else {
+                    setLastEnvioSaved(registro);
+                    setShowEnvioModal(false);
+                    // Imprimir usando la misma plantilla que recibo/comanda (intentar QZ Tray primero)
+                    try {
+                      const { data: etiquetaConfig } = await supabase
+                        .from('etiquetas_config')
+                        .select('*')
+                        .eq('nombre', 'default')
+                        .single();
+                      const { data: reciboConfig } = await supabase
+                        .from('recibo_config')
+                        .select('*')
+                        .eq('nombre', 'default')
+                        .single();
+
+                      const comandaHtml = `
+                        <div style='font-family:monospace; width:${etiquetaConfig?.etiqueta_ancho || 58}mm; margin:0; padding:${etiquetaConfig?.etiqueta_padding || 8}px;'>
+                          <div style='font-size:${etiquetaConfig?.etiqueta_fontsize || 20}px; font-weight:700; color:#388e3c; text-align:center; margin-bottom:6px;'>${etiquetaConfig?.etiqueta_comanda || 'COMANDA COCINA'}</div>
+                          <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${registro.cliente}</b></div>
+                          <ul style='list-style:none; padding:0; margin-bottom:0;'>
+                            ${registro.productos.map((p: any) => `<li style='font-size:${etiquetaConfig?.etiqueta_fontsize || 17}px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          </ul>
+                        </div>
+                      `;
+
+                      const comprobanteHtml = `
+                        <div style='font-family:monospace; width:${reciboConfig?.recibo_ancho || 58}mm; margin:0; padding:${reciboConfig?.recibo_padding || 8}px;'>
+                          <div style='font-size:${reciboConfig?.recibo_fontsize || 20}px; font-weight:700; color:#1976d2; text-align:center; margin-bottom:6px;'>${reciboConfig?.recibo_texto || 'RECIBO CLIENTE'}</div>
+                          <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${registro.cliente}</b></div>
+                          <ul style='list-style:none; padding:0; margin-bottom:0;'>
+                            ${registro.productos.map((p: any) => `<li style='font-size:${reciboConfig?.recibo_fontsize || 17}px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          </ul>
+                          <div style='font-weight:700; font-size:${Number(reciboConfig?.recibo_fontsize || 18) + 2}px; margin-top:12px; text-align:right;'>Subtotal: L ${registro.total.toFixed(2)}</div>
+                          <div style='font-weight:700; font-size:${Number(reciboConfig?.recibo_fontsize || 16)}px; margin-top:4px; text-align:right;'>Costo envío: L ${registro.costo_envio.toFixed(2)}</div>
+                          <div style='font-weight:800; font-size:${Number(reciboConfig?.recibo_fontsize || 18) + 2}px; margin-top:8px; text-align:right;'>Total: L ${(registro.total + registro.costo_envio).toFixed(2)}</div>
+                        </div>
+                      `;
+
+                      const printHtml = `
+                        <html>
+                          <head>
+                            <title>Recibo y Comanda</title>
+                            <style>
+                              @media print { .page-break { page-break-after: always; } }
+                              body { margin:0; padding:0; }
+                            </style>
+                          </head>
+                          <body>
+                            <div>${comprobanteHtml}</div>
+                            <div class='page-break'></div>
+                            <div>${comandaHtml}</div>
+                          </body>
+                        </html>
+                      `;
+
+                      // Intentar imprimir via QZ Tray
+                      try {
+                        const { default: qz } = await import('./qz');
+                        if (qz && qz.isAvailable()) {
+                          if (!qz.isConnected()) await qz.connect();
+                          await qz.printHTML(printHtml);
+                        } else {
+                          // Fallback a ventana de impresión del navegador
+                          const printWindow = window.open('', '', 'height=800,width=400');
+                          if (printWindow) {
+                            printWindow.document.write(printHtml);
+                            printWindow.document.close();
+                            printWindow.focus();
+                            printWindow.print();
+                            printWindow.close();
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Error imprimiendo pedido de envío:', err);
+                        const printWindow = window.open('', '', 'height=800,width=400');
+                        if (printWindow) {
+                          printWindow.document.write(printHtml);
+                          printWindow.document.close();
+                          printWindow.focus();
+                          printWindow.print();
+                          printWindow.close();
+                        }
+                      }
+
+                    } catch (err) {
+                      console.error('Error durante impresión de envío:', err);
+                    }
+                    // limpiar seleccionados
+                    limpiarSeleccion();
+                  }
+                } catch (e) {
+                  console.error(e);
+                  alert('Error al guardar pedido de envío');
+                } finally {
+                  setSavingEnvio(false);
+                }
+                  }} className="btn-primary" disabled={savingEnvio || !envioCliente || !envioCelular}>
+                    {savingEnvio ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de recibo para impresión */}
+      {showReceiptModal && lastEnvioSaved && (
+        <div style={{ position:'fixed', top:0, left:0, width:'100vw', height:'100vh', background:'#fff', zIndex:100000, padding:24, overflow:'auto' }}>
+          <div style={{ maxWidth:480, margin:'0 auto', fontFamily:'monospace' }}>
+            <h2 style={{ textAlign:'center', margin:0 }}>pollos cesar</h2>
+            <p style={{ textAlign:'center', marginTop:4 }}>{lastEnvioSaved.fecha}</p>
+            <hr />
+            <div>
+              <div><strong>Cajero:</strong> {usuarioActual?.nombre}</div>
+              <div><strong>Caja:</strong> {lastEnvioSaved.caja}</div>
+              <div><strong>Cliente:</strong> {lastEnvioSaved.cliente} - {lastEnvioSaved.celular}</div>
+              <div><strong>Pago:</strong> {lastEnvioSaved.tipo_pago}</div>
+            </div>
+            <hr />
+            <div>
+              {lastEnvioSaved.productos.map((p: any, idx: number)=> (
+                <div key={idx} style={{ display:'flex', justifyContent:'space-between' }}>
+                  <div>{p.nombre} x{p.cantidad}</div>
+                  <div>L {(p.precio * p.cantidad).toFixed(2)}</div>
+                </div>
+              ))}
+            </div>
+            <hr />
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div>Subtotal:</div>
+              <div>L {lastEnvioSaved.total.toFixed(2)}</div>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div>Costo envío:</div>
+              <div>L {lastEnvioSaved.costo_envio.toFixed(2)}</div>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:800, marginTop:8 }}>
+              <div>Total a pagar:</div>
+              <div>L {(lastEnvioSaved.total + lastEnvioSaved.costo_envio).toFixed(2)}</div>
+            </div>
+            <hr />
+            <div style={{ textAlign:'center', marginTop:12 }}>
+              <button onClick={()=> { setShowReceiptModal(false); window.print(); }} className="btn-primary">Imprimir</button>
+              <button onClick={()=> setShowReceiptModal(false)} style={{ marginLeft:12 }} className="btn-primary">Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showNoConnectionModal && (
         <div
           style={{
@@ -1702,6 +2031,162 @@ export default function PuntoDeVentaView({
               >
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pedidos del cajero */}
+      {showPedidosModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 120000,
+          }}
+          onClick={() => setShowPedidosModal(false)}
+        >
+          <div
+            style={{
+              background: theme === 'lite' ? '#fff' : '#232526',
+              borderRadius: 12,
+              padding: 16,
+              minWidth: 320,
+              maxWidth: 820,
+              maxHeight: '80vh',
+              overflow: 'auto',
+              color: theme === 'lite' ? '#222' : '#f5f5f5',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>Pedidos (últimos)</h3>
+              <button onClick={() => setShowPedidosModal(false)} className="btn-primary">Cerrar</button>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              {pedidosLoading ? (
+                <div style={{ textAlign: 'center', padding: 24 }}>Cargando...</div>
+              ) : pedidosList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 24 }}>No hay pedidos.</div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
+                      <th style={{ padding: '8px 6px' }}>Fecha</th>
+                      <th style={{ padding: '8px 6px' }}>Cliente</th>
+                      <th style={{ padding: '8px 6px' }}>Teléfono</th>
+                      <th style={{ padding: '8px 6px' }}>Total</th>
+                      <th style={{ padding: '8px 6px' }}>Envío</th>
+                      <th style={{ padding: '8px 6px' }}>Pago</th>
+                      <th style={{ padding: '8px 6px', textAlign: 'center' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pedidosList.map((p: any) => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f1f1' }}>
+                        <td style={{ padding: '8px 6px', maxWidth: 140 }}>{p.fecha}</td>
+                        <td style={{ padding: '8px 6px' }}>{p.cliente}</td>
+                        <td style={{ padding: '8px 6px' }}>{p.celular}</td>
+                        <td style={{ padding: '8px 6px' }}>L {Number(p.total || 0).toFixed(2)}</td>
+                        <td style={{ padding: '8px 6px' }}>L {Number(p.costo_envio || 0).toFixed(2)}</td>
+                        <td style={{ padding: '8px 6px' }}>{p.tipo_pago}</td>
+                        <td style={{ padding: '8px 6px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                            <button
+                              onClick={async () => {
+                                if (!confirm('¿Eliminar pedido?')) return;
+                                setPedidosProcessingId(p.id);
+                                try {
+                                  const { error } = await supabase.from('pedidos_envio').delete().eq('id', p.id);
+                                  if (error) throw error;
+                                  setPedidosList((prev) => prev.filter((x) => x.id !== p.id));
+                                } catch (err) {
+                                  console.error('Error eliminando pedido:', err);
+                                  alert('Error eliminando pedido');
+                                } finally {
+                                  setPedidosProcessingId(null);
+                                }
+                              }}
+                              disabled={pedidosProcessingId === p.id}
+                              style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}
+                            >
+                              {pedidosProcessingId === p.id ? '...' : 'Eliminar'}
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (facturaActual === 'Límite alcanzado') { alert('Límite de facturas alcanzado'); return; }
+                                if (!confirm('Marcar como entregado y registrar cobro?')) return;
+                                setPedidosProcessingId(p.id);
+                                try {
+                                  const productos = (p.productos || []).map((pp: any) => ({ id: pp.id, nombre: pp.nombre, precio: pp.precio, cantidad: pp.cantidad, tipo: pp.tipo || 'comida' }));
+                                  const subTotal = productos.reduce((sum: number, item: any) => {
+                                    if (item.tipo === 'comida') return sum + (item.precio / 1.15) * item.cantidad;
+                                    if (item.tipo === 'bebida') return sum + (item.precio / 1.18) * item.cantidad;
+                                    return sum + item.precio * item.cantidad;
+                                  }, 0);
+                                  const isv15 = productos.filter((it:any)=>it.tipo==='comida').reduce((s:number,it:any)=> s + (it.precio - it.precio / 1.15) * it.cantidad, 0);
+                                  const isv18 = productos.filter((it:any)=>it.tipo==='bebida').reduce((s:number,it:any)=> s + (it.precio - it.precio / 1.18) * it.cantidad, 0);
+                                  const venta = {
+                                    fecha_hora: formatToHondurasLocal(),
+                                    cajero: usuarioActual?.nombre || '',
+                                    caja: p.caja || caiInfo?.caja_asignada || '',
+                                    cai: caiInfo && caiInfo.cai ? caiInfo.cai : '',
+                                    factura: facturaActual,
+                                    cliente: p.cliente || null,
+                                    productos: JSON.stringify(productos),
+                                    sub_total: subTotal.toFixed(2),
+                                    isv_15: isv15.toFixed(2),
+                                    isv_18: isv18.toFixed(2),
+                                    total: Number(p.total || 0).toFixed(2),
+                                  };
+                                  const { error: errFact } = await supabase.from('facturas').insert([venta]);
+                                  if (errFact) throw errFact;
+                                  const pago = {
+                                    tipo: p.tipo_pago || 'Efectivo',
+                                    monto: Number(p.total || 0),
+                                    recibido: Number(p.total || 0),
+                                    cambio: 0,
+                                    referencia: null,
+                                    tarjeta: null,
+                                    fecha_hora: formatToHondurasLocal(),
+                                    factura: facturaActual,
+                                    cajero: usuarioActual?.nombre || null,
+                                    cajero_id: usuarioActual?.id || null,
+                                    cliente: p.cliente || null,
+                                    factura_venta: facturaActual,
+                                  };
+                                  const { error: errPago } = await supabase.from('pagos').insert([pago]);
+                                  if (errPago) throw errPago;
+                                  try { setFacturaActual((prev)=> prev && prev !== 'Límite alcanzado' ? (parseInt(prev)+1).toString() : prev); } catch {}
+                                  const { error: errDel } = await supabase.from('pedidos_envio').delete().eq('id', p.id);
+                                  if (errDel) throw errDel;
+                                  setPedidosList((prev) => prev.filter((x) => x.id !== p.id));
+                                } catch (err) {
+                                  console.error('Error procesando entrega y cobro:', err);
+                                  alert('Error procesando entrega y cobro');
+                                } finally {
+                                  setPedidosProcessingId(null);
+                                }
+                              }}
+                              disabled={pedidosProcessingId === p.id}
+                              style={{ background: '#388e3c', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: 8, cursor: 'pointer' }}
+                            >
+                              {pedidosProcessingId === p.id ? '...' : 'Entregado y Cobrado'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>
