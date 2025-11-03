@@ -26,6 +26,7 @@ export default function RegistroCierreView({
   const [error, setError] = useState("");
   // Gaveta eliminada: ya no usamos drawerLoading/drawerMessage
   const [aperturaLoading, setAperturaLoading] = useState(false);
+  const [aperturaExisteHoy, setAperturaExisteHoy] = useState(false);
 
   // Precargar fondo fijo desde la APERTURA de hoy si existe
   useEffect(() => {
@@ -48,10 +49,13 @@ export default function RegistroCierreView({
         if (error) {
           console.warn("Error buscando apertura de hoy:", error);
         } else if (aperturas && aperturas.length > 0) {
+          setAperturaExisteHoy(true);
           const val = aperturas[0].fondo_fijo_registrado;
           if ((val !== undefined && val !== null) && fondoFijo === "") {
             setFondoFijo(String(val));
           }
+        } else {
+          setAperturaExisteHoy(false);
         }
       } catch (err) {
         console.error("Error cargando apertura de hoy:", err);
@@ -155,6 +159,19 @@ export default function RegistroCierreView({
     e.preventDefault();
     setLoading(true);
     setError("");
+    // Validación cliente: evitar envíos si los campos no están completos
+    const fondoFijoFilled = fondoFijo.trim() !== "";
+    const efectivoFilled = efectivo.trim() !== "";
+    const tarjetaFilled = tarjeta.trim() !== "";
+    const transferenciasFilled = transferencias.trim() !== "";
+  const isApertura = fondoFijoFilled && !efectivoFilled && !tarjetaFilled && !transferenciasFilled && !aperturaExisteHoy;
+    const isCierreReady = fondoFijoFilled && efectivoFilled && tarjetaFilled && transferenciasFilled;
+    const showGuardar = isApertura || isCierreReady;
+    if (!showGuardar) {
+      setLoading(false);
+      setError("Complete los campos requeridos antes de guardar (fondo fijo y los montos de cierre).");
+      return;
+    }
   const { start, end } = getLocalDayRange();
     // Verificar si ya existe apertura hoy SOLO si se está registrando apertura
     const { data: aperturasHoy } = await supabase
@@ -337,6 +354,15 @@ export default function RegistroCierreView({
     }, 1000);
   };
 
+  // Validación visual en render: mostrar/ocultar botón y marcar required condicionalmente
+  const fondoFijoFilled = fondoFijo.trim() !== "";
+  const efectivoFilled = efectivo.trim() !== "";
+  const tarjetaFilled = tarjeta.trim() !== "";
+  const transferenciasFilled = transferencias.trim() !== "";
+  const isApertura = fondoFijoFilled && !efectivoFilled && !tarjetaFilled && !transferenciasFilled && !aperturaExisteHoy;
+  const isCierreReady = fondoFijoFilled && efectivoFilled && tarjetaFilled && transferenciasFilled;
+  const showGuardar = isApertura || isCierreReady;
+
   return (
     <div
       style={{
@@ -406,6 +432,8 @@ export default function RegistroCierreView({
           type="number"
           value={fondoFijo}
           onChange={(e) => setFondoFijo(e.target.value)}
+          required
+          placeholder="Ingrese el monto del fondo fijo"
           style={{
             padding: "10px",
             borderRadius: 8,
@@ -421,6 +449,8 @@ export default function RegistroCierreView({
           type="number"
           value={efectivo}
           onChange={(e) => setEfectivo(e.target.value)}
+          required={!isApertura}
+          placeholder="0.00"
           style={{
             padding: "10px",
             borderRadius: 8,
@@ -436,6 +466,8 @@ export default function RegistroCierreView({
           type="number"
           value={tarjeta}
           onChange={(e) => setTarjeta(e.target.value)}
+          required={!isApertura}
+          placeholder="0.00"
           style={{
             padding: "10px",
             borderRadius: 8,
@@ -451,6 +483,8 @@ export default function RegistroCierreView({
           type="number"
           value={transferencias}
           onChange={(e) => setTransferencias(e.target.value)}
+          required={!isApertura}
+          placeholder="0.00"
           style={{
             padding: "10px",
             borderRadius: 8,
@@ -460,24 +494,41 @@ export default function RegistroCierreView({
           }}
         />
         <div style={{ display: 'flex', gap: 12, marginTop: 10, alignItems: 'center' }}>
-          <button
-            type="submit"
-            disabled={loading || aperturaLoading}
-            style={{
-              background: '#1976d2',
-              color: '#fff',
-              borderRadius: 8,
-              border: 'none',
-              padding: '12px 0',
-              fontWeight: 700,
-              fontSize: 20,
-              cursor: 'pointer',
-              flex: 1,
-              boxShadow: '0 2px 8px #1976d222',
-            }}
-          >
-            {loading ? 'Guardando...' : 'Guardar cierre'}
-          </button>
+          {showGuardar ? (
+            <button
+              type="submit"
+              disabled={loading || aperturaLoading}
+              style={{
+                background: '#1976d2',
+                color: '#fff',
+                borderRadius: 8,
+                border: 'none',
+                padding: '12px 0',
+                fontWeight: 700,
+                fontSize: 20,
+                cursor: 'pointer',
+                flex: 1,
+                boxShadow: '0 2px 8px #1976d222',
+              }}
+            >
+              {loading ? 'Guardando...' : 'Guardar cierre'}
+            </button>
+          ) : (
+            <div
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                textAlign: 'center',
+                color: '#616161',
+                borderRadius: 8,
+                border: '1px dashed #e0e0e0',
+                background: '#fafafa',
+                fontWeight: 600,
+              }}
+            >
+              Rellene los campos requeridos para ver el botón
+            </div>
+          )}
         </div>
         {aperturaLoading && (
           <div style={{ marginTop: 8, fontSize: 13, color: '#1976d2' }}>Cargando apertura...</div>

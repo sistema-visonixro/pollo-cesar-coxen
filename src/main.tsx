@@ -8,3 +8,19 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// Escuchar mensajes desde el service worker para recargar automáticamente
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    try {
+      const data = event.data;
+      if (data && data.type === 'NEW_VERSION_AVAILABLE') {
+        // Forzar recarga para obtener la nueva versión desplegada
+        // Nota: recargar automáticamente puede interrumpir acciones en curso.
+        window.location.reload();
+      }
+    } catch (e) {
+      // ignorar
+    }
+  });
+}

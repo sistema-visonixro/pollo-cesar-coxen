@@ -17,13 +17,25 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   self.clients.claim();
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((k) => k !== CACHE_NAME)
-          .map((k) => caches.delete(k))
-      )
-    )
+    caches.keys().then((keys) => {
+      const toDelete = keys.filter((k) => k !== CACHE_NAME);
+      return Promise.all(toDelete.map((k) => caches.delete(k))).then((results) => {
+        // Si se eliminaron caches antiguos, avisar a los clientes que hay nueva versión
+        const removedAny = results.some(Boolean);
+        if (removedAny) {
+          return self.clients.matchAll({ type: 'window' }).then((clients) => {
+            clients.forEach((client) => {
+              try {
+                client.postMessage({ type: 'NEW_VERSION_AVAILABLE' });
+              } catch (e) {
+                // ignore
+              }
+            });
+          });
+        }
+        return Promise.resolve();
+      });
+    })
   );
 });
 
