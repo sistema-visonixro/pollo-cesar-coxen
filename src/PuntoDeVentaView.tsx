@@ -803,7 +803,7 @@ export default function PuntoDeVentaView({
               marginLeft: 12,
             }}
           >
-            Pedidos
+            Domicilios
           </button>
         </div>
 
@@ -1629,7 +1629,7 @@ export default function PuntoDeVentaView({
               disabled={seleccionados.length === 0}
               onClick={() => setShowEnvioModal(true)}
             >
-              pedido
+              Domicilio
             </button>
           </div>
         </div>
