@@ -9,6 +9,24 @@ function Root() {
   const [availableVersion, setAvailableVersion] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
+  // comprobar ahora: expuesto a window via evento
+  const checkNow = async () => {
+    try {
+      const res = await fetch('/version.json', { cache: 'no-store' });
+      if (!res.ok) return false;
+      const j = await res.json();
+      const ver = String(j.version || j?.ver || j?.v || '');
+      if (ver && ver !== currentVersion) {
+        setAvailableVersion(ver);
+        setShowModal(true);
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -45,6 +63,15 @@ function Root() {
       cancelled = true;
       clearInterval(interval);
     };
+  }, [currentVersion]);
+
+  // Listen for manual check events from the page
+  useEffect(() => {
+    const onCheck = async () => {
+      await checkNow();
+    };
+    window.addEventListener('app:check-update', onCheck as EventListener);
+    return () => window.removeEventListener('app:check-update', onCheck as EventListener);
   }, [currentVersion]);
 
   const confirmUpdate = async () => {

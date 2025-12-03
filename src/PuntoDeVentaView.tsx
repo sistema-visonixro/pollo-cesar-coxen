@@ -2414,8 +2414,15 @@ export default function PuntoDeVentaView({
 
       {/* Versión de la aplicación (texto pequeño en verde abajo) */}
       {appVersion && (
-        <div style={{ position: 'fixed', bottom: 10, left: 18, color: '#43a047', fontSize: 12, fontWeight: 700, zIndex: 12000 }}>
-          Versión: {appVersion}
+        <div style={{ position: 'fixed', bottom: 10, left: 18, color: '#43a047', fontSize: 12, fontWeight: 700, zIndex: 12000, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span>Versión: {appVersion}</span>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('app:check-update'))}
+            style={{ background: 'transparent', border: 'none', color: '#2e7d32', fontSize: 12, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}
+            title="Buscar actualización ahora"
+          >
+            Buscar actualización
+          </button>
         </div>
       )}
     </div >
