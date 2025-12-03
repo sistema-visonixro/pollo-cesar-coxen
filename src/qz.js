@@ -1,71 +1,15 @@
-// Pequeño wrapper JS para detectar y exponer estado de QZ Tray desde window.qz
-// Este archivo es una alternativa ligera para entornos donde no queremos importar
-// el paquete npm o el módulo TypeScript. Exporta un objeto por defecto con
-// métodos async: status(), isAvailable(), connect(), disconnect(), getPrinters().
+'use strict';
 
-async function tryQz() {
-  // @ts-ignore
-  return (globalThis.qz) || null;
-}
-
+// QZ Tray integration removed — stub module.
+// This file was kept as a stub to avoid build errors from existing imports.
 export default {
-  async status() {
-    const qz = await tryQz();
-    const available = !!qz;
-    if (!qz) return { available: false, connected: false };
-    try {
-      if (qz.websocket && typeof qz.websocket.isActive === 'function') {
-        const active = await qz.websocket.isActive();
-        return { available: true, connected: !!active };
-      }
-      if (typeof qz.isActive === 'function') {
-        const active = await qz.isActive();
-        return { available: true, connected: !!active };
-      }
-      // Si no hay una forma de comprobar, asumimos disponible
-      return { available: true, connected: true };
-    } catch (err) {
-      return { available: true, connected: false };
-    }
-  },
-
-  isAvailable() {
-    // @ts-ignore
-    return !!globalThis.qz;
-  },
-
-  async connect(opts) {
-    const qz = await tryQz();
-    if (!qz) throw new Error('QZ Tray no está cargado');
-    if (qz.websocket && typeof qz.websocket.connect === 'function') {
-      return qz.websocket.connect(opts);
-    }
-    if (typeof qz.connect === 'function') {
-      return qz.connect(opts);
-    }
-    throw new Error('API de QZ Tray no expone método de conexión');
-  },
-
-  async disconnect() {
-    const qz = await tryQz();
-    if (!qz) return;
-    if (qz.websocket && typeof qz.websocket.disconnect === 'function') {
-      return qz.websocket.disconnect();
-    }
-    if (typeof qz.disconnect === 'function') {
-      return qz.disconnect();
-    }
-  },
-
-  async getPrinters() {
-    const qz = await tryQz();
-    if (!qz || !qz.printers || typeof qz.printers.find !== 'function') return [];
-    try {
-      return await qz.printers.find();
-    } catch (err) {
-      return [];
-    }
-  },
+    isAvailable: () => false,
+    isConnected: () => false,
+    status: async () => ({ available: false, connected: false }),
+    connect: async () => { throw new Error('QZ Tray integration removed'); },
+    disconnect: async () => {},
+    getPrinters: async () => [],
+    printHTML: async () => { throw new Error('QZ Tray integration removed'); }
 };
 'use strict';
 

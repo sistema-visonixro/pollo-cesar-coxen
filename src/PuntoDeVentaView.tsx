@@ -194,10 +194,7 @@ export default function PuntoDeVentaView({
     cai: string;
   } | null>(null);
   const online = navigator.onLine;
-  // Estado QZ Tray: null = desconocido, true = activo, false = inactivo
-  const [qzActive, setQzActive] = useState<boolean | null>(null);
-  // Estado impresora: null = desconocido, true = conectada, false = no conectada
-  const [printerConnected, setPrinterConnected] = useState<boolean | null>(null);
+  // QZ Tray removed: no states for qz/printer connection
 
   const [productos, setProductos] = useState<Producto[]>([]);
   const [seleccionados, setSeleccionados] = useState<Seleccion[]>([]);
@@ -339,101 +336,7 @@ export default function PuntoDeVentaView({
     };
   }, []);
 
-  // Consultar estado de QZ Tray (impresora) al montar y cuando cambie la conectividad
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      // Al iniciar, marcar desconocido mientras probamos
-      setQzActive(null);
-      try {
-        const { default: qz } = await import("./qz");
-        if (!mounted) return;
-
-        // Intentar usar la API status() si existe
-        let qzActivo = false;
-        try {
-          if (qz && typeof qz.status === "function") {
-            const st = await qz.status();
-            qzActivo = !!(st && st.connected);
-          } else if (qz && typeof qz.websocket?.isActive === "function") {
-            qzActivo = !!(await qz.websocket.isActive());
-          } else if (qz && typeof qz.isAvailable === "function") {
-            // fallback: isAvailable indica disponibilidad, pero no conexión
-            qzActivo = !!qz.isAvailable();
-          } else if ((globalThis as any).qz) {
-            // si el script local globalizó qz, intentar isActive
-            const g = (globalThis as any).qz;
-            if (g && g.websocket && typeof g.websocket.isActive === 'function') {
-              qzActivo = !!(await g.websocket.isActive());
-            }
-          }
-        } catch (e) {
-          console.warn('Error comprobando status de QZ Tray:', e);
-          qzActivo = false;
-        }
-
-        // Si no está activo, intentar conexión rápida (no bloquear demasiado)
-        if (!qzActivo && qz && typeof qz.connect === 'function') {
-          try {
-            await qz.connect();
-            // Si connect no lanzó, consideramos activo
-            qzActivo = true;
-            // desconectar para no alterar estado global
-            try { await qz.disconnect(); } catch { }
-          } catch (e) {
-            // no conectado
-            qzActivo = false;
-          }
-        }
-
-        if (!mounted) return;
-        setQzActive(qzActivo);
-
-        // 2. Buscar impresoras solo si QZ activo
-        if (!qzActivo) {
-          setPrinterConnected(null);
-          return;
-        }
-        let printers: string[] = [];
-        if (qz && qz.printers && typeof qz.printers.find === "function") {
-          try {
-            printers = await qz.printers.find();
-          } catch (e) {
-            console.warn('Error listando impresoras:', e);
-          }
-        }
-        setPrinterConnected(printers && printers.length > 0);
-      } catch (err) {
-        setQzActive(false);
-        setPrinterConnected(null);
-      }
-    })();
-    // Re-evaluar cuando cambie el estado online (por si QZ se conecta en la misma máquina)
-    const onOnline = () => {
-      (async () => {
-        try {
-          const { default: qz } = await import("./qz");
-          if (qz && typeof qz.status === "function") {
-            const st = await qz.status();
-            setPrinterConnected(!!st.connected);
-          } else if (qz && typeof qz.isAvailable === "function") {
-            setPrinterConnected(!!qz.isAvailable());
-          } else {
-            setPrinterConnected(false);
-          }
-        } catch (err) {
-          setPrinterConnected(false);
-        }
-      })();
-    };
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOnline);
-    return () => {
-      mounted = false;
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOnline);
-    };
-  }, [online]);
+  // No-op: QZ Tray integration removed.
 
   // Add product to selection
   const agregarProducto = (producto: Producto) => {
@@ -623,24 +526,7 @@ export default function PuntoDeVentaView({
         >
           {online ? "Conectado" : "Sin conexión"}
         </span>
-        {/* Indicador de impresora QZ Tray */}
-        <div style={{ display: "flex", flexDirection: "column", marginLeft: 8 }}>
-          <span style={{ fontSize: 12, color: qzActive === true ? "#388e3c" : qzActive === null ? "#999" : "#d32f2f", fontWeight: 700 }}>
-            {qzActive === null
-              ? "QZ Tray: desconocido"
-              : qzActive === true
-                ? "qz"
-                : "QZ Tray: inactivo"}
-          </span>
-          <span style={{ fontSize: 12, color: printerConnected === true ? "#388e3c" : printerConnected === null ? "#999" : "#d32f2f", fontWeight: 700 }}>
-            {printerConnected === null
-              ? "Impresora: desconocida"
-              : printerConnected === true
-                ? "Impresora conectada"
-                : "Impresora no conectada"}
-          </span>
-        </div>
-        {/* botón de prueba temporal eliminado */}
+        {/* QZ Tray indicators removed */}
       </div>
       {/* Modal de resumen de caja (fuera del header) */}
       {showResumen && (
@@ -1143,50 +1029,18 @@ export default function PuntoDeVentaView({
             try {
               // Esperar a que la imagen se cargue
               await preloadImage();
-
-              // Intentar usar QZ Tray si está disponible
-              // Import dinámico para evitar problemas SSR y carga previa
-              const { default: qz } = await import("./qz");
-              if (qz && qz.isAvailable()) {
-                try {
-                  // Conectar si es necesario
-                  if (!qz.isConnected()) {
-                    await qz.connect();
-                  }
-                  // Enviar a imprimir via QZ Tray
-                  await qz.printHTML(printHtml);
-                } catch (err) {
-                  console.error("Error imprimiendo con QZ Tray:", err);
-                  // Fallback a ventana de impresión del navegador
-                  const printWindow = window.open("", "", "height=800,width=400");
-                  if (printWindow) {
-                    printWindow.document.write(printHtml);
-                    printWindow.document.close();
-                    // Esperar a que las imágenes se carguen en la ventana de impresión
-                    printWindow.onload = () => {
-                      setTimeout(() => {
-                        printWindow.focus();
-                        printWindow.print();
-                        printWindow.close();
-                      }, 500);
-                    };
-                  }
-                }
-              } else {
-                // Fallback si QZ no está cargado
-                const printWindow = window.open("", "", "height=800,width=400");
-                if (printWindow) {
-                  printWindow.document.write(printHtml);
-                  printWindow.document.close();
-                  // Esperar a que las imágenes se carguen en la ventana de impresión
-                  printWindow.onload = () => {
-                    setTimeout(() => {
-                      printWindow.focus();
-                      printWindow.print();
-                      printWindow.close();
-                    }, 500);
-                  };
-                }
+              // Fallback: abrir ventana de impresión del navegador
+              const printWindow = window.open("", "", "height=800,width=400");
+              if (printWindow) {
+                printWindow.document.write(printHtml);
+                printWindow.document.close();
+                printWindow.onload = () => {
+                  setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                    printWindow.close();
+                  }, 500);
+                };
               }
             } catch (err) {
               console.error("Error al intentar imprimir:", err);
@@ -2075,28 +1929,20 @@ export default function PuntoDeVentaView({
                             });
                           };
 
-                          // Intentar imprimir via QZ Tray
+                          // Print using browser fallback (QZ Tray integration removed)
                           try {
                             await preloadImage();
-
-                            const { default: qz } = await import('./qz');
-                            if (qz && qz.isAvailable()) {
-                              if (!qz.isConnected()) await qz.connect();
-                              await qz.printHTML(printHtml);
-                            } else {
-                              // Fallback a ventana de impresión del navegador
-                              const printWindow = window.open('', '', 'height=800,width=400');
-                              if (printWindow) {
-                                printWindow.document.write(printHtml);
-                                printWindow.document.close();
-                                printWindow.onload = () => {
-                                  setTimeout(() => {
-                                    printWindow.focus();
-                                    printWindow.print();
-                                    printWindow.close();
-                                  }, 500);
-                                };
-                              }
+                            const printWindow = window.open('', '', 'height=800,width=400');
+                            if (printWindow) {
+                              printWindow.document.write(printHtml);
+                              printWindow.document.close();
+                              printWindow.onload = () => {
+                                setTimeout(() => {
+                                  printWindow.focus();
+                                  printWindow.print();
+                                  printWindow.close();
+                                }, 500);
+                              };
                             }
                           } catch (err) {
                             console.error('Error imprimiendo pedido de envío:', err);

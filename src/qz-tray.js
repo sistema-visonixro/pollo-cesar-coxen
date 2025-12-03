@@ -1,14 +1,15 @@
-'use strict';
+// QZ Tray bundle removed. Stub to prevent runtime and bundling of original library.
+// All functions indicate QZ is not available. This keeps any residual imports from failing.
+const qz = {
+    websocket: { isActive: async () => false, connect: async () => { throw new Error('QZ Tray removed'); }, disconnect: async () => {} },
+    printers: { find: async () => [], getDefault: async () => null, details: async () => [] },
+    configs: { create: () => { throw new Error('QZ Tray removed'); } },
+    print: async () => { throw new Error('QZ Tray removed'); },
+    isAvailable: () => false,
+    isConnected: () => false,
+};
 
-/**
- * @version 2.2.5
- * @overview QZ Tray Connector
- * @license LGPL-2.1-only
- * <p/>
- * Connects a web client to the QZ Tray software.
- * Enables printing and device communication from javascript.
- */
-var qz = (function() {
+export default qz;
 
 ///// POLYFILLS /////
 
