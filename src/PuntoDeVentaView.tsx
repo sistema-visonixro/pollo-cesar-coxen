@@ -522,9 +522,27 @@ export default function PuntoDeVentaView({
             color: online ? "#43a047" : "#d32f2f",
             fontWeight: 700,
             fontSize: 15,
+            whiteSpace: 'nowrap'
           }}
         >
           {online ? "Conectado" : "Sin conexión"}
+        </span>
+        <span
+          style={{
+            fontWeight: 700,
+            fontSize: 15,
+            marginLeft: 12,
+            color: online ? "#43a047" : "#d32f2f",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "48vw",
+            display: "inline-block",
+          }}
+          title={caiInfo ? `${caiInfo.nombre_cajero} | Caja: ${caiInfo.caja_asignada}${facturaActual ? ` | Factura: ${facturaActual}` : ''}` : facturaActual ? `Factura: ${facturaActual}` : ''}
+        >
+          {caiInfo && `${caiInfo.nombre_cajero} | Caja: ${caiInfo.caja_asignada}`}
+          {caiInfo && facturaActual ? ` | Factura: ${facturaActual}` : (!caiInfo && facturaActual ? `Factura: ${facturaActual}` : "")}
         </span>
         {/* QZ Tray indicators removed */}
       </div>
@@ -1141,25 +1159,8 @@ export default function PuntoDeVentaView({
           paddingBottom: 8,
         }}
       >
-        {caiInfo
-          ? `${caiInfo.nombre_cajero} | Caja: ${caiInfo.caja_asignada}`
-          : "Punto de Venta - Comedor"}
+      
       </h1>
-      {facturaActual && (
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: "1.5rem",
-            fontWeight: 700,
-            color: facturaActual === "Límite alcanzado" ? "#d32f2f" : "#388e3c",
-            marginBottom: 12,
-          }}
-        >
-          {facturaActual === "Límite alcanzado"
-            ? "¡Límite de facturas alcanzado!"
-            : `Factura actual: ${facturaActual}`}
-        </div>
-      )}
       {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
 
       <div
@@ -1242,8 +1243,8 @@ export default function PuntoDeVentaView({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 28,
+                gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                gap: 20,
                 maxHeight: "60vh",
                 overflowY: "auto",
                 paddingRight: 8,
@@ -1256,7 +1257,7 @@ export default function PuntoDeVentaView({
                   style={{
                     background: theme === "lite" ? "#fff" : "#333",
                     borderRadius: 18,
-                    padding: 24,
+                    padding: 16,
                     boxShadow:
                       theme === "lite"
                         ? "0 4px 16px rgba(0,0,0,0.12)"
@@ -1267,7 +1268,7 @@ export default function PuntoDeVentaView({
                     alignItems: "center",
                     transition:
                       "transform 0.2s, background 0.3s', color 0.3s', box-shadow 0.3s', border 0.3s',",
-                    minHeight: 260,
+                    minHeight: 180,
                     color: theme === "lite" ? "#222" : "#f5f5f5",
                   }}
                   onMouseEnter={(e) =>
@@ -1282,8 +1283,8 @@ export default function PuntoDeVentaView({
                       src={p.imagen}
                       alt={p.nombre}
                       style={{
-                        width: 180,
-                        height: 180,
+                        width: '100%',
+                        height: 140,
                         objectFit: "cover",
                         borderRadius: 16,
                         marginBottom: 18,
