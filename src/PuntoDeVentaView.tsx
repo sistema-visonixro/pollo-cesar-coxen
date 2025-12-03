@@ -152,6 +152,23 @@ export default function PuntoDeVentaView({
       return "lite";
     }
   });
+  const [appVersion, setAppVersion] = useState<string>("");
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const res = await fetch('/version.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const j = await res.json();
+        if (canceled) return;
+        setAppVersion(String(j.version || ''));
+      } catch (e) {
+        // ignore
+      }
+    })();
+    return () => { canceled = true };
+  }, []);
   const [facturaActual, setFacturaActual] = useState<string>("");
   const [showPagoModal, setShowPagoModal] = useState(false);
   const [showClienteModal, setShowClienteModal] = useState(false);
@@ -565,7 +582,8 @@ export default function PuntoDeVentaView({
         >
           <div
             style={{
-              background: "#fff",
+              background: theme === 'lite' ? '#fff' : '#232526',
+              color: theme === 'lite' ? '#222' : '#fbc02d',
               borderRadius: 12,
               padding: 24,
               minWidth: 300,
@@ -573,7 +591,7 @@ export default function PuntoDeVentaView({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginTop: 0, color: "#1976d2" }}>Resumen de caja</h3>
+            <h3 style={{ marginTop: 0, color: theme === 'lite' ? '#1976d2' : '#fbc02d' }}>Resumen de caja</h3>
             {resumenLoading ? (
               <div style={{ padding: 12 }}>Cargando...</div>
             ) : resumenData ? (
@@ -581,6 +599,8 @@ export default function PuntoDeVentaView({
                 <div>
                   <strong>EFECTIVO:</strong> {(resumenData.efectivo - resumenData.gastos).toFixed(2)}
                 </div>
+
+            // Mostrar versión en la parte inferior: el componente ya existe aquí, añadiremos lógica para obtener versión
                 <div>
                   <strong>TARJETA:</strong> {resumenData.tarjeta.toFixed(2)}
                 </div>
@@ -2391,6 +2411,13 @@ export default function PuntoDeVentaView({
 
       {/* Modal para requerir factura */}
       {/* Eliminado el modal de confirmación de factura */}
+
+      {/* Versión de la aplicación (texto pequeño en verde abajo) */}
+      {appVersion && (
+        <div style={{ position: 'fixed', bottom: 10, left: 18, color: '#43a047', fontSize: 12, fontWeight: 700, zIndex: 12000 }}>
+          Versión: {appVersion}
+        </div>
+      )}
     </div >
   );
 }
