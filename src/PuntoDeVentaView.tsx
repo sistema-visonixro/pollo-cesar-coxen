@@ -1304,7 +1304,7 @@ export default function PuntoDeVentaView({
                   <div
                     style={{
                       fontSize: 18,
-                      color: "#333",
+                      color: theme === 'dark' ? '#fbc02d' : '#333',
                       textAlign: "center",
                       marginBottom: 8,
                     }}
@@ -1392,27 +1392,17 @@ export default function PuntoDeVentaView({
                     key={p.id}
                     style={{
                       display: "flex",
+                      flexWrap: 'wrap',
                       alignItems: "center",
-                      justifyContent: "space-between",
                       padding: "10px 12px",
+                      gap: 8,
                       borderBottom: theme === 'lite' ? '1px solid #f0f0f0' : '1px solid #444',
                       background: index % 2 === 0 ? (theme === 'lite' ? '#fff' : '#333') : (theme === 'lite' ? '#fafafa' : '#383838'),
                       color: theme === "lite" ? "#222" : "#f5f5f5",
                     }}
                   >
-                    <div style={{ flex: 2, fontWeight: 600, fontSize: 14, color: theme === 'lite' ? '#1976d2' : '#64b5f6' }}>
-                      {p.nombre}
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', fontSize: 13 }}>
-                      L {p.precio.toFixed(2)}
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'center', fontSize: 13, color: theme === 'lite' ? '#388e3c' : '#81c784', fontWeight: 600 }}>
-                      x{p.cantidad}
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 14, paddingRight: 8 }}>
-                      L {(p.precio * p.cantidad).toFixed(2)}
-                    </div>
-                    <div style={{ width: 70, display: "flex", gap: 4, justifyContent: "flex-end" }}>
+                    {/* Buttons first for easier reach on touch devices */}
+                    <div style={{ order: 0, display: "flex", gap: 6, alignItems: 'center', width: 72, flex: '0 0 72px' }}>
                       <button
                         onClick={() =>
                           agregarProducto(
@@ -1424,8 +1414,8 @@ export default function PuntoDeVentaView({
                           color: "#fff",
                           border: "none",
                           borderRadius: 4,
-                          width: 24,
-                          height: 24,
+                          width: 32,
+                          height: 32,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1433,6 +1423,7 @@ export default function PuntoDeVentaView({
                           fontSize: 16,
                           lineHeight: 1
                         }}
+                        aria-label={`Agregar ${p.nombre}`}
                       >
                         +
                       </button>
@@ -1443,8 +1434,8 @@ export default function PuntoDeVentaView({
                           color: "#fff",
                           border: "none",
                           borderRadius: 4,
-                          width: 24,
-                          height: 24,
+                          width: 32,
+                          height: 32,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -1452,9 +1443,26 @@ export default function PuntoDeVentaView({
                           fontSize: 16,
                           lineHeight: 1
                         }}
+                        aria-label={`Eliminar ${p.nombre}`}
                       >
                         −
                       </button>
+                    </div>
+
+                    <div style={{ order: 1, flex: '2 1 140px', minWidth: 120, fontWeight: 600, fontSize: 14, color: theme === 'lite' ? '#1976d2' : '#64b5f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.nombre}
+                    </div>
+
+                    <div style={{ order: 2, flex: '1 0 80px', minWidth: 80, textAlign: 'center', fontSize: 13 }}>
+                      L {p.precio.toFixed(2)}
+                    </div>
+
+                    <div style={{ order: 3, flex: '1 0 64px', minWidth: 64, textAlign: 'center', fontSize: 13, color: theme === 'lite' ? '#388e3c' : '#81c784', fontWeight: 600 }}>
+                      x{p.cantidad}
+                    </div>
+
+                    <div style={{ order: 4, flex: '1 0 90px', minWidth: 90, textAlign: 'right', fontWeight: 700, fontSize: 14, paddingRight: 8 }}>
+                      L {(p.precio * p.cantidad).toFixed(2)}
                     </div>
                   </li>
                 ))}
