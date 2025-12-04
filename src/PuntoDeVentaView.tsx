@@ -619,7 +619,7 @@ export default function PuntoDeVentaView({
                   <strong>EFECTIVO:</strong> {(resumenData.efectivo - resumenData.gastos).toFixed(2)}
                 </div>
 
-            // Mostrar versión en la parte inferior: el componente ya existe aquí, añadiremos lógica para obtener versión
+           
                 <div>
                   <strong>TARJETA:</strong> {resumenData.tarjeta.toFixed(2)}
                 </div>
