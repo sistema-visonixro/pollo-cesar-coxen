@@ -18,8 +18,10 @@ interface Usuario {
 }
 
 const API_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/cai_facturas`;
-const API_KEY = import.meta.env.VITE_SUPABASE_KEY || '';
-const USUARIOS_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/usuarios?rol=eq.cajero`;
+const API_KEY = import.meta.env.VITE_SUPABASE_KEY || "";
+const USUARIOS_URL = `${
+  import.meta.env.VITE_SUPABASE_URL
+}/rest/v1/usuarios?rol=eq.cajero`;
 
 interface CaiFacturasViewProps {
   onBack?: () => void;
@@ -68,7 +70,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
     // Si hay cajero seleccionado, rellenar la caja automáticamente
     let cajaAuto = form.caja_asignada;
     if (form.cajero_id) {
-      const cajero = usuarios.find(u => u.id === form.cajero_id);
+      const cajero = usuarios.find((u) => u.id === form.cajero_id);
       if (cajero && cajero.caja) {
         cajaAuto = cajero.caja;
       }
@@ -194,7 +196,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
           min-width: 100vw;
           width: 100vw;
           height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           margin: 0 !important;
           padding: 0 !important;
@@ -202,34 +204,35 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
           overflow-x: hidden;
         }
         :root {
-          --primary: #1a1a2e;
-          --secondary: #16213e;
-          --accent: #0f3460;
-          --text-primary: #ffffff;
-          --text-secondary: #b0b3c1;
-          --border: #2d3748;
-          --shadow: 0 10px 30px rgba(0,0,0,0.3);
-          --shadow-hover: 0 20px 40px rgba(0,0,0,0.4);
-          --success: #2e7d32;
-          --danger: #c62828;
-          --warning: #f57c00;
-          --info: #1976d2;
+          --primary: #ffffff;
+          --secondary: #f8fafc;
+          --accent: #3b82f6;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+          --border: #e2e8f0;
+          --shadow: 0 4px 20px rgba(0,0,0,0.06);
+          --shadow-hover: 0 12px 32px rgba(0,0,0,0.12);
+          --success: #10b981;
+          --danger: #ef4444;
+          --warning: #f59e0b;
+          --info: #3b82f6;
         }
 
         .cai-enterprise {
           min-height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         .header {
-          background: rgba(26, 26, 46, 0.95);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
           border-bottom: 1px solid var(--border);
           padding: 1.5rem 2.5rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
 
         .header-left {
@@ -297,17 +300,24 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         }
 
         .stat-card {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 1.5rem;
           text-align: center;
+          box-shadow: var(--shadow);
+          transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-hover);
         }
 
         .stat-value {
           font-size: 2rem;
           font-weight: 700;
-          color: var(--text-primary);
+          color: var(--accent);
         }
 
         .stat-label {
@@ -317,11 +327,12 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         }
 
         .table-container {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border-radius: 12px;
           overflow: hidden;
           box-shadow: var(--shadow);
           margin-bottom: 2rem;
+          border: 1px solid var(--border);
         }
 
         .table {
@@ -330,7 +341,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         }
 
         .table th {
-          background: rgba(255,255,255,0.08);
+          background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
           padding: 1rem;
           text-align: left;
           font-weight: 600;
@@ -345,7 +356,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         }
 
         .table tr:hover {
-          background: rgba(255,255,255,0.05);
+          background: #f8fafc;
         }
 
         .btn-table {
@@ -594,16 +605,46 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                 const cajero = usuarios.find((u) => u.id === f.cajero_id);
                 const totalFacturasRango = f.rango_hasta - f.rango_desde + 1;
                 return (
-                  <div key={f.id} className="cai-card" onClick={() => handleEdit(f)}>
+                  <div
+                    key={f.id}
+                    className="cai-card"
+                    onClick={() => handleEdit(f)}
+                  >
                     <div className="cai-left">CAI</div>
                     <div className="cai-body">
-                      <div className="cai-title">{f.cai} <span style={{ color: 'var(--text-secondary)', fontWeight: 600, marginLeft: 8 }}>#{f.id}</span></div>
-                      <div className="cai-meta">Rango: {f.rango_desde.toLocaleString()} → {f.rango_hasta.toLocaleString()} · Caja: {f.caja_asignada}</div>
-                      <div className="cai-meta">Cajero: {cajero?.nombre || 'Sin asignar'} · Total facturas: {totalFacturasRango.toLocaleString()}</div>
+                      <div className="cai-title">
+                        {f.cai}{" "}
+                        <span
+                          style={{
+                            color: "var(--text-secondary)",
+                            fontWeight: 600,
+                            marginLeft: 8,
+                          }}
+                        >
+                          #{f.id}
+                        </span>
+                      </div>
+                      <div className="cai-meta">
+                        Rango: {f.rango_desde.toLocaleString()} →{" "}
+                        {f.rango_hasta.toLocaleString()} · Caja:{" "}
+                        {f.caja_asignada}
+                      </div>
+                      <div className="cai-meta">
+                        Cajero: {cajero?.nombre || "Sin asignar"} · Total
+                        facturas: {totalFacturasRango.toLocaleString()}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right', minWidth: 88 }}>
-                      <div style={{ fontWeight: 900, color: 'var(--info)' }}>{totalFacturasRango.toLocaleString()}</div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{f.creado_en ? f.creado_en.slice(0,19).replace('T',' ') : ''}</div>
+                    <div style={{ textAlign: "right", minWidth: 88 }}>
+                      <div style={{ fontWeight: 900, color: "var(--info)" }}>
+                        {totalFacturasRango.toLocaleString()}
+                      </div>
+                      <div
+                        style={{ color: "var(--text-secondary)", fontSize: 12 }}
+                      >
+                        {f.creado_en
+                          ? f.creado_en.slice(0, 19).replace("T", " ")
+                          : ""}
+                      </div>
                     </div>
                   </div>
                 );
@@ -670,8 +711,12 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                   placeholder="Caja asignada (se autocompleta)"
                   value={(() => {
                     if (form.cajero_id) {
-                      const cajero = usuarios.find(u => u.id === form.cajero_id);
-                      return cajero && cajero.caja ? cajero.caja : (form.caja_asignada || "");
+                      const cajero = usuarios.find(
+                        (u) => u.id === form.cajero_id
+                      );
+                      return cajero && cajero.caja
+                        ? cajero.caja
+                        : form.caja_asignada || "";
                     }
                     return form.caja_asignada || "";
                   })()}

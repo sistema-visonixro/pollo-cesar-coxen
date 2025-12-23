@@ -200,7 +200,7 @@ export default function GastosView({ onBack }: GastosViewProps) {
           min-width: 100vw;
           width: 100vw;
           height: 100vh;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           margin: 0 !important;
           padding: 0 !important;
@@ -208,23 +208,23 @@ export default function GastosView({ onBack }: GastosViewProps) {
           overflow-x: hidden;
         }
         :root {
-          --primary: #1a1a2e;
-          --secondary: #16213e;
-          --accent: #0f3460;
-          --text-primary: #ffffff;
-          --text-secondary: #b0b3c1;
-          --border: #2d3748;
-          --shadow: 0 10px 30px rgba(0,0,0,0.3);
-          --shadow-hover: 0 20px 40px rgba(0,0,0,0.4);
-          --success: #2e7d32;
-          --danger: #c62828;
-          --warning: #f57c00;
-          --info: #1976d2;
+          --primary: #ffffff;
+          --secondary: #f8fafc;
+          --accent: #3b82f6;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+          --border: #e2e8f0;
+          --shadow: 0 4px 20px rgba(0,0,0,0.06);
+          --shadow-hover: 0 12px 32px rgba(0,0,0,0.12);
+          --success: #10b981;
+          --danger: #ef4444;
+          --warning: #f59e0b;
+          --info: #3b82f6;
         }
 
         .gastos-enterprise {
           min-height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           padding: 2rem;
         }
@@ -235,7 +235,7 @@ export default function GastosView({ onBack }: GastosViewProps) {
         }
 
         .header {
-          background: rgba(26, 26, 46, 0.95);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
           border: 1px solid var(--border);
           border-radius: 16px;
@@ -244,6 +244,7 @@ export default function GastosView({ onBack }: GastosViewProps) {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 2rem;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
 
         .header-left {
@@ -281,11 +282,18 @@ export default function GastosView({ onBack }: GastosViewProps) {
         }
 
         .stat-card {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 1.5rem;
           text-align: center;
+          box-shadow: var(--shadow);
+          transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-hover);
         }
 
         .stat-value {
@@ -301,7 +309,7 @@ export default function GastosView({ onBack }: GastosViewProps) {
         }
 
         .filters {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border-radius: 12px;
           padding: 1.5rem;
           margin-bottom: 2rem;
@@ -309,10 +317,12 @@ export default function GastosView({ onBack }: GastosViewProps) {
           gap: 1rem;
           align-items: center;
           flex-wrap: wrap;
+          box-shadow: var(--shadow);
+          border: 1px solid var(--border);
         }
 
         .filter-input {
-          background: rgba(255,255,255,0.1);
+          background: #f8fafc;
           border: 1px solid var(--border);
           border-radius: 8px;
           padding: 10px 12px;

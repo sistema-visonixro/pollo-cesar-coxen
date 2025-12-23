@@ -67,7 +67,11 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
           "Content-Type": "application/json",
           Prefer: "return=representation",
         },
-        body: JSON.stringify({ nombre: adminNombre, clave: adminClave, email: adminEmail }),
+        body: JSON.stringify({
+          nombre: adminNombre,
+          clave: adminClave,
+          email: adminEmail,
+        }),
       });
       // Recargar datos
       const res = await fetch(API_URL + "?select=*", {
@@ -239,17 +243,17 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
           background: unset !important;
         }
         :root {
-          --primary: #1a1a2e;
-          --secondary: #16213e;
-          --accent: #0f3460;
-          --text-primary: #ffffff;
-          --text-secondary: #b0b3c1;
-          --border: #2d3748;
-          --shadow: 0 10px 30px rgba(0,0,0,0.3);
-          --shadow-hover: 0 20px 40px rgba(0,0,0,0.4);
-          --success: #2e7d32;
-          --danger: #c62828;
-          --warning: #f57c00;
+          --primary: #ffffff;
+          --secondary: #f8fafc;
+          --accent: #3b82f6;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+          --border: #e2e8f0;
+          --shadow: 0 4px 20px rgba(0,0,0,0.06);
+          --shadow-hover: 0 12px 32px rgba(0,0,0,0.12);
+          --success: #10b981;
+          --danger: #ef4444;
+          --warning: #f59e0b;
         }
 
         .usuarios-enterprise {
@@ -257,7 +261,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
           min-width: 100vw;
           width: 100vw;
           height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           margin: 0 !important;
           padding: 0 !important;
@@ -272,13 +276,14 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .header {
-          background: rgba(26, 26, 46, 0.95);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
           border-bottom: 1px solid var(--border);
           padding: 1.5rem 2.5rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
 
         .header-left {
@@ -288,7 +293,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .btn-back {
-          background: rgba(255,255,255,0.1);
+          background: #f1f5f9;
           color: var(--text-primary);
           border: 1px solid var(--border);
           border-radius: 8px;
@@ -302,8 +307,8 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .btn-back:hover {
-          background: rgba(255,255,255,0.15);
-          border-color: var(--text-secondary);
+          background: #e2e8f0;
+          border-color: var(--accent);
         }
 
         .page-title {
@@ -314,7 +319,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .btn-primary {
-          background: linear-gradient(135deg, #1e88e5, #42a5f5);
+          background: linear-gradient(135deg, #3b82f6, #8b5cf6);
           color: white;
           border: none;
           border-radius: 8px;
@@ -326,7 +331,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
 
         .btn-primary:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(30,136,229,0.4);
+          box-shadow: 0 4px 12px rgba(59,130,246,0.4);
         }
 
         .btn-primary:disabled {
@@ -348,17 +353,24 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .stat-card {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 1.5rem;
           text-align: center;
+          box-shadow: var(--shadow);
+          transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+          transform: translateY(-4px);
+          box-shadow: var(--shadow-hover);
         }
 
         .stat-value {
           font-size: 2rem;
           font-weight: 700;
-          color: var(--text-primary);
+          color: var(--accent);
         }
 
         .stat-label {
@@ -368,11 +380,12 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .table-container {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border-radius: 12px;
           overflow: hidden;
           box-shadow: var(--shadow);
           margin-bottom: 2rem;
+          border: 1px solid var(--border);
         }
 
         .table {
@@ -381,7 +394,7 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .table th {
-          background: rgba(255,255,255,0.08);
+          background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
           padding: 1rem;
           text-align: left;
           font-weight: 600;
@@ -396,39 +409,38 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .table tr:hover {
-          background: rgba(255,255,255,0.05);
+          background: #f8fafc;
         }
 
         .btn-table {
           padding: 6px 12px;
           border-radius: 6px;
           font-size: 0.875rem;
-          font-weight: 600;
-          margin-right: 8px;
-          cursor: pointer;
-          border: none;
-          transition: all 0.2s ease;
+          font-weight:#dbeafe; 
+          color: #3b82f6; 
         }
 
-        .btn-edit { 
-          background: rgba(76,175,80,0.2); 
-          color: #4caf50; 
+        .btn-edit:hover { 
+          background: #bfdbfe; 
+          transform: scale(1.05);
         }
-
-        .btn-edit:hover { background: rgba(76,175,80,0.3); }
 
         .btn-delete { 
-          background: rgba(198,40,40,0.2); 
-          color: #c62828; 
+          background: #fee2e2; 
+          color: #ef4444; 
         }
 
-        .btn-delete:hover { background: rgba(198,40,40,0.3); }
+        .btn-delete:hover { 
+          background: #fecaca; 
+          transform: scale(1.05);
+        }
 
         .form-section {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border-radius: 12px;
           padding: 2rem;
           border: 1px solid var(--border);
+          box-shadow: var(--shadow);
         }
 
         .form-grid {
@@ -439,18 +451,29 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
         }
 
         .form-input {
-          background: rgba(255,255,255,0.1);
+          background: #f8fafc;
           border: 1px solid var(--border);
           border-radius: 8px;
           padding: 12px;
           color: var(--text-primary);
           font-size: 1rem;
+          transition: all 0.2s ease;
         }
 
         .form-input:focus {
           outline: none;
-          border-color: #1e88e5;
-          box-shadow: 0 0 0 3px rgba(30,136,229,0.1);
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+          background: whitewhite; border: 1px solid var(--border); border-radius: 12px; padding: 12px; display: flex; gap: 12px; align-items: center; box-shadow: 0 6px 18px rgba(0,0,0,0.06); transition: all 0.2s ease; }
+        .user-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .user-avatar-sm { width: 56px; height: 56px; border-radius: 999px; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; background:linear-gradient(135deg,#3b82f6,#8b5cf6); flex-shrink:0; }
+        .user-body { flex:1; min-width:0; }
+        .user-name { font-weight:700; color:var(--text-primary); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .user-meta { color:var(--text-secondary); font-size:13px; }
+
+        .error {
+          background: #fee2e2;
+          color: #ef44440 0 3px rgba(30,136,229,0.1);
         }
 
         .form-input::placeholder {
@@ -551,7 +574,9 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                       <strong>{u.nombre}</strong>
                     </td>
                     <td>{u.codigo}</td>
-                    <td style={{ color: "var(--text-secondary)" }}>{u.email || "-"}</td>
+                    <td style={{ color: "var(--text-secondary)" }}>
+                      {u.email || "-"}
+                    </td>
                     <td
                       style={{
                         color:
@@ -699,35 +724,42 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
           onChangeEmail={setAdminEmail}
           onSubmit={handleAdminModalSubmit}
         />
-        {showModal && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              background: "rgba(0,0,0,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 9999,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                background: "#222",
-                borderRadius: 16,
+        {showModal && (white",
+                borderRadius: 24,
                 padding: 32,
                 minWidth: 320,
                 maxWidth: 400,
                 width: "100%",
-                boxShadow: "0 8px 32px #0008",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
                 position: "relative",
-                color: "#fff",
+                color: var(--text-primary),
+                border: "1px solid #e2e8f0",
               }}
               onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  position: "absolute",
+                  top: 12,
+                  right: 12,
+                  background: "#f1f5f9",
+                  border: "none",
+                  color: var(--text-primary),
+                  fontSize: 24,
+                  cursor: "pointer",
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+              <h3 style={{ color: var(--text-primary), marginBottom: "1rem", fontSize: "1.5rem", fontWeight: 800
             >
               <button
                 onClick={() => setShowModal(false)}
@@ -765,7 +797,9 @@ export default function UsuariosView({ onBack }: UsuariosViewProps) {
                   type="email"
                   placeholder="Email (opcional)"
                   value={form.email || ""}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, email: e.target.value }))
+                  }
                   style={{ color: "#43a047" }}
                 />
                 <input

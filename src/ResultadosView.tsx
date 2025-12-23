@@ -136,25 +136,31 @@ export default function ResultadosView({
 
   async function generarReportePDF() {
     if (!desde || !hasta) {
-      alert("Por favor selecciona las fechas Desde y Hasta antes de generar el reporte.");
+      alert(
+        "Por favor selecciona las fechas Desde y Hasta antes de generar el reporte."
+      );
       return;
     }
 
     // Abrir ventana inmediatamente (acción directa del click) para evitar bloqueo de popups
     const win = window.open("", "_blank");
     if (!win) {
-      alert("Popup bloqueado. Por favor permite popups o usa la opción alternativa.");
+      alert(
+        "Popup bloqueado. Por favor permite popups o usa la opción alternativa."
+      );
       return;
     }
     // Mostrar placeholder de carga
-    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Generando reporte...</title></head><body><h3>Cargando reporte...</h3></body></html>`);
+    win.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>Generando reporte...</title></head><body><h3>Cargando reporte...</h3></body></html>`
+    );
     win.document.close();
 
     try {
-  // Normalizar rango al mismo formato que usa la vista: 'YYYY-MM-DD HH:MM:SS'
-  // (evitamos toISOString() para no introducir desplazamientos por zona horaria)
-  const desdeInicio = `${desde} 00:00:00`;
-  const hastaFin = `${hasta} 23:59:59`;
+      // Normalizar rango al mismo formato que usa la vista: 'YYYY-MM-DD HH:MM:SS'
+      // (evitamos toISOString() para no introducir desplazamientos por zona horaria)
+      const desdeInicio = `${desde} 00:00:00`;
+      const hastaFin = `${hasta} 23:59:59`;
 
       // Consultas paralelas
       const [factRes, gastRes, pagosRes, cierresRes] = await Promise.all([
@@ -194,31 +200,56 @@ export default function ResultadosView({
 
       const totalFacturas = factData.length;
       const totalVentas = factData.reduce((s: number, f: any) => {
-        const val = f.total !== undefined && f.total !== null ? Number(String(f.total).replace(/,/g, "")) : 0;
+        const val =
+          f.total !== undefined && f.total !== null
+            ? Number(String(f.total).replace(/,/g, ""))
+            : 0;
         return s + (isNaN(val) ? 0 : val);
       }, 0);
-      const totalGastos = gastData.reduce((s: number, g: any) => s + parseFloat(g.monto || 0), 0);
+      const totalGastos = gastData.reduce(
+        (s: number, g: any) => s + parseFloat(g.monto || 0),
+        0
+      );
       const balanceReporte = totalVentas - totalGastos;
-      const rentabilidadPercent = totalGastos > 0 ? (balanceReporte / totalGastos) * 100 : null;
+      const rentabilidadPercent =
+        totalGastos > 0 ? (balanceReporte / totalGastos) * 100 : null;
 
       // Desglose de pagos
       const pagosPorTipo: { [k: string]: number } = {};
       pagosData.forEach((p: any) => {
         const tipo = p.tipo || "Desconocido";
-        pagosPorTipo[tipo] = (pagosPorTipo[tipo] || 0) + parseFloat(p.monto || 0);
+        pagosPorTipo[tipo] =
+          (pagosPorTipo[tipo] || 0) + parseFloat(p.monto || 0);
       });
 
       // Total de todos los pagos (raw) y cálculo de pagos únicos por factura
       const totalPagosRaw = pagosData.reduce((s: number, p: any) => {
-        const val = p.monto !== undefined && p.monto !== null ? Number(String(p.monto).replace(/,/g, "")) : 0;
+        const val =
+          p.monto !== undefined && p.monto !== null
+            ? Number(String(p.monto).replace(/,/g, ""))
+            : 0;
         return s + (isNaN(val) ? 0 : val);
       }, 0);
 
       // Agrupar pagos por número de factura para no contar facturas repetidas
-      const pagosPorFacturaMap = new Map<string, { factura: string; monto: number; tipos: Set<string>; cajero?: string; fecha?: string }>();
+      const pagosPorFacturaMap = new Map<
+        string,
+        {
+          factura: string;
+          monto: number;
+          tipos: Set<string>;
+          cajero?: string;
+          fecha?: string;
+        }
+      >();
       pagosData.forEach((p: any) => {
-        const facturaKey = p.factura ? String(p.factura) : `__no_fact_${p.id || Math.random()}`;
-        const monto = p.monto !== undefined && p.monto !== null ? Number(String(p.monto).replace(/,/g, "")) : 0;
+        const facturaKey = p.factura
+          ? String(p.factura)
+          : `__no_fact_${p.id || Math.random()}`;
+        const monto =
+          p.monto !== undefined && p.monto !== null
+            ? Number(String(p.monto).replace(/,/g, ""))
+            : 0;
         const tipo = p.tipo || "";
         const fecha = p.fecha_hora || p.fecha || "";
         const cajero = p.cajero || "";
@@ -227,62 +258,98 @@ export default function ResultadosView({
           entry.monto += isNaN(monto) ? 0 : monto;
           if (tipo) entry.tipos.add(tipo);
           // mantener la fecha más temprana
-          if (fecha && (!entry.fecha || fecha < entry.fecha)) entry.fecha = fecha;
+          if (fecha && (!entry.fecha || fecha < entry.fecha))
+            entry.fecha = fecha;
         } else {
           const tiposSet = new Set<string>();
           if (tipo) tiposSet.add(tipo);
-          pagosPorFacturaMap.set(facturaKey, { factura: facturaKey, monto: isNaN(monto) ? 0 : monto, tipos: tiposSet, cajero, fecha });
+          pagosPorFacturaMap.set(facturaKey, {
+            factura: facturaKey,
+            monto: isNaN(monto) ? 0 : monto,
+            tipos: tiposSet,
+            cajero,
+            fecha,
+          });
         }
       });
 
       const pagosUnicosArray = Array.from(pagosPorFacturaMap.values());
-      const totalPagosUnique = pagosUnicosArray.reduce((s, p) => s + (p.monto || 0), 0);
+      const totalPagosUnique = pagosUnicosArray.reduce(
+        (s, p) => s + (p.monto || 0),
+        0
+      );
 
       // Debug: comparar facturas y pagos por factura (opcional)
       try {
-        console.debug("ReportePDF: facturas count", factData.length, "pagos count", pagosData.length);
-        console.debug("ReportePDF: totalVentas (facturas)", totalVentas, "totalPagosRaw (pagos)", totalPagosRaw, "totalPagosUnique", totalPagosUnique);
+        console.debug(
+          "ReportePDF: facturas count",
+          factData.length,
+          "pagos count",
+          pagosData.length
+        );
+        console.debug(
+          "ReportePDF: totalVentas (facturas)",
+          totalVentas,
+          "totalPagosRaw (pagos)",
+          totalPagosRaw,
+          "totalPagosUnique",
+          totalPagosUnique
+        );
       } catch (e) {}
 
       // Construir HTML para imprimir
       const titulo = `Reporte Ventas ${desde} → ${hasta}`;
-  let html = `<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title>`;
-  // indicar icono (si existe en /favicon-32.png)
-  html += `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />`;
-  html += `<style>body{font-family: Arial, Helvetica, sans-serif;margin:20px;color:#111}h1,h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #ccc;padding:6px;text-align:left}thead th{background:#f2f2f2} .section{margin-top:18px}.report-header{display:flex;align-items:center;gap:16px}.report-logo{width:84px;height:84px;object-fit:contain}.report-title{font-size:28px;font-weight:800}</style>`;
-  // Header con logo (intenta cargar /logo.png, si no existe se oculta)
+      let html = `<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title>`;
+      // indicar icono (si existe en /favicon-32.png)
+      html += `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />`;
+      html += `<style>body{font-family: Arial, Helvetica, sans-serif;margin:20px;color:#111}h1,h2{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border:1px solid #ccc;padding:6px;text-align:left}thead th{background:#f2f2f2} .section{margin-top:18px}.report-header{display:flex;align-items:center;gap:16px}.report-logo{width:84px;height:84px;object-fit:contain}.report-title{font-size:28px;font-weight:800}</style>`;
+      // Header con logo (intenta cargar /logo.png, si no existe se oculta)
       html += `</head><body>`;
-  // intentar usar /favicon-32.png como logo; si falla, caer a /logo.svg
-  html += `<div class="report-header"><img class="report-logo" src="/favicon-32.png" alt="logo" onerror="this.onerror=null;this.src='/logo.svg'"/><div><div class="report-title">${NOMBRE_NEGOCIO_UPPER}</div><div style=\"margin-top:6px;color:#444\">${titulo}</div></div></div>`;
+      // intentar usar /favicon-32.png como logo; si falla, caer a /logo.svg
+      html += `<div class="report-header"><img class="report-logo" src="/favicon-32.png" alt="logo" onerror="this.onerror=null;this.src='/logo.svg'"/><div><div class="report-title">${NOMBRE_NEGOCIO_UPPER}</div><div style=\"margin-top:6px;color:#444\">${titulo}</div></div></div>`;
       html += `<div class="section"><h2>Resumen</h2><table><tbody>`;
       html += `<tr><th>Total facturas</th><td>${totalFacturas}</td></tr>`;
-  html += `<tr><th>Total ventas</th><td>L ${totalVentas.toFixed(2)}</td></tr>`;
-  html += `<tr><th>Total gastos</th><td>L ${totalGastos.toFixed(2)}</td></tr>`;
-  html += `<tr><th>Balance</th><td>L ${balanceReporte.toFixed(2)}</td></tr>`;
-  html += `<tr><th>Rentabilidad</th><td>${rentabilidadPercent !== null ? rentabilidadPercent.toFixed(2) + "%" : "N/A (sin gastos)"}</td></tr>`;
- 
+      html += `<tr><th>Total ventas</th><td>L ${totalVentas.toFixed(
+        2
+      )}</td></tr>`;
+      html += `<tr><th>Total gastos</th><td>L ${totalGastos.toFixed(
+        2
+      )}</td></tr>`;
+      html += `<tr><th>Balance</th><td>L ${balanceReporte.toFixed(
+        2
+      )}</td></tr>`;
+      html += `<tr><th>Rentabilidad</th><td>${
+        rentabilidadPercent !== null
+          ? rentabilidadPercent.toFixed(2) + "%"
+          : "N/A (sin gastos)"
+      }</td></tr>`;
 
       html += `<div class="section"><h2>Pagos</h2><table><thead><tr><th>Tipo</th><th>Monto</th></tr></thead><tbody>`;
       const tipos = ["Efectivo", "Transferencia", "Tarjeta"];
       tipos.forEach((t) => {
         const m = Number(pagosPorTipo[t] || 0);
-        const mFmt = m.toLocaleString('de-DE', { minimumFractionDigits: 2 });
+        const mFmt = m.toLocaleString("de-DE", { minimumFractionDigits: 2 });
         html += `<tr><td>${t}</td><td>L ${mFmt}</td></tr>`;
       });
       // Incluir otros tipos si existen
       Object.keys(pagosPorTipo).forEach((t) => {
         if (!tipos.includes(t)) {
           const m = Number(pagosPorTipo[t] || 0);
-          const mFmt = m.toLocaleString('de-DE', { minimumFractionDigits: 2 });
+          const mFmt = m.toLocaleString("de-DE", { minimumFractionDigits: 2 });
           html += `<tr><td>${t}</td><td>L ${mFmt}</td></tr>`;
         }
       });
       // Total de pagos en el resumen
-      const totalPagosFmt = Number(totalPagosUnique || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+      const totalPagosFmt = Number(totalPagosUnique || 0).toLocaleString(
+        "de-DE",
+        { minimumFractionDigits: 2 }
+      );
       html += `<tr><th style="text-align:right">Total Pagos (por factura única)</th><th>L ${totalPagosFmt}</th></tr>`;
       // si es distinto, mostrar total raw como referencia
       if (totalPagosRaw !== totalPagosUnique) {
-        const totalPagosRawFmt = Number(totalPagosRaw).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+        const totalPagosRawFmt = Number(totalPagosRaw).toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+        });
         html += `<tr><th style="text-align:right">Total Pagos (raw)</th><th>L ${totalPagosRawFmt}</th></tr>`;
       }
       html += `</tbody></table></div>`;
@@ -293,8 +360,10 @@ export default function ResultadosView({
       } else {
         html += `<table><thead><tr><th>Fecha</th><th>Monto</th><th>Observación</th></tr></thead><tbody>`;
         cierresData.forEach((c: any) => {
-          const fecha = c.fecha ? c.fecha.slice(0, 19).replace('T', ' ') : '';
-          html += `<tr><td>${fecha}</td><td>L ${parseFloat(c.monto || 0).toFixed(2)}</td><td>${c.observacion || ''}</td></tr>`;
+          const fecha = c.fecha ? c.fecha.slice(0, 19).replace("T", " ") : "";
+          html += `<tr><td>${fecha}</td><td>L ${parseFloat(
+            c.monto || 0
+          ).toFixed(2)}</td><td>${c.observacion || ""}</td></tr>`;
         });
         html += `</tbody></table>`;
       }
@@ -302,16 +371,26 @@ export default function ResultadosView({
 
       // Tabla de ventas (facturas)
       html += `<div class="section"><h2>Tabla de Ventas Realizadas</h2>`;
-      if (factData.length === 0) html += `<p>No hay ventas en el rango seleccionado.</p>`;
+      if (factData.length === 0)
+        html += `<p>No hay ventas en el rango seleccionado.</p>`;
       else {
         html += `<table><thead><tr><th>Fecha</th><th>Factura</th><th>Cliente</th><th>Cajero</th><th>Total</th></tr></thead><tbody>`;
         factData.forEach((f: any) => {
-          const fecha = f.fecha_hora ? f.fecha_hora.replace('T', ' ').slice(0, 19) : '';
-          const totalFmt = Number(f.total || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
-          html += `<tr><td>${fecha}</td><td>${f.factura || ''}</td><td>${f.cliente || ''}</td><td>${f.cajero || ''}</td><td>L ${totalFmt}</td></tr>`;
+          const fecha = f.fecha_hora
+            ? f.fecha_hora.replace("T", " ").slice(0, 19)
+            : "";
+          const totalFmt = Number(f.total || 0).toLocaleString("de-DE", {
+            minimumFractionDigits: 2,
+          });
+          html += `<tr><td>${fecha}</td><td>${f.factura || ""}</td><td>${
+            f.cliente || ""
+          }</td><td>${f.cajero || ""}</td><td>L ${totalFmt}</td></tr>`;
         });
         // Fila de total de ventas
-        const totalVentasFmt = Number(totalVentas || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
+        const totalVentasFmt = Number(totalVentas || 0).toLocaleString(
+          "de-DE",
+          { minimumFractionDigits: 2 }
+        );
         html += `<tr><th colspan="4" style="text-align:right">Total Ventas</th><th>L ${totalVentasFmt}</th></tr>`;
         html += `</tbody></table>`;
       }
@@ -319,13 +398,20 @@ export default function ResultadosView({
 
       // Tabla de Gastos: incluir detalle de los gastos en el rango seleccionado
       html += `<div class="section"><h2>Tabla de Gastos</h2>`;
-      if (gastData.length === 0) html += `<p>No hay gastos en el rango seleccionado.</p>`;
+      if (gastData.length === 0)
+        html += `<p>No hay gastos en el rango seleccionado.</p>`;
       else {
         html += `<table><thead><tr><th>Fecha</th><th>Monto</th><th>Motivo</th></tr></thead><tbody>`;
         gastData.forEach((g: any) => {
-          const fecha = g.fecha ? (g.fecha.replace ? g.fecha.replace('T', ' ').slice(0, 19) : g.fecha) : '';
-          const monto = Number(g.monto || 0).toLocaleString('de-DE', { minimumFractionDigits: 2 });
-          const motivo = g.motivo || '';
+          const fecha = g.fecha
+            ? g.fecha.replace
+              ? g.fecha.replace("T", " ").slice(0, 19)
+              : g.fecha
+            : "";
+          const monto = Number(g.monto || 0).toLocaleString("de-DE", {
+            minimumFractionDigits: 2,
+          });
+          const motivo = g.motivo || "";
           html += `<tr><td>${fecha}</td><td>L ${monto}</td><td>${motivo}</td></tr>`;
         });
         html += `</tbody></table>`;
@@ -333,26 +419,38 @@ export default function ResultadosView({
 
       // Tabla de pagos
       html += `<div class="section"><h2>Tabla de Pagos</h2>`;
-      if (pagosData.length === 0) html += `<p>No hay pagos en el rango seleccionado.</p>`;
+      if (pagosData.length === 0)
+        html += `<p>No hay pagos en el rango seleccionado.</p>`;
       else {
         // Mostrar pagos agrupados por factura (no repetir facturas)
         html += `<table><thead><tr><th>Fecha</th><th>Tipo(s)</th><th>Factura</th><th>Cajero</th><th>Monto</th></tr></thead><tbody>`;
         pagosUnicosArray.forEach((p) => {
-          const fecha = p.fecha ? (p.fecha.replace ? p.fecha.replace('T', ' ').slice(0, 19) : p.fecha) : '';
-          const tiposStr = Array.from(p.tipos).filter(Boolean).join(', ');
-          const cajero = p.cajero || '';
-          html += `<tr><td>${fecha}</td><td>${tiposStr}</td><td>${p.factura}</td><td>${cajero}</td><td>L ${Number(p.monto || 0).toFixed(2)}</td></tr>`;
+          const fecha = p.fecha
+            ? p.fecha.replace
+              ? p.fecha.replace("T", " ").slice(0, 19)
+              : p.fecha
+            : "";
+          const tiposStr = Array.from(p.tipos).filter(Boolean).join(", ");
+          const cajero = p.cajero || "";
+          html += `<tr><td>${fecha}</td><td>${tiposStr}</td><td>${
+            p.factura
+          }</td><td>${cajero}</td><td>L ${Number(p.monto || 0).toFixed(
+            2
+          )}</td></tr>`;
         });
         // Fila de totales al final de la tabla de pagos (usar total por factura única)
-        html += `<tr><th colspan="4" style="text-align:right">Total Pagos</th><th>L ${totalPagosUnique.toFixed(2)}</th></tr>`;
+        html += `<tr><th colspan="4" style="text-align:right">Total Pagos</th><th>L ${totalPagosUnique.toFixed(
+          2
+        )}</th></tr>`;
         // si difiere, mostrar total raw también
         if (totalPagosRaw !== totalPagosUnique) {
-          html += `<tr><th colspan="4" style="text-align:right">Total Pagos (raw)</th><th>L ${totalPagosRaw.toFixed(2)}</th></tr>`;
+          html += `<tr><th colspan="4" style="text-align:right">Total Pagos (raw)</th><th>L ${totalPagosRaw.toFixed(
+            2
+          )}</th></tr>`;
         }
         html += `</tbody></table>`;
       }
       html += `</div>`;
-
 
       // Reemplazar contenido de la ventana ya abierta y lanzar print
       win.document.open();
@@ -365,9 +463,12 @@ export default function ResultadosView({
     } catch (error) {
       console.error("Error generando reporte:", error);
       try {
-        win.document.body.innerHTML = "<p>Error al generar el reporte. Revisa la consola para más detalles.</p>";
+        win.document.body.innerHTML =
+          "<p>Error al generar el reporte. Revisa la consola para más detalles.</p>";
       } catch (e) {}
-      alert("Error al generar el reporte. Revisa la consola para más detalles.");
+      alert(
+        "Error al generar el reporte. Revisa la consola para más detalles."
+      );
     }
   }
 
@@ -457,7 +558,7 @@ export default function ResultadosView({
           min-width: 100vw;
           width: 100vw;
           height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           margin: 0 !important;
           padding: 0 !important;
@@ -465,35 +566,36 @@ export default function ResultadosView({
           overflow-x: hidden;
         }
         :root {
-          --primary: #1a1a2e;
-          --secondary: #16213e;
-          --accent: #0f3460;
-          --text-primary: #ffffff;
-          --text-secondary: #b0b3c1;
-          --border: #2d3748;
-          --shadow: 0 10px 30px rgba(0,0,0,0.3);
-          --shadow-hover: 0 20px 40px rgba(0,0,0,0.4);
-          --success: #2e7d32;
-          --danger: #c62828;
-          --warning: #f57c00;
-          --info: #1e88e5;
+          --primary: #ffffff;
+          --secondary: #f8fafc;
+          --accent: #3b82f6;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+          --border: #e2e8f0;
+          --shadow: 0 4px 20px rgba(0,0,0,0.06);
+          --shadow-hover: 0 12px 32px rgba(0,0,0,0.12);
+          --success: #10b981;
+          --danger: #ef4444;
+          --warning: #f59e0b;
+          --info: #3b82f6;
         }
 
         .resultados-enterprise {
           min-height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           padding: 0;
         }
 
         .header {
-          background: rgba(26, 26, 46, 0.95);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
           border-bottom: 1px solid var(--border);
           padding: 1.5rem 2.5rem;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
 
         .header-left {
@@ -584,12 +686,13 @@ export default function ResultadosView({
         }
 
         .kpi-card {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 2rem;
           text-align: center;
           transition: all 0.3s ease;
+          box-shadow: var(--shadow);
         }
 
         .kpi-card:hover {
@@ -867,28 +970,33 @@ export default function ResultadosView({
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                 <div className="table-responsive">
                   <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Cajero</th>
-                      <th>Factura</th>
-                      <th>Cliente</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {facturasFiltradas.slice(0, 10).map((f) => (
-                      <tr key={f.id}>
-                        <td data-label="Fecha">{f.fecha_hora?.slice(0, 10)}</td>
-                        <td data-label="Cajero">{f.cajero}</td>
-                        <td data-label="Factura">{f.factura}</td>
-                        <td data-label="Cliente">{f.cliente}</td>
-                        <td data-label="Total" style={{ color: "var(--success)" }}>
-                          L {parseFloat(f.total || 0).toFixed(2)}
-                        </td>
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Cajero</th>
+                        <th>Factura</th>
+                        <th>Cliente</th>
+                        <th>Total</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody>
+                      {facturasFiltradas.slice(0, 10).map((f) => (
+                        <tr key={f.id}>
+                          <td data-label="Fecha">
+                            {f.fecha_hora?.slice(0, 10)}
+                          </td>
+                          <td data-label="Cajero">{f.cajero}</td>
+                          <td data-label="Factura">{f.factura}</td>
+                          <td data-label="Cliente">{f.cliente}</td>
+                          <td
+                            data-label="Total"
+                            style={{ color: "var(--success)" }}
+                          >
+                            L {parseFloat(f.total || 0).toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               </div>
@@ -903,24 +1011,27 @@ export default function ResultadosView({
               <div style={{ maxHeight: "400px", overflowY: "auto" }}>
                 <div className="table-responsive">
                   <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Fecha</th>
-                      <th>Monto</th>
-                      <th>Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gastosFiltrados.slice(0, 10).map((g) => (
-                      <tr key={g.id}>
-                        <td data-label="Fecha">{g.fecha}</td>
-                        <td data-label="Monto" style={{ color: "var(--danger)" }}>
-                          L {parseFloat(g.monto || 0).toFixed(2)}
-                        </td>
-                        <td data-label="Motivo">{g.motivo}</td>
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Motivo</th>
                       </tr>
-                    ))}
-                  </tbody>
+                    </thead>
+                    <tbody>
+                      {gastosFiltrados.slice(0, 10).map((g) => (
+                        <tr key={g.id}>
+                          <td data-label="Fecha">{g.fecha}</td>
+                          <td
+                            data-label="Monto"
+                            style={{ color: "var(--danger)" }}
+                          >
+                            L {parseFloat(g.monto || 0).toFixed(2)}
+                          </td>
+                          <td data-label="Motivo">{g.motivo}</td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               </div>

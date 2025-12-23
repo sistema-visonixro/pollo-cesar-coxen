@@ -340,26 +340,26 @@ export default function CierresAdminView({
           background: unset !important;
         }
         :root {
-          --primary: #1a1a2e;
-          --secondary: #16213e;
-          --accent: #0f3460;
-          --text-primary: #ffffff;
-          --text-secondary: #ffffff;
-          --border: #2d3748;
-          --shadow: 0 10px 30px rgba(0,0,0,0.3);
-          --shadow-hover: 0 20px 40px rgba(0,0,0,0.4);
-          --success: #2e7d32;
-          --danger: #c62828;
-          --warning: #f57c00;
-          --info: #1976d2;
+          --primary: #ffffff;
+          --secondary: #f8fafc;
+          --accent: #3b82f6;
+          --text-primary: #0f172a;
+          --text-secondary: #64748b;
+          --border: #e2e8f0;
+          --shadow: 0 4px 20px rgba(0,0,0,0.06);
+          --shadow-hover: 0 12px 32px rgba(0,0,0,0.12);
+          --success: #10b981;
+          --danger: #ef4444;
+          --warning: #f59e0b;
+          --info: #3b82f6;
         }
 
         .cierres-enterprise {
           min-height: 100vh;
-          background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+          background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           padding: 2rem;
-          color: #fff;
+          color: var(--text-primary);
         }
 
         .container {
@@ -369,7 +369,7 @@ export default function CierresAdminView({
         }
 
         .header {
-          background: rgba(26, 26, 46, 0.95);
+          background: rgba(255, 255, 255, 0.95);
           backdrop-filter: blur(20px);
           border: 1px solid var(--border);
           border-radius: 16px;
@@ -380,7 +380,8 @@ export default function CierresAdminView({
           margin-bottom: 2rem;
           flex-wrap: wrap;
           gap: 1rem;
-          color: #fff;
+          color: var(--text-primary);
+          box-shadow: 0 2px 12px rgba(0,0,0,0.04);
         }
 
         .header-left {
@@ -460,12 +461,13 @@ export default function CierresAdminView({
         }
 
         .stat-card {
-          background: rgba(255,255,255,0.05);
+          background: white;
           border: 1px solid var(--border);
           border-radius: 12px;
           padding: 1.5rem;
           transition: all 0.3s ease;
-          color: #fff;
+          color: var(--text-primary);
+          box-shadow: var(--shadow);
         }
 
         .stat-card:hover {
@@ -476,11 +478,10 @@ export default function CierresAdminView({
         .stat-icon { 
           font-size: 2rem; 
           margin-bottom: 0.5rem; 
-          color: #fff;
         }
 
         .stat-title { 
-          color: #fff;
+          color: var(--text-secondary);
           font-size: 0.875rem;
           margin-bottom: 0.5rem;
           text-transform: uppercase;
@@ -491,7 +492,6 @@ export default function CierresAdminView({
           font-size: 2rem; 
           font-weight: 800; 
           margin-bottom: 1rem;
-          color: #fff;
         }
 
         .open-card { 
