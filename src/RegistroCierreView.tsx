@@ -52,7 +52,7 @@ export default function RegistroCierreView({
         } else if (aperturas && aperturas.length > 0) {
           setAperturaExisteHoy(true);
           const val = aperturas[0].fondo_fijo_registrado;
-          if ((val !== undefined && val !== null) && fondoFijo === "") {
+          if (val !== undefined && val !== null && fondoFijo === "") {
             setFondoFijo(String(val));
           }
         } else {
@@ -79,7 +79,11 @@ export default function RegistroCierreView({
       .select("fondo_fijo_registrado")
       .eq("tipo_registro", "apertura")
       // mantener compatibilidad: priorizar cajero_id si existe, sino filtrar por nombre
-      .or(usuarioActual?.id ? `cajero_id.eq.${usuarioActual.id}` : `cajero.eq.${usuarioActual?.nombre}`)
+      .or(
+        usuarioActual?.id
+          ? `cajero_id.eq.${usuarioActual.id}`
+          : `cajero.eq.${usuarioActual?.nombre}`
+      )
       .eq("caja", caja)
       .gte("fecha", start)
       .lte("fecha", end);
@@ -97,14 +101,23 @@ export default function RegistroCierreView({
 
     // Usar el mismo filtro que el modal Resumen de caja: por cajero (id o nombre) y rango de fecha.
     const pagosBase = () =>
-      supabase.from("pagos").select("monto, fecha_hora").gte("fecha_hora", desde).lte("fecha_hora", hasta);
+      supabase
+        .from("pagos")
+        .select("monto, fecha_hora")
+        .gte("fecha_hora", desde)
+        .lte("fecha_hora", hasta);
 
     const pagosEfectivoQuery = cajeroFilterIsId
       ? pagosBase().eq("tipo", "Efectivo").eq("cajero_id", usuarioActual.id)
       : pagosBase().eq("tipo", "Efectivo").eq("cajero", usuarioActual?.nombre);
 
     const { data: pagosEfectivo } = await pagosEfectivoQuery;
-    console.debug("pagosEfectivo count:", pagosEfectivo?.length, "sample:", pagosEfectivo?.slice(0, 3));
+    console.debug(
+      "pagosEfectivo count:",
+      pagosEfectivo?.length,
+      "sample:",
+      pagosEfectivo?.slice(0, 3)
+    );
     const efectivoDia = pagosEfectivo
       ? pagosEfectivo.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
       : 0;
@@ -121,7 +134,10 @@ export default function RegistroCierreView({
         .eq("cajero_id", usuarioActual?.id)
         .eq("caja", caja);
       if (gastosData && Array.isArray(gastosData)) {
-        gastosDia = gastosData.reduce((s: number, g: any) => s + parseFloat(g.monto || 0), 0);
+        gastosDia = gastosData.reduce(
+          (s: number, g: any) => s + parseFloat(g.monto || 0),
+          0
+        );
       }
     } catch (e) {
       console.warn("No se pudieron obtener gastos del día:", e);
@@ -137,32 +153,52 @@ export default function RegistroCierreView({
       ? pagosBase().eq("tipo", "Tarjeta").eq("cajero_id", usuarioActual.id)
       : pagosBase().eq("tipo", "Tarjeta").eq("cajero", usuarioActual?.nombre);
     const { data: pagosTarjeta } = await pagosTarjetaQuery;
-    console.debug("pagosTarjeta count:", pagosTarjeta?.length, "sample:", pagosTarjeta?.slice(0, 3));
+    console.debug(
+      "pagosTarjeta count:",
+      pagosTarjeta?.length,
+      "sample:",
+      pagosTarjeta?.slice(0, 3)
+    );
     const tarjetaDia = pagosTarjeta
       ? pagosTarjeta.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
       : 0;
     console.debug("tarjetaDia computed:", tarjetaDia);
 
     const pagosTransQuery = cajeroFilterIsId
-      ? pagosBase().eq("tipo", "Transferencia").eq("cajero_id", usuarioActual.id)
-      : pagosBase().eq("tipo", "Transferencia").eq("cajero", usuarioActual?.nombre);
+      ? pagosBase()
+          .eq("tipo", "Transferencia")
+          .eq("cajero_id", usuarioActual.id)
+      : pagosBase()
+          .eq("tipo", "Transferencia")
+          .eq("cajero", usuarioActual?.nombre);
     const { data: pagosTrans } = await pagosTransQuery;
-    console.debug("pagosTrans count:", pagosTrans?.length, "sample:", pagosTrans?.slice(0, 3));
+    console.debug(
+      "pagosTrans count:",
+      pagosTrans?.length,
+      "sample:",
+      pagosTrans?.slice(0, 3)
+    );
     const transferenciasDia = pagosTrans
       ? pagosTrans.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0)
       : 0;
     console.debug("transferenciasDia computed:", transferenciasDia);
 
-    return { fondoFijoDia, efectivoDia: efectivoDiaNet, tarjetaDia, transferenciasDia, gastosDia };
+    return {
+      fondoFijoDia,
+      efectivoDia: efectivoDiaNet,
+      tarjetaDia,
+      transferenciasDia,
+      gastosDia,
+    };
   }
 
   const printCierreReport = (registro: any, gastosDia: number) => {
-    const logoUrl = '/favicon.ico';
+    const logoUrl = "/favicon.ico";
     const img = new Image();
     img.src = logoUrl;
 
     const doPrint = () => {
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open("", "_blank");
       if (!printWindow) return;
 
       const html = `
@@ -192,7 +228,9 @@ export default function RegistroCierreView({
             </div>
 
             <div class="info">
-              <div><strong>Fecha:</strong> ${new Date().toLocaleDateString('es-HN')} ${new Date().toLocaleTimeString('es-HN')}</div>
+              <div><strong>Fecha:</strong> ${new Date().toLocaleDateString(
+                "es-HN"
+              )} ${new Date().toLocaleTimeString("es-HN")}</div>
               <div><strong>Cajero:</strong> ${registro.cajero}</div>
               <div><strong>Caja:</strong> ${registro.caja}</div>
             </div>
@@ -224,7 +262,9 @@ export default function RegistroCierreView({
             <div class="divider"></div>
             <div class="row" style="font-weight: bold;">
               <span>EFECTIVO ESPERADO:</span>
-              <span>L ${(Number(registro.fondo_fijo) + Number(registro.efectivo_dia)).toFixed(2)}</span>
+              <span>L ${(
+                Number(registro.fondo_fijo) + Number(registro.efectivo_dia)
+              ).toFixed(2)}</span>
             </div>
             <div style="font-size: 11px; text-align: right; color: #666;">(Fondo + Ventas Efec. Neto)</div>
 
@@ -233,7 +273,9 @@ export default function RegistroCierreView({
 
             <div class="row">
               <span>Fondo Fijo:</span>
-              <span>L ${Number(registro.fondo_fijo_registrado).toFixed(2)}</span>
+              <span>L ${Number(registro.fondo_fijo_registrado).toFixed(
+                2
+              )}</span>
             </div>
             <div class="row">
               <span>Efectivo:</span>
@@ -241,11 +283,15 @@ export default function RegistroCierreView({
             </div>
             <div class="row">
               <span>Tarjeta:</span>
-              <span>L ${Number(registro.monto_tarjeta_registrado).toFixed(2)}</span>
+              <span>L ${Number(registro.monto_tarjeta_registrado).toFixed(
+                2
+              )}</span>
             </div>
             <div class="row">
               <span>Transferencia:</span>
-              <span>L ${Number(registro.transferencias_registradas).toFixed(2)}</span>
+              <span>L ${Number(registro.transferencias_registradas).toFixed(
+                2
+              )}</span>
             </div>
 
             <div class="divider"></div>
@@ -290,12 +336,23 @@ export default function RegistroCierreView({
     const efectivoFilled = efectivo.trim() !== "";
     const tarjetaFilled = tarjeta.trim() !== "";
     const transferenciasFilled = transferencias.trim() !== "";
-    const isApertura = fondoFijoFilled && !efectivoFilled && !tarjetaFilled && !transferenciasFilled && !aperturaExisteHoy;
-    const isCierreReady = fondoFijoFilled && efectivoFilled && tarjetaFilled && transferenciasFilled;
+    const isApertura =
+      fondoFijoFilled &&
+      !efectivoFilled &&
+      !tarjetaFilled &&
+      !transferenciasFilled &&
+      !aperturaExisteHoy;
+    const isCierreReady =
+      fondoFijoFilled &&
+      efectivoFilled &&
+      tarjetaFilled &&
+      transferenciasFilled;
     const showGuardar = isApertura || isCierreReady;
     if (!showGuardar) {
       setLoading(false);
-      setError("Complete los campos requeridos antes de guardar (fondo fijo y los montos de cierre).");
+      setError(
+        "Complete los campos requeridos antes de guardar (fondo fijo y los montos de cierre)."
+      );
       return;
     }
     const { start, end } = getLocalDayRange();
@@ -344,8 +401,13 @@ export default function RegistroCierreView({
     }
     // Esperar 1 segundo para mostrar pantalla de carga
     setTimeout(async () => {
-      const { fondoFijoDia, efectivoDia, tarjetaDia, transferenciasDia, gastosDia } =
-        await obtenerValoresAutomaticos();
+      const {
+        fondoFijoDia,
+        efectivoDia,
+        tarjetaDia,
+        transferenciasDia,
+        gastosDia,
+      } = await obtenerValoresAutomaticos();
       // Calcular diferencias
       const diferencia =
         parseFloat(fondoFijo) -
@@ -384,7 +446,8 @@ export default function RegistroCierreView({
         registro = {
           tipo_registro: "apertura",
           cajero: usuarioActual?.nombre,
-          cajero_id: usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
+          cajero_id:
+            usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
           caja,
           // Guardar la fecha/hora en hora local de Honduras
           fecha: formatToHondurasLocal(),
@@ -404,7 +467,8 @@ export default function RegistroCierreView({
         registro = {
           tipo_registro: "cierre",
           cajero: usuarioActual?.nombre,
-          cajero_id: usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
+          cajero_id:
+            usuarioActual && usuarioActual.id ? usuarioActual.id : "SIN_ID",
           caja,
           // Guardar la fecha/hora en hora local de Honduras
           fecha: formatToHondurasLocal(),
@@ -426,13 +490,14 @@ export default function RegistroCierreView({
         alert("Error al guardar: " + error.message);
       } else {
         // Imprimir reporte si es CIERRE
-        if (registro.tipo_registro === 'cierre') {
+        if (registro.tipo_registro === "cierre") {
           printCierreReport(registro, gastosDia);
         }
 
         // Enviar datos al script de Google (fire-and-forget)
         try {
-          const gsBase = "https://script.google.com/macros/s/AKfycbxslpWLo-Ex2cuqBS6Rnx_O2f-RMCZ5KWp1D1xaWM45gL0APbNVcT9a9ZTQTJWxLMVfwQ/exec";
+          const { GOOGLE_SCRIPT_URL } = await import("./googlescript");
+          const gsBase = GOOGLE_SCRIPT_URL;
           const now = new Date();
           const fecha = now.toLocaleDateString();
           const hora = now.toLocaleTimeString();
@@ -464,10 +529,14 @@ export default function RegistroCierreView({
           } catch (e) {
             // fallback a fetch no-cors con keepalive
             try {
-              fetch(url, { method: "GET", mode: "no-cors", keepalive: true }).catch(() => { });
+              fetch(url, {
+                method: "GET",
+                mode: "no-cors",
+                keepalive: true,
+              }).catch(() => {});
             } catch (e2) {
               // último recurso: fetch normal sin await
-              fetch(url).catch(() => { });
+              fetch(url).catch(() => {});
             }
           }
         } catch (e) {
@@ -476,7 +545,10 @@ export default function RegistroCierreView({
         }
 
         // Si la diferencia es distinta de 0, redirigir a resultadosCaja
-        if (registro.diferencia !== 0 && typeof onCierreGuardado === "function") {
+        if (
+          registro.diferencia !== 0 &&
+          typeof onCierreGuardado === "function"
+        ) {
           onCierreGuardado();
         } else if (typeof onCierreGuardado === "function") {
           onCierreGuardado();
@@ -490,8 +562,14 @@ export default function RegistroCierreView({
   const efectivoFilled = efectivo.trim() !== "";
   const tarjetaFilled = tarjeta.trim() !== "";
   const transferenciasFilled = transferencias.trim() !== "";
-  const isApertura = fondoFijoFilled && !efectivoFilled && !tarjetaFilled && !transferenciasFilled && !aperturaExisteHoy;
-  const isCierreReady = fondoFijoFilled && efectivoFilled && tarjetaFilled && transferenciasFilled;
+  const isApertura =
+    fondoFijoFilled &&
+    !efectivoFilled &&
+    !tarjetaFilled &&
+    !transferenciasFilled &&
+    !aperturaExisteHoy;
+  const isCierreReady =
+    fondoFijoFilled && efectivoFilled && tarjetaFilled && transferenciasFilled;
   const showGuardar = isApertura || isCierreReady;
 
   return (
@@ -624,36 +702,43 @@ export default function RegistroCierreView({
             marginBottom: 2,
           }}
         />
-        <div style={{ display: 'flex', gap: 12, marginTop: 10, alignItems: 'center' }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            marginTop: 10,
+            alignItems: "center",
+          }}
+        >
           {showGuardar ? (
             <button
               type="submit"
               disabled={loading || aperturaLoading}
               style={{
-                background: '#1976d2',
-                color: '#fff',
+                background: "#1976d2",
+                color: "#fff",
                 borderRadius: 8,
-                border: 'none',
-                padding: '12px 0',
+                border: "none",
+                padding: "12px 0",
                 fontWeight: 700,
                 fontSize: 20,
-                cursor: 'pointer',
+                cursor: "pointer",
                 flex: 1,
-                boxShadow: '0 2px 8px #1976d222',
+                boxShadow: "0 2px 8px #1976d222",
               }}
             >
-              {loading ? 'Guardando...' : 'Guardar cierre'}
+              {loading ? "Guardando..." : "Guardar cierre"}
             </button>
           ) : (
             <div
               style={{
                 flex: 1,
-                padding: '12px 14px',
-                textAlign: 'center',
-                color: '#616161',
+                padding: "12px 14px",
+                textAlign: "center",
+                color: "#616161",
                 borderRadius: 8,
-                border: '1px dashed #e0e0e0',
-                background: '#fafafa',
+                border: "1px dashed #e0e0e0",
+                background: "#fafafa",
                 fontWeight: 600,
               }}
             >
@@ -662,7 +747,9 @@ export default function RegistroCierreView({
           )}
         </div>
         {aperturaLoading && (
-          <div style={{ marginTop: 8, fontSize: 13, color: '#1976d2' }}>Cargando apertura...</div>
+          <div style={{ marginTop: 8, fontSize: 13, color: "#1976d2" }}>
+            Cargando apertura...
+          </div>
         )}
         {/* drawerMessage removido */}
         {error && <div style={{ color: "red", fontWeight: 600 }}>{error}</div>}
