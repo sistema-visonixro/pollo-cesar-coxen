@@ -10,7 +10,7 @@ interface Producto {
   id: string;
   nombre: string;
   precio: number;
-  tipo: "comida" | "bebida";
+  tipo: "comida" | "bebida" | "complemento";
   tipo_impuesto?: string;
   imagen?: string;
 }
@@ -20,7 +20,7 @@ interface Seleccion {
   nombre: string;
   precio: number;
   cantidad: number;
-  tipo: "comida" | "bebida";
+  tipo: "comida" | "bebida" | "complemento";
 }
 
 // use centralized supabase client from src/supabaseClient.ts
@@ -269,7 +269,7 @@ export default function PuntoDeVentaView({
   }, []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<"comida" | "bebida">("comida");
+  const [activeTab, setActiveTab] = useState<"comida" | "bebida" | "complemento">("comida");
 
   // Obtener datos de CAI y factura actual
   useEffect(() => {
@@ -1311,7 +1311,7 @@ export default function PuntoDeVentaView({
             transition: "background 0.3s",
           }}
         >
-          {/* Tabs for Comida/Bebida */}
+          {/* Tabs for Comida/Bebida/Complemento */}
           <div
             style={{
               display: "flex",
@@ -1337,6 +1337,24 @@ export default function PuntoDeVentaView({
               }}
             >
               Comidas
+            </button>
+            <button
+              onClick={() => setActiveTab("complemento")}
+              style={{
+                flex: 1,
+                padding: "12px 0",
+                fontSize: 18,
+                fontWeight: activeTab === "complemento" ? 700 : 400,
+                color: activeTab === "complemento" ? "#9c27b0" : "#666",
+                background: "none",
+                border: "none",
+                borderBottom:
+                  activeTab === "complemento" ? "3px solid #9c27b0" : "none",
+                cursor: "pointer",
+                transition: "all 0.3s",
+              }}
+            >
+              Complementos
             </button>
             <button
               onClick={() => setActiveTab("bebida")}
@@ -1418,7 +1436,7 @@ export default function PuntoDeVentaView({
                     style={{
                       fontWeight: 800,
                       fontSize: 22,
-                      color: activeTab === "comida" ? "#388e3c" : "#1976d2",
+                      color: activeTab === "comida" ? "#388e3c" : activeTab === "bebida" ? "#1976d2" : "#9c27b0",
                       textAlign: "center",
                       marginBottom: 8,
                     }}

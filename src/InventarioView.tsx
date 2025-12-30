@@ -34,9 +34,9 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [showModal, setShowModal] = useState(false);
-  // filtro para mostrar tipo de producto: 'todos' | 'comida' | 'bebida'
-  const [filtroTipo, setFiltroTipo] = useState<"todos" | "comida" | "bebida">(
-    "todos"
+  // filtro para mostrar tipo de producto: 'comida' | 'bebida' | 'complemento'
+  const [filtroTipo, setFiltroTipo] = useState<"comida" | "bebida" | "complemento">(
+    "comida"
   );
 
   useEffect(() => {
@@ -168,6 +168,7 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
   const totalValor = productos.reduce((sum, p) => sum + p.sub_total, 0);
   const comidaCount = productos.filter((p) => p.tipo === "comida").length;
   const bebidaCount = productos.filter((p) => p.tipo === "bebida").length;
+  const complementoCount = productos.filter((p) => p.tipo === "complemento").length;
 
   return (
     <div
@@ -554,6 +555,10 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
             <div className="stat-label">Bebidas</div>
           </div>
           <div className="stat-card">
+            <div className="stat-value">{complementoCount}</div>
+            <div className="stat-label">Complementos</div>
+          </div>
+          <div className="stat-card">
             <div className="stat-value">L {totalValor.toFixed(2)}</div>
             <div className="stat-label">Valor Total</div>
           </div>
@@ -569,19 +574,6 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
         >
           {/* Filtros visibles en móvil (aparecen justo antes de las cards) */}
           <div className="mobile-filters">
-            <button
-              className="btn-table"
-              style={{
-                background:
-                  filtroTipo === "todos"
-                    ? "rgba(66,165,245,0.15)"
-                    : "transparent",
-                color: "#42a5f5",
-              }}
-              onClick={() => setFiltroTipo("todos")}
-            >
-              Todos
-            </button>
             <button
               className="btn-table"
               style={{
@@ -608,12 +600,23 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
             >
               🥤 Bebida
             </button>
+            <button
+              className="btn-table"
+              style={{
+                background:
+                  filtroTipo === "complemento"
+                    ? "rgba(156,39,176,0.12)"
+                    : "transparent",
+                color: "#9c27b0",
+              }}
+              onClick={() => setFiltroTipo("complemento")}
+            >
+              🧂 Complemento
+            </button>
           </div>
           <div className="cards-grid">
             {productos
-              .filter((p) =>
-                filtroTipo === "todos" ? true : p.tipo === filtroTipo
-              )
+              .filter((p) => p.tipo === filtroTipo)
               .map((p) => (
                 <div className="product-card" key={p.id}>
                   {p.imagen ? (
@@ -686,19 +689,6 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
             className="btn-table"
             style={{
               background:
-                filtroTipo === "todos"
-                  ? "rgba(66,165,245,0.15)"
-                  : "transparent",
-              color: "#42a5f5",
-            }}
-            onClick={() => setFiltroTipo("todos")}
-          >
-            Todos
-          </button>
-          <button
-            className="btn-table"
-            style={{
-              background:
                 filtroTipo === "comida"
                   ? "rgba(46,125,50,0.15)"
                   : "transparent",
@@ -721,6 +711,19 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
           >
             🥤 Bebida
           </button>
+          <button
+            className="btn-table"
+            style={{
+              background:
+                filtroTipo === "complemento"
+                  ? "rgba(156,39,176,0.12)"
+                  : "transparent",
+              color: "#9c27b0",
+            }}
+            onClick={() => setFiltroTipo("complemento")}
+          >
+            🧂 Complemento
+          </button>
         </div>
         {/* Tablas separadas */}
         {loading ? (
@@ -729,19 +732,15 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
           <div
             style={{
               display: "flex",
-              gap: "2rem",
-              width: "100vw",
-              minHeight: "60vh",
               justifyContent: "center",
-              alignItems: "flex-start",
+              width: "100%",
               maxWidth: "1400px",
               margin: "0 auto",
             }}
           >
             <div
               style={{
-                flex: 1,
-                minWidth: "0",
+                width: "100%",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -755,7 +754,9 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                   textAlign: "center",
                 }}
               >
-                🍽️ Comidas
+                {filtroTipo === "comida" && "🍽️ Comidas"}
+                {filtroTipo === "bebida" && "🥤 Bebidas"}
+                {filtroTipo === "complemento" && "🧂 Complementos"}
               </h2>
               <div className="table-container">
                 <table className="table">
@@ -772,92 +773,7 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                   </thead>
                   <tbody>
                     {productos
-                      .filter(
-                        (p) =>
-                          p.tipo === "comida" &&
-                          (filtroTipo === "todos" || filtroTipo === "comida")
-                      )
-                      .map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <strong>{p.codigo}</strong>
-                          </td>
-                          <td>{p.nombre}</td>
-                          <td>
-                            {p.imagen ? (
-                              <img
-                                src={p.imagen}
-                                alt={p.nombre}
-                                className="product-image"
-                              />
-                            ) : (
-                              <span style={{ color: "#666" }}>Sin imagen</span>
-                            )}
-                          </td>
-                          <td style={{ color: "#4caf50" }}>
-                            L {p.precio.toFixed(2)}
-                          </td>
-                          <td>{p.tipo_impuesto === "venta" ? "15%" : "18%"}</td>
-                          <td>L {p.sub_total.toFixed(2)}</td>
-                          <td>
-                            <button
-                              className="btn-table btn-edit"
-                              onClick={() => handleEdit(p)}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              className="btn-table btn-delete"
-                              onClick={() => handleDelete(p.id!)}
-                            >
-                              Eliminar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div
-              style={{
-                flex: 1,
-                minWidth: "0",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-              }}
-            >
-              <h2
-                style={{
-                  color: "#fff",
-                  marginBottom: "1rem",
-                  marginTop: "2rem",
-                  textAlign: "center",
-                }}
-              >
-                🥤 Bebidas
-              </h2>
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Código</th>
-                      <th>Nombre</th>
-                      <th>Imagen</th>
-                      <th>Precio</th>
-                      <th>Impuesto</th>
-                      <th>Subtotal</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productos
-                      .filter(
-                        (p) =>
-                          p.tipo === "bebida" &&
-                          (filtroTipo === "todos" || filtroTipo === "bebida")
-                      )
+                      .filter((p) => p.tipo === filtroTipo)
                       .map((p) => (
                         <tr key={p.id}>
                           <td>
@@ -918,59 +834,134 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                   ×
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="form-grid">
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="Nombre del producto"
-                  value={form.nombre || ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, nombre: e.target.value }))
-                  }
-                  required
-                />
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="Precio (L)"
-                  value={form.precio || ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, precio: Number(e.target.value) }))
-                  }
-                  required
-                  step="0.01"
-                />
-                <select
-                  className="form-select"
-                  value={form.tipo || "comida"}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, tipo: e.target.value }))
-                  }
-                >
-                  <option value="comida">🍽️ Comida</option>
-                  <option value="bebida">🥤 Bebida</option>
-                </select>
-                <select
-                  className="form-select"
-                  value={form.tipo_impuesto || "venta"}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, tipo_impuesto: e.target.value }))
-                  }
-                >
-                  <option value="venta">Venta (15%)</option>
-                  <option value="alcohol">Alcohol (18%)</option>
-                </select>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImagenFile(e.target.files?.[0] || null)}
-                  className="form-file"
-                />
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      color: "var(--text-primary)",
+                      fontWeight: 600,
+                      marginBottom: "0.5rem",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    📝 Nombre del Producto
+                  </label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="Ej: Pollo Asado, Coca Cola, Salsa BBQ"
+                    value={form.nombre || ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, nombre: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="form-grid">
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        color: "var(--text-primary)",
+                        fontWeight: 600,
+                        marginBottom: "0.5rem",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      💰 Precio (Lempiras)
+                    </label>
+                    <input
+                      className="form-input"
+                      type="number"
+                      placeholder="0.00"
+                      value={form.precio || ""}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, precio: Number(e.target.value) }))
+                      }
+                      required
+                      step="0.01"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        color: "var(--text-primary)",
+                        fontWeight: 600,
+                        marginBottom: "0.5rem",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      🏷️ Categoría
+                    </label>
+                    <select
+                      className="form-select"
+                      value={form.tipo || "comida"}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, tipo: e.target.value }))
+                      }
+                    >
+                      <option value="comida">🍽️ Comida</option>
+                      <option value="bebida">🥤 Bebida</option>
+                      <option value="complemento">🧂 Complemento</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ marginTop: "1rem", marginBottom: "1.5rem" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      color: "var(--text-primary)",
+                      fontWeight: 600,
+                      marginBottom: "0.5rem",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    📊 Tipo de Impuesto
+                  </label>
+                  <select
+                    className="form-select"
+                    value={form.tipo_impuesto || "venta"}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, tipo_impuesto: e.target.value }))
+                    }
+                  >
+                    <option value="venta">🧾 Venta (15%)</option>
+                    <option value="alcohol">🍺 Alcohol (18%)</option>
+                  </select>
+                </div>
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <label
+                    style={{
+                      display: "block",
+                      color: "var(--text-primary)",
+                      fontWeight: 600,
+                      marginBottom: "0.5rem",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    📷 Imagen del Producto
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImagenFile(e.target.files?.[0] || null)}
+                    className="form-file"
+                  />
+                  {form.imagen && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <small style={{ color: "var(--text-secondary)" }}>
+                        ✅ Imagen actual cargada
+                      </small>
+                    </div>
+                  )}
+                </div>
                 <button
                   type="submit"
                   className="btn-primary"
                   disabled={loading}
-                  style={{ gridColumn: "1/-1", justifySelf: "start" }}
+                  style={{ width: "100%" }}
                 >
                   {loading
                     ? "⏳ Guardando..."
