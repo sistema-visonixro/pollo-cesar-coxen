@@ -8,6 +8,7 @@ interface CaiFactura {
   rango_hasta: number;
   caja_asignada: string;
   cajero_id: string;
+  factura_actual?: string;
   creado_en?: string;
 }
 
@@ -407,8 +408,8 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(0,0,0,0.5);
-          backdrop-filter: blur(8px);
+          background: rgba(15, 23, 42, 0.75);
+          backdrop-filter: blur(12px);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -416,38 +417,54 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         }
 
         .modal {
-          background: rgba(26, 26, 46, 0.95);
-          backdrop-filter: blur(20px);
-          border: 1px solid var(--border);
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
           border-radius: 16px;
-          padding: 2rem;
-          min-width: 400px;
+          padding: 2.5rem;
+          min-width: 520px;
           max-width: 90vw;
           max-height: 90vh;
           overflow-y: auto;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
 
         .modal-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 1.5rem;
+          margin-bottom: 2rem;
+          padding-bottom: 1rem;
+          border-bottom: 2px solid #f1f5f9;
         }
 
         .modal-title {
-          color: var(--text-primary);
-          font-size: 1.25rem;
-          font-weight: 600;
+          color: #0f172a;
+          font-size: 1.5rem;
+          font-weight: 700;
           margin: 0;
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
         .modal-close {
-          background: none;
+          background: #f1f5f9;
           border: none;
-          color: var(--text-secondary);
+          color: #64748b;
           font-size: 1.5rem;
           cursor: pointer;
-          width: 32px;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+          background: #e2e8f0;
+          color: #0f172a;
           height: 32px;
           border-radius: 50%;
           display: flex;
@@ -463,28 +480,31 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
         .form-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1rem;
-          margin-bottom: 1.5rem;
+          gap: 1.25rem;
+          margin-bottom: 2rem;
         }
 
         .form-input, .form-select {
-          background: rgba(255,255,255,0.1);
-          border: 1px solid var(--border);
-          border-radius: 8px;
-          padding: 12px;
-          color: var(--text-primary);
+          background: #f8fafc;
+          border: 2px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 14px 16px;
+          color: #0f172a;
           font-size: 1rem;
-        }
-
-        /* For the select inside the CAI modal, use dark text so options are readable on light background */
-        .modal .form-select {
-          color: #111 !important;
+          font-weight: 500;
+          transition: all 0.2s ease;
         }
 
         .form-input:focus, .form-select:focus {
           outline: none;
-          border-color: var(--info);
-          box-shadow: 0 0 0 3px rgba(25,118,210,0.1);
+          border-color: #3b82f6;
+          background: #ffffff;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-input::placeholder {
+          color: #94a3b8;
+          font-weight: 400;
         }
 
         /* Cards para móvil (ocultas por defecto) */
@@ -565,6 +585,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                   <th>CAI</th>
                   <th>Rango Desde</th>
                   <th>Rango Hasta</th>
+                  <th>Factura Actual</th>
                   <th>Caja</th>
                   <th>Cajero</th>
                   <th>Total Facturas</th>
@@ -584,6 +605,11 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                       </td>
                       <td>{f.rango_desde.toLocaleString()}</td>
                       <td>{f.rango_hasta.toLocaleString()}</td>
+                      <td>
+                        <strong style={{ color: "#6366f1", fontSize: "1.1rem" }}>
+                          {f.factura_actual || "—"}
+                        </strong>
+                      </td>
                       <td style={{ color: "#4caf50" }}>{f.caja_asignada}</td>
                       <td style={{ color: "#ff9800" }}>
                         {cajero?.nombre || "Sin asignar"}
@@ -666,7 +692,7 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
 
         {/* Modal */}
         {showModal && (
-          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-overlay">
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h3 className="modal-title">
@@ -736,6 +762,21 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                   }
                   required
                   readOnly={!!form.cajero_id}
+                />
+                <input
+                  className="form-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Factura actual (número de secuencia)"
+                  value={form.factura_actual || ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Solo permitir números
+                    if (/^\d*$/.test(value)) {
+                      setForm((f) => ({ ...f, factura_actual: value }));
+                    }
+                  }}
                 />
                 <select
                   className="form-select"

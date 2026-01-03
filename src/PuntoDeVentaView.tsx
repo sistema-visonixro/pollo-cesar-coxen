@@ -403,6 +403,21 @@ export default function PuntoDeVentaView({
         });
         const rango_inicio = parseInt(caiData.rango_desde);
         const rango_fin = parseInt(caiData.rango_hasta);
+        
+        // Si existe factura_actual en el CAI, usarla directamente
+        if (caiData.factura_actual && caiData.factura_actual.trim() !== "") {
+          const facturaActualNum = parseInt(caiData.factura_actual);
+          if (Number.isFinite(facturaActualNum)) {
+            if (facturaActualNum > rango_fin) {
+              setFacturaActual("Límite alcanzado");
+            } else {
+              setFacturaActual(facturaActualNum.toString());
+            }
+            return;
+          }
+        }
+        
+        // Si no existe factura_actual, calcular desde las facturas (método antiguo)
         const caja = caiData.caja_asignada;
         const { data: facturasData } = await supabase
           .from("facturas")
@@ -1557,9 +1572,18 @@ export default function PuntoDeVentaView({
                   .toFixed(2),
               };
               await supabase.from("facturas").insert([venta]);
+              
               // Actualizar el número de factura actual en la vista
               if (facturaActual !== "Límite alcanzado") {
                 setFacturaActual((parseInt(facturaActual) + 1).toString());
+                
+                // Actualizar factura_actual en cai_facturas
+                if (usuarioActual?.id) {
+                  await supabase
+                    .from("cai_facturas")
+                    .update({ factura_actual: (parseInt(facturaActual) + 1).toString() })
+                    .eq("cajero_id", usuarioActual.id);
+                }
               }
             } catch (err) {
               console.error("Error al guardar la venta:", err);
