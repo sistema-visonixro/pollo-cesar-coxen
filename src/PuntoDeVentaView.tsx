@@ -384,7 +384,9 @@ export default function PuntoDeVentaView({
   const [activeTab, setActiveTab] = useState<
     "comida" | "bebida" | "complemento"
   >("comida");
-  const [subcategoriaFiltro, setSubcategoriaFiltro] = useState<string | null>(null);
+  const [subcategoriaFiltro, setSubcategoriaFiltro] = useState<string | null>(
+    null
+  );
 
   // Obtener datos de CAI y factura actual
   useEffect(() => {
@@ -403,7 +405,7 @@ export default function PuntoDeVentaView({
         });
         const rango_inicio = parseInt(caiData.rango_desde);
         const rango_fin = parseInt(caiData.rango_hasta);
-        
+
         // Si existe factura_actual en el CAI, usarla directamente
         if (caiData.factura_actual && caiData.factura_actual.trim() !== "") {
           const facturaActualNum = parseInt(caiData.factura_actual);
@@ -416,7 +418,7 @@ export default function PuntoDeVentaView({
             return;
           }
         }
-        
+
         // Si no existe factura_actual, calcular desde las facturas (método antiguo)
         const caja = caiData.caja_asignada;
         const { data: facturasData } = await supabase
@@ -1221,7 +1223,9 @@ export default function PuntoDeVentaView({
                   facturaActual || ""
                 }</div>
                 
-                ${seleccionados.filter((p) => p.tipo === "comida").length > 0 ? `
+                ${
+                  seleccionados.filter((p) => p.tipo === "comida").length > 0
+                    ? `
                   <div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>COMIDAS</div>
                   <ul style='list-style:none; padding:0; margin-bottom:12px;'>
                     ${seleccionados
@@ -1238,9 +1242,14 @@ export default function PuntoDeVentaView({
                       )
                       .join("")}
                   </ul>
-                ` : ''}
+                `
+                    : ""
+                }
                 
-                ${seleccionados.filter((p) => p.tipo === "complemento").length > 0 ? `
+                ${
+                  seleccionados.filter((p) => p.tipo === "complemento").length >
+                  0
+                    ? `
                   <div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>COMPLEMENTOS</div>
                   <ul style='list-style:none; padding:0; margin-bottom:0;'>
                     ${seleccionados
@@ -1257,7 +1266,9 @@ export default function PuntoDeVentaView({
                       )
                       .join("")}
                   </ul>
-                ` : ''}
+                `
+                    : ""
+                }
               </div>
             `;
             // Recibo - Formato SAR
@@ -1279,58 +1290,99 @@ export default function PuntoDeVentaView({
               );
 
             // Calcular pagos para el recibo
-            const efectivoTotal = paymentData.pagos?.filter(p => p.tipo === 'efectivo').reduce((sum, p) => sum + p.monto, 0) || 0;
-            const tarjetaTotal = paymentData.pagos?.filter(p => p.tipo === 'tarjeta').reduce((sum, p) => sum + p.monto, 0) || 0;
-            const dolaresTotal = paymentData.pagos?.filter(p => p.tipo === 'dolares').reduce((sum, p) => sum + p.monto, 0) || 0;
-            const dolaresUSD = paymentData.pagos?.filter(p => p.tipo === 'dolares').reduce((sum, p) => sum + (p.usd_monto || 0), 0) || 0;
-            const transferenciaTotal = paymentData.pagos?.filter(p => p.tipo === 'transferencia').reduce((sum, p) => sum + p.monto, 0) || 0;
+            const efectivoTotal =
+              paymentData.pagos
+                ?.filter((p) => p.tipo === "efectivo")
+                .reduce((sum, p) => sum + p.monto, 0) || 0;
+            const tarjetaTotal =
+              paymentData.pagos
+                ?.filter((p) => p.tipo === "tarjeta")
+                .reduce((sum, p) => sum + p.monto, 0) || 0;
+            const dolaresTotal =
+              paymentData.pagos
+                ?.filter((p) => p.tipo === "dolares")
+                .reduce((sum, p) => sum + p.monto, 0) || 0;
+            const dolaresUSD =
+              paymentData.pagos
+                ?.filter((p) => p.tipo === "dolares")
+                .reduce((sum, p) => sum + (p.usd_monto || 0), 0) || 0;
+            const transferenciaTotal =
+              paymentData.pagos
+                ?.filter((p) => p.tipo === "transferencia")
+                .reduce((sum, p) => sum + p.monto, 0) || 0;
             const cambioValue = paymentData.totalPaid - total;
-            
-            let pagosHtml = '';
-            if (efectivoTotal > 0 || tarjetaTotal > 0 || dolaresTotal > 0 || transferenciaTotal > 0) {
-              pagosHtml += "<div style='border-top:1px dashed #000; margin-top:10px; padding-top:10px;'>";
-              pagosHtml += "<div style='font-size:15px; font-weight:700; margin-bottom:6px;'>PAGOS RECIBIDOS:</div>";
-              
+
+            let pagosHtml = "";
+            if (
+              efectivoTotal > 0 ||
+              tarjetaTotal > 0 ||
+              dolaresTotal > 0 ||
+              transferenciaTotal > 0
+            ) {
+              pagosHtml +=
+                "<div style='border-top:1px dashed #000; margin-top:10px; padding-top:10px;'>";
+              pagosHtml +=
+                "<div style='font-size:15px; font-weight:700; margin-bottom:6px;'>PAGOS RECIBIDOS:</div>";
+
               if (efectivoTotal > 0) {
                 pagosHtml += "<div style='font-size:14px; margin-bottom:3px;'>";
                 pagosHtml += "<span style='float:left;'>Efectivo:</span>";
-                pagosHtml += "<span style='float:right;'>L " + efectivoTotal.toFixed(2) + "</span>";
+                pagosHtml +=
+                  "<span style='float:right;'>L " +
+                  efectivoTotal.toFixed(2) +
+                  "</span>";
                 pagosHtml += "<div style='clear:both;'></div>";
                 pagosHtml += "</div>";
               }
-              
+
               if (tarjetaTotal > 0) {
                 pagosHtml += "<div style='font-size:14px; margin-bottom:3px;'>";
                 pagosHtml += "<span style='float:left;'>Tarjeta:</span>";
-                pagosHtml += "<span style='float:right;'>L " + tarjetaTotal.toFixed(2) + "</span>";
+                pagosHtml +=
+                  "<span style='float:right;'>L " +
+                  tarjetaTotal.toFixed(2) +
+                  "</span>";
                 pagosHtml += "<div style='clear:both;'></div>";
                 pagosHtml += "</div>";
               }
-              
+
               if (dolaresTotal > 0) {
                 pagosHtml += "<div style='font-size:14px; margin-bottom:3px;'>";
-                pagosHtml += "<span style='float:left;'>Dólares: $" + dolaresUSD.toFixed(2) + " USD</span>";
-                pagosHtml += "<span style='float:right;'>L " + dolaresTotal.toFixed(2) + "</span>";
+                pagosHtml +=
+                  "<span style='float:left;'>Dólares: $" +
+                  dolaresUSD.toFixed(2) +
+                  " USD</span>";
+                pagosHtml +=
+                  "<span style='float:right;'>L " +
+                  dolaresTotal.toFixed(2) +
+                  "</span>";
                 pagosHtml += "<div style='clear:both;'></div>";
                 pagosHtml += "</div>";
               }
-              
+
               if (transferenciaTotal > 0) {
                 pagosHtml += "<div style='font-size:14px; margin-bottom:3px;'>";
                 pagosHtml += "<span style='float:left;'>Transferencia:</span>";
-                pagosHtml += "<span style='float:right;'>L " + transferenciaTotal.toFixed(2) + "</span>";
+                pagosHtml +=
+                  "<span style='float:right;'>L " +
+                  transferenciaTotal.toFixed(2) +
+                  "</span>";
                 pagosHtml += "<div style='clear:both;'></div>";
                 pagosHtml += "</div>";
               }
-              
+
               if (cambioValue > 0) {
-                pagosHtml += "<div style='font-size:15px; margin-top:6px; padding-top:6px; border-top:1px solid #000; font-weight:700;'>";
+                pagosHtml +=
+                  "<div style='font-size:15px; margin-top:6px; padding-top:6px; border-top:1px solid #000; font-weight:700;'>";
                 pagosHtml += "<span style='float:left;'>CAMBIO:</span>";
-                pagosHtml += "<span style='float:right;'>L " + cambioValue.toFixed(2) + "</span>";
+                pagosHtml +=
+                  "<span style='float:right;'>L " +
+                  cambioValue.toFixed(2) +
+                  "</span>";
                 pagosHtml += "<div style='clear:both;'></div>";
                 pagosHtml += "</div>";
               }
-              
+
               pagosHtml += "</div>";
             }
 
@@ -1572,16 +1624,18 @@ export default function PuntoDeVentaView({
                   .toFixed(2),
               };
               await supabase.from("facturas").insert([venta]);
-              
+
               // Actualizar el número de factura actual en la vista
               if (facturaActual !== "Límite alcanzado") {
                 setFacturaActual((parseInt(facturaActual) + 1).toString());
-                
+
                 // Actualizar factura_actual en cai_facturas
                 if (usuarioActual?.id) {
                   await supabase
                     .from("cai_facturas")
-                    .update({ factura_actual: (parseInt(facturaActual) + 1).toString() })
+                    .update({
+                      factura_actual: (parseInt(facturaActual) + 1).toString(),
+                    })
                     .eq("cajero_id", usuarioActual.id);
                 }
               }
@@ -1713,103 +1767,114 @@ export default function PuntoDeVentaView({
           </div>
 
           {/* Botones de filtro por subcategor\u00eda (solo para comida) */}
-          {activeTab === "comida" && (() => {
-            const subcategorias = Array.from(
-              new Set(
-                productos
-                  .filter((p) => p.tipo === "comida" && p.subcategoria)
-                  .map((p) => p.subcategoria)
-              )
-            ).filter(Boolean) as string[];
-            
-            if (subcategorias.length === 0) return null;
-            
-            const colores = [
-              { bg: "#ff6b6b", hover: "#ee5a5a" },
-              { bg: "#4ecdc4", hover: "#45b8b0" },
-              { bg: "#ffe66d", hover: "#f4d747" },
-              { bg: "#95e1d3", hover: "#7dd4c3" },
-              { bg: "#ffa502", hover: "#e89400" },
-              { bg: "#ff6348", hover: "#e84c3a" },
-            ];
-            
-            return (
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  marginBottom: 16,
-                  flexWrap: "wrap",
-                  padding: "8px 0",
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setSubcategoriaFiltro(null);
-                  }}
+          {activeTab === "comida" &&
+            (() => {
+              const subcategorias = Array.from(
+                new Set(
+                  productos
+                    .filter((p) => p.tipo === "comida" && p.subcategoria)
+                    .map((p) => p.subcategoria)
+                )
+              ).filter(Boolean) as string[];
+
+              if (subcategorias.length === 0) return null;
+
+              const colores = [
+                { bg: "#ff6b6b", hover: "#ee5a5a" },
+                { bg: "#4ecdc4", hover: "#45b8b0" },
+                { bg: "#ffe66d", hover: "#f4d747" },
+                { bg: "#95e1d3", hover: "#7dd4c3" },
+                { bg: "#ffa502", hover: "#e89400" },
+                { bg: "#ff6348", hover: "#e84c3a" },
+              ];
+
+              return (
+                <div
                   style={{
-                    padding: "10px 20px",
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: !subcategoriaFiltro ? "#fff" : "#666",
-                    background: !subcategoriaFiltro ? "#388e3c" : "#e0e0e0",
-                    border: "none",
-                    borderRadius: 20,
-                    cursor: "pointer",
-                    transition: "all 0.3s",
-                    boxShadow: !subcategoriaFiltro ? "0 4px 8px rgba(56, 142, 60, 0.3)" : "none",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!subcategoriaFiltro) {
-                      e.currentTarget.style.background = "#2e7d32";
-                    } else {
-                      e.currentTarget.style.background = "#d0d0d0";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = !subcategoriaFiltro ? "#388e3c" : "#e0e0e0";
+                    display: "flex",
+                    gap: 12,
+                    marginBottom: 16,
+                    flexWrap: "wrap",
+                    padding: "8px 0",
                   }}
                 >
-                  TODOS
-                </button>
-                {subcategorias.map((sub, idx) => {
-                  const color = colores[idx % colores.length];
-                  const isActive = subcategoriaFiltro === sub;
-                  return (
-                    <button
-                      key={sub}
-                      onClick={() => {
-                        setSubcategoriaFiltro(isActive ? null : sub);
-                      }}
-                      style={{
-                        padding: "10px 20px",
-                        fontSize: 15,
-                        fontWeight: 600,
-                        color: "#fff",
-                        background: isActive ? color.bg : "#bdbdbd",
-                        border: "none",
-                        borderRadius: 20,
-                        cursor: "pointer",
-                        transition: "all 0.3s",
-                        boxShadow: isActive ? `0 4px 8px ${color.bg}50` : "none",
-                        transform: isActive ? "scale(1.05)" : "scale(1)",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = color.hover;
-                        e.currentTarget.style.transform = "scale(1.05)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = isActive ? color.bg : "#bdbdbd";
-                        e.currentTarget.style.transform = isActive ? "scale(1.05)" : "scale(1)";
-                      }}
-                    >
-                      {sub}
-                    </button>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                  <button
+                    onClick={() => {
+                      setSubcategoriaFiltro(null);
+                    }}
+                    style={{
+                      padding: "10px 20px",
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: !subcategoriaFiltro ? "#fff" : "#666",
+                      background: !subcategoriaFiltro ? "#388e3c" : "#e0e0e0",
+                      border: "none",
+                      borderRadius: 20,
+                      cursor: "pointer",
+                      transition: "all 0.3s",
+                      boxShadow: !subcategoriaFiltro
+                        ? "0 4px 8px rgba(56, 142, 60, 0.3)"
+                        : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!subcategoriaFiltro) {
+                        e.currentTarget.style.background = "#2e7d32";
+                      } else {
+                        e.currentTarget.style.background = "#d0d0d0";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = !subcategoriaFiltro
+                        ? "#388e3c"
+                        : "#e0e0e0";
+                    }}
+                  >
+                    TODOS
+                  </button>
+                  {subcategorias.map((sub, idx) => {
+                    const color = colores[idx % colores.length];
+                    const isActive = subcategoriaFiltro === sub;
+                    return (
+                      <button
+                        key={sub}
+                        onClick={() => {
+                          setSubcategoriaFiltro(isActive ? null : sub);
+                        }}
+                        style={{
+                          padding: "10px 20px",
+                          fontSize: 15,
+                          fontWeight: 600,
+                          color: "#fff",
+                          background: isActive ? color.bg : "#bdbdbd",
+                          border: "none",
+                          borderRadius: 20,
+                          cursor: "pointer",
+                          transition: "all 0.3s",
+                          boxShadow: isActive
+                            ? `0 4px 8px ${color.bg}50`
+                            : "none",
+                          transform: isActive ? "scale(1.05)" : "scale(1)",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = color.hover;
+                          e.currentTarget.style.transform = "scale(1.05)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = isActive
+                            ? color.bg
+                            : "#bdbdbd";
+                          e.currentTarget.style.transform = isActive
+                            ? "scale(1.05)"
+                            : "scale(1)";
+                        }}
+                      >
+                        {sub}
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
           {/* Product Grid */}
           {loading ? (
@@ -2621,7 +2686,10 @@ export default function PuntoDeVentaView({
                             facturaActual || ""
                           }</div>
                           
-                          ${seleccionados.filter((p) => p.tipo === "comida").length > 0 ? `
+                          ${
+                            seleccionados.filter((p) => p.tipo === "comida")
+                              .length > 0
+                              ? `
                             <div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>COMIDAS</div>
                             <ul style='list-style:none; padding:0; margin-bottom:12px;'>
                               ${seleccionados
@@ -2638,9 +2706,15 @@ export default function PuntoDeVentaView({
                                 )
                                 .join("")}
                             </ul>
-                          ` : ''}
+                          `
+                              : ""
+                          }
                           
-                          ${seleccionados.filter((p) => p.tipo === "complemento").length > 0 ? `
+                          ${
+                            seleccionados.filter(
+                              (p) => p.tipo === "complemento"
+                            ).length > 0
+                              ? `
                             <div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>COMPLEMENTOS</div>
                             <ul style='list-style:none; padding:0; margin-bottom:0;'>
                               ${seleccionados
@@ -2657,7 +2731,9 @@ export default function PuntoDeVentaView({
                                 )
                                 .join("")}
                             </ul>
-                          ` : ''}
+                          `
+                              : ""
+                          }
                         </div>
                       `;
 

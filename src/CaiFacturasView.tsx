@@ -606,7 +606,9 @@ export default function CaiFacturasView({ onBack }: CaiFacturasViewProps) {
                       <td>{f.rango_desde.toLocaleString()}</td>
                       <td>{f.rango_hasta.toLocaleString()}</td>
                       <td>
-                        <strong style={{ color: "#6366f1", fontSize: "1.1rem" }}>
+                        <strong
+                          style={{ color: "#6366f1", fontSize: "1.1rem" }}
+                        >
                           {f.factura_actual || "—"}
                         </strong>
                       </td>

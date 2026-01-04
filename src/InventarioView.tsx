@@ -36,9 +36,9 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [showModal, setShowModal] = useState(false);
   // filtro para mostrar tipo de producto: 'comida' | 'bebida' | 'complemento'
-  const [filtroTipo, setFiltroTipo] = useState<"comida" | "bebida" | "complemento">(
-    "comida"
-  );
+  const [filtroTipo, setFiltroTipo] = useState<
+    "comida" | "bebida" | "complemento"
+  >("comida");
 
   useEffect(() => {
     const fetchProductos = async () => {
@@ -170,7 +170,9 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
   const totalValor = productos.reduce((sum, p) => sum + p.sub_total, 0);
   const comidaCount = productos.filter((p) => p.tipo === "comida").length;
   const bebidaCount = productos.filter((p) => p.tipo === "bebida").length;
-  const complementoCount = productos.filter((p) => p.tipo === "complemento").length;
+  const complementoCount = productos.filter(
+    (p) => p.tipo === "complemento"
+  ).length;
 
   return (
     <div
@@ -879,7 +881,10 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                       placeholder="0.00"
                       value={form.precio || ""}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, precio: Number(e.target.value) }))
+                        setForm((f) => ({
+                          ...f,
+                          precio: Number(e.target.value),
+                        }))
                       }
                       required
                       step="0.01"
@@ -910,7 +915,7 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                     </select>
                   </div>
                 </div>
-                
+
                 {/* Campo de subcategoría solo para comida */}
                 {form.tipo === "comida" && (
                   <div style={{ marginTop: "1rem", marginBottom: "1.5rem" }}>
@@ -931,7 +936,10 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                       className="form-input"
                       value={form.subcategoria || ""}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, subcategoria: e.target.value.toUpperCase() }))
+                        setForm((f) => ({
+                          ...f,
+                          subcategoria: e.target.value.toUpperCase(),
+                        }))
                       }
                       placeholder="Ej: ROSTIZADOS, FRITOS, TACOS, ASADOS"
                       style={{
@@ -950,7 +958,7 @@ export default function InventarioView({ onBack }: InventarioViewProps) {
                     </datalist>
                   </div>
                 )}
-                
+
                 <div style={{ marginTop: "1rem", marginBottom: "1.5rem" }}>
                   <label
                     style={{

@@ -230,9 +230,16 @@ export default function PaymentModal({
               alignItems: "center",
             }}
           >
-            <h3 style={{ margin: 0, color: theme === "lite" ? "#111" : "#f5f5f5" }}>Registrar Pago</h3>
-            <button 
-              onClick={onClose} 
+            <h3
+              style={{
+                margin: 0,
+                color: theme === "lite" ? "#111" : "#f5f5f5",
+              }}
+            >
+              Registrar Pago
+            </h3>
+            <button
+              onClick={onClose}
               className="btn-opaque"
               style={{
                 border: theme === "lite" ? "1px solid #ddd" : "1px solid #555",
@@ -254,19 +261,43 @@ export default function PaymentModal({
             }}
           >
             {/* Encabezado prominente con Total a pagar */}
-            <div style={{ gridColumn: "1 / -1", textAlign: "center", marginBottom: 8 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: theme === "lite" ? "#111" : "#f5f5f5" }}>Total a pagar:</div>
-              <div style={{ fontSize: 32, fontWeight: 900, color: "#1976d2", marginTop: 4 }}>{currency(totalPedido)}</div>
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: theme === "lite" ? "#111" : "#f5f5f5",
+                }}
+              >
+                Total a pagar:
+              </div>
+              <div
+                style={{
+                  fontSize: 32,
+                  fontWeight: 900,
+                  color: "#1976d2",
+                  marginTop: 4,
+                }}
+              >
+                {currency(totalPedido)}
+              </div>
             </div>
             {/* izquierda: mini tabla de pagos y totales */}
-            <div style={{ color: theme === "lite" ? "#111" : "#f5f5f5" }}>Pedido
+            <div style={{ color: theme === "lite" ? "#111" : "#f5f5f5" }}>
+              Pedido
               <div style={{ marginBottom: 8 }}>
                 Total a pagar: <strong>{currency(totalPedido)}</strong>
               </div>
-
               <div
                 style={{
-                  border: theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
+                  border:
+                    theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
                   borderRadius: 8,
                   padding: 6,
                   marginBottom: 12,
@@ -284,7 +315,10 @@ export default function PaymentModal({
                     <tr
                       style={{
                         textAlign: "left",
-                        borderBottom: theme === "lite" ? "1px solid #efefef" : "1px solid #555",
+                        borderBottom:
+                          theme === "lite"
+                            ? "1px solid #efefef"
+                            : "1px solid #555",
                       }}
                     >
                       <th>Tipo</th>
@@ -296,7 +330,13 @@ export default function PaymentModal({
                   <tbody>
                     {pagos.length === 0 && (
                       <tr>
-                        <td colSpan={4} style={{ padding: 12, color: theme === "lite" ? "#666" : "#999" }}>
+                        <td
+                          colSpan={4}
+                          style={{
+                            padding: 12,
+                            color: theme === "lite" ? "#666" : "#999",
+                          }}
+                        >
                           No hay pagos registrados
                         </td>
                       </tr>
@@ -304,7 +344,12 @@ export default function PaymentModal({
                     {pagos.map((p) => (
                       <tr
                         key={p.id}
-                        style={{ borderBottom: theme === "lite" ? "1px solid #f5f5f5" : "1px solid #444" }}
+                        style={{
+                          borderBottom:
+                            theme === "lite"
+                              ? "1px solid #f5f5f5"
+                              : "1px solid #444",
+                        }}
                       >
                         <td style={{ padding: "6px 4px" }}>{p.tipo}</td>
                         <td style={{ padding: "6px 4px" }}>
@@ -364,7 +409,6 @@ export default function PaymentModal({
                   </tbody>
                 </table>
               </div>
-
               <div
                 style={{
                   display: "flex",
@@ -377,33 +421,55 @@ export default function PaymentModal({
                   style={{
                     padding: 6,
                     borderRadius: 6,
-                    border: theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
+                    border:
+                      theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
                     minWidth: 140,
                   }}
                 >
-                  <div style={{ fontSize: 12, color: theme === "lite" ? "#666" : "#999" }}>Efectivo</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: theme === "lite" ? "#666" : "#999",
+                    }}
+                  >
+                    Efectivo
+                  </div>
                   <div style={{ fontWeight: 600 }}>{currency(efectivoSum)}</div>
                 </div>
                 <div
                   style={{
                     padding: 6,
                     borderRadius: 6,
-                    border: theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
+                    border:
+                      theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
                     minWidth: 140,
                   }}
                 >
-                  <div style={{ fontSize: 12, color: theme === "lite" ? "#666" : "#999" }}>Tarjeta</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: theme === "lite" ? "#666" : "#999",
+                    }}
+                  >
+                    Tarjeta
+                  </div>
                   <div style={{ fontWeight: 600 }}>{currency(tarjetaSum)}</div>
                 </div>
                 <div
                   style={{
                     padding: 6,
                     borderRadius: 6,
-                    border: theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
+                    border:
+                      theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
                     minWidth: 140,
                   }}
                 >
-                  <div style={{ fontSize: 12, color: theme === "lite" ? "#666" : "#999" }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: theme === "lite" ? "#666" : "#999",
+                    }}
+                  >
                     Transferencia
                   </div>
                   <div style={{ fontWeight: 600 }}>
@@ -411,7 +477,12 @@ export default function PaymentModal({
                   </div>
                 </div>
                 <div style={{ marginLeft: "auto", textAlign: "right" }}>
-                  <div style={{ fontSize: 12, color: theme === "lite" ? "#666" : "#999" }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: theme === "lite" ? "#666" : "#999",
+                    }}
+                  >
                     Total ingresado
                   </div>
                   <div style={{ fontWeight: 700 }}>{currency(totalPaid)}</div>
@@ -432,16 +503,15 @@ export default function PaymentModal({
             {/* derecha: formulario para agregar pago */}
             <div
               style={{
-                border: theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
+                border:
+                  theme === "lite" ? "1px solid #e6edf3" : "1px solid #444",
                 borderRadius: 8,
                 padding: 10,
                 fontSize: 13,
               }}
             >
               <div style={{ marginBottom: 8 }}>
-                <label style={labelStyle}>
-                  Tipo de pago
-                </label>
+                <label style={labelStyle}>Tipo de pago</label>
                 <select
                   value={tipo}
                   onChange={(e) => {
@@ -464,9 +534,7 @@ export default function PaymentModal({
               </div>
 
               <div style={{ marginBottom: 8 }}>
-                <label style={labelStyle}>
-                  Monto
-                </label>
+                <label style={labelStyle}>Monto</label>
                 {tipo === "dolares" ? (
                   <div
                     style={{
@@ -476,9 +544,7 @@ export default function PaymentModal({
                     }}
                   >
                     <div>
-                      <label style={labelStyle}>
-                        $
-                      </label>
+                      <label style={labelStyle}>$</label>
                       <input
                         type="number"
                         min={0}
@@ -496,9 +562,7 @@ export default function PaymentModal({
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>
-                        L (convertido)
-                      </label>
+                      <label style={labelStyle}>L (convertido)</label>
                       <input
                         type="number"
                         min={0}
@@ -538,19 +602,22 @@ export default function PaymentModal({
               {tipo === "dolares" && (
                 <div style={{ marginBottom: 8 }}>
                   <label style={labelStyle}>
-                    Tipo de cambio (Lps :   {exchangeRate.toFixed(2)} por $)  
+                    Tipo de cambio (Lps : {exchangeRate.toFixed(2)} por $)
                   </label>
                   <div
                     style={{ display: "flex", gap: 8, alignItems: "center" }}
-                  >
-                   
-                    
-                  </div>
+                  ></div>
                 </div>
               )}
 
               {tipo === "efectivo" && (
-                <div style={{ fontSize: 13, color: theme === "lite" ? "#444" : "#aaa", marginBottom: 8 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: theme === "lite" ? "#444" : "#aaa",
+                    marginBottom: 8,
+                  }}
+                >
                   Pago en efectivo: solo indique el monto y presione "Agregar".
                 </div>
               )}
@@ -558,9 +625,7 @@ export default function PaymentModal({
               {tipo === "tarjeta" && (
                 <>
                   <div style={{ marginBottom: 8 }}>
-                    <label style={labelStyle}>
-                      Banco
-                    </label>
+                    <label style={labelStyle}>Banco</label>
                     <select
                       value={banco}
                       onChange={(e) => setBanco(e.target.value)}
@@ -593,9 +658,7 @@ export default function PaymentModal({
                     </select>
                   </div>
                   <div style={{ marginBottom: 8 }}>
-                    <label style={labelStyle}>
-                      Tarjeta (últimos 4)
-                    </label>
+                    <label style={labelStyle}>Tarjeta (últimos 4)</label>
                     <input
                       value={tarjeta}
                       onChange={(e) => setTarjeta(e.target.value)}
@@ -610,9 +673,7 @@ export default function PaymentModal({
                     }}
                   >
                     <div>
-                      <label style={labelStyle}>
-                        Factura
-                      </label>
+                      <label style={labelStyle}>Factura</label>
                       <input
                         value={factura}
                         onChange={(e) => setFactura(e.target.value)}
@@ -620,9 +681,7 @@ export default function PaymentModal({
                       />
                     </div>
                     <div>
-                      <label style={labelStyle}>
-                        Autorizador
-                      </label>
+                      <label style={labelStyle}>Autorizador</label>
                       <input
                         value={autorizador}
                         onChange={(e) => setAutorizador(e.target.value)}
@@ -636,9 +695,7 @@ export default function PaymentModal({
               {tipo === "transferencia" && (
                 <>
                   <div style={{ marginBottom: 8 }}>
-                    <label style={labelStyle}>
-                      Banco
-                    </label>
+                    <label style={labelStyle}>Banco</label>
                     <select
                       value={banco}
                       onChange={(e) => setBanco(e.target.value)}
@@ -675,9 +732,7 @@ export default function PaymentModal({
                     </select>
                   </div>
                   <div style={{ marginBottom: 8 }}>
-                    <label style={labelStyle}>
-                      Referencia
-                    </label>
+                    <label style={labelStyle}>Referencia</label>
                     <input
                       value={referencia}
                       onChange={(e) => setReferencia(e.target.value)}
@@ -706,10 +761,11 @@ export default function PaymentModal({
                     setMonto(String((totalPedido - totalPaid).toFixed(2)));
                   }}
                   className="btn-opaque"
-                  style={{ 
-                    background: "transparent", 
+                  style={{
+                    background: "transparent",
                     fontSize: 13,
-                    border: theme === "lite" ? "1px solid #ddd" : "1px solid #555",
+                    border:
+                      theme === "lite" ? "1px solid #ddd" : "1px solid #555",
                     color: theme === "lite" ? "#111" : "#f5f5f5",
                   }}
                 >
@@ -826,10 +882,11 @@ export default function PaymentModal({
                   <button
                     onClick={() => setConfirmDeleteId(null)}
                     className="btn-opaque"
-                    style={{ 
-                      background: "transparent", 
+                    style={{
+                      background: "transparent",
                       padding: "6px 10px",
-                      border: theme === "lite" ? "1px solid #ddd" : "1px solid #555",
+                      border:
+                        theme === "lite" ? "1px solid #ddd" : "1px solid #555",
                       color: theme === "lite" ? "#111" : "#f5f5f5",
                     }}
                   >
@@ -871,7 +928,10 @@ export default function PaymentModal({
             >
               <div
                 style={{
-                  background: theme === "lite" ? "rgba(255,255,255,0.98)" : "rgba(42,42,42,0.98)",
+                  background:
+                    theme === "lite"
+                      ? "rgba(255,255,255,0.98)"
+                      : "rgba(42,42,42,0.98)",
                   padding: 18,
                   borderRadius: 10,
                   display: "flex",
