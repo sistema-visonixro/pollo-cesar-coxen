@@ -1252,17 +1252,39 @@ export default function PuntoDeVentaView({
 
               console.log("Insertando pagos:", pagosToInsert);
 
-              const { error: pagoError } = await supabase
-                .from("pagos")
-                .insert(pagosToInsert);
+              try {
+                // Verificar si hay conexión
+                if (!navigator.onLine) {
+                  console.warn("Sin conexión a internet. Guardando pagos localmente...");
+                  const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                  pendingPayments.push(...pagosToInsert);
+                  localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+                  alert("Sin conexión. Los pagos se guardarán cuando se restaure la conexión.");
+                } else {
+                  const { error: pagoError } = await supabase
+                    .from("pagos")
+                    .insert(pagosToInsert);
 
-              if (pagoError) {
-                console.error("Error al guardar pagos:", pagoError);
-                alert("Error al registrar los pagos: " + pagoError.message);
-                return;
+                  if (pagoError) {
+                    console.error("Error al guardar pagos:", pagoError);
+                    // Intentar guardar localmente como respaldo
+                    const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                    pendingPayments.push(...pagosToInsert);
+                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+                    alert("Error al registrar los pagos: " + pagoError.message + "\nSe guardaron localmente y se sincronizarán después.");
+                    return;
+                  }
+
+                  console.log("Pagos guardados exitosamente");
+                }
+              } catch (fetchError) {
+                console.error("Error de conexión al guardar pagos:", fetchError);
+                // Guardar localmente como respaldo
+                const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                pendingPayments.push(...pagosToInsert);
+                localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
+                alert("Error de conexión. Los pagos se guardaron localmente y se sincronizarán cuando se restaure la conexión.");
               }
-
-              console.log("Pagos guardados exitosamente");
             }
           } catch (err) {
             console.error("Error al procesar pagos:", err);
@@ -1313,6 +1335,7 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                             ${p.complementos ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>` : ''}
                             ${p.piezas && p.piezas !== 'PIEZAS VARIAS' ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>` : ''}
@@ -1337,6 +1360,7 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                           </li>`
                       )
@@ -1358,6 +1382,7 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                           </li>`
                       )
@@ -3329,6 +3354,7 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                                       <div style='font-weight:700;'>${p.nombre}</div>
                                       ${p.complementos ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>` : ''}
                                       ${p.piezas && p.piezas !== 'PIEZAS VARIAS' ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>` : ''}
@@ -3354,6 +3380,7 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                                       <div style='font-weight:700;'>${p.nombre}</div>
                                     </li>`
                                 )
@@ -3376,6 +3403,7 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
                                       <div style='font-weight:700;'>${p.nombre}</div>
                                     </li>`
                                 )
