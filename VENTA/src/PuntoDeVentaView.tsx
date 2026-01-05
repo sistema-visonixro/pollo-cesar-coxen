@@ -567,7 +567,7 @@ export default function PuntoDeVentaView() {
                         <div style='font-size:20px; font-weight:700; color:#388e3c; text-align:center; margin-bottom:6px;'>COMANDA COCINA</div>
                         <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${nombreCliente}</b></div>
                         <ul style='list-style:none; padding:0; margin-bottom:0;'>
-                          ${seleccionados.filter(p => p.tipo === 'comida').map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          ${seleccionados.filter(p => p.tipo === 'comida').map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700; font-size:18px; color:#d32f2f;'>${p.cantidad}x</span> <span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)}</span></li>`).join('')}
                         </ul>
                       </div>
                     `;
@@ -577,7 +577,7 @@ export default function PuntoDeVentaView() {
                         <div style='font-size:20px; font-weight:700; color:#1976d2; text-align:center; margin-bottom:6px;'>COMPROBANTE CLIENTE</div>
                         <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${nombreCliente}</b></div>
                         <ul style='list-style:none; padding:0; margin-bottom:0;'>
-                          ${seleccionados.map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          ${seleccionados.map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700; font-size:18px; color:#1565c0;'>${p.cantidad}x</span> <span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)}</span></li>`).join('')}
                         </ul>
                         <div style='font-weight:700; font-size:18px; margin-top:12px; text-align:right;'>Total: L ${total.toFixed(2)}</div>
                       </div>
@@ -660,7 +660,7 @@ export default function PuntoDeVentaView() {
                         <div style='font-size:20px; font-weight:700; color:#388e3c; text-align:center; margin-bottom:6px;'>COMANDA COCINA</div>
                         <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${nombreCliente}</b></div>
                         <ul style='list-style:none; padding:0; margin-bottom:0;'>
-                          ${seleccionados.filter(p => p.tipo === 'comida').map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          ${seleccionados.filter(p => p.tipo === 'comida').map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700; font-size:18px; color:#d32f2f;'>${p.cantidad}x</span> <span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)}</span></li>`).join('')}
                         </ul>
                       </div>
                     `;
@@ -669,7 +669,7 @@ export default function PuntoDeVentaView() {
                         <div style='font-size:20px; font-weight:700; color:#1976d2; text-align:center; margin-bottom:6px;'>COMPROBANTE CLIENTE</div>
                         <div style='font-size:16px; font-weight:600; color:#222; text-align:center; margin-bottom:10px;'>Cliente: <b>${nombreCliente}</b></div>
                         <ul style='list-style:none; padding:0; margin-bottom:0;'>
-                          ${seleccionados.map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)} x${p.cantidad}</span></li>`).join('')}
+                          ${seleccionados.map(p => `<li style='font-size:17px; margin-bottom:8px; border-bottom:1px dashed #eee; text-align:left;'><span style='font-weight:700; font-size:18px; color:#1565c0;'>${p.cantidad}x</span> <span style='font-weight:700;'>${p.nombre}</span> <span style='float:right;'>L ${p.precio.toFixed(2)}</span></li>`).join('')}
                         </ul>
                         <div style='font-weight:700; font-size:18px; margin-top:12px; text-align:right;'>Total: L ${total.toFixed(2)}</div>
                       </div>

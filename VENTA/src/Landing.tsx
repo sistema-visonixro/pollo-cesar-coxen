@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BACKGROUND_IMAGE } from './assets/images';
 
 interface LandingProps {

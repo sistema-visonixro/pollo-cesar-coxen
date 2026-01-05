@@ -18,9 +18,6 @@ interface InventarioViewProps {
   onBack: () => void;
 }
 
-const API_URL = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/productos`;
-const API_KEY = import.meta.env.VITE_SUPABASE_KEY || "";
-
 // Initialize Supabase client
 // use centralized supabase client from src/supabaseClient.ts
 
