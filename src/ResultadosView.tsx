@@ -204,12 +204,11 @@ export default function ResultadosView({
             .order("fecha_hora", { ascending: true }),
           supabase
             .from("cierres")
-            .select("monto, observacion, fecha")
+            .select("*")
             .eq("tipo_registro", "cierre")
-            .eq("observacion", "sin aclarar")
             // la columna `fecha` puede ser fecha o timestamp; usar comparador por día
-            .gte("fecha", desde)
-            .lte("fecha", hasta)
+            .gte("fecha", desdeInicio)
+            .lte("fecha", hastaFin)
             .order("fecha", { ascending: true }),
           supabase
             .from("precio_dolar")
@@ -416,12 +415,12 @@ export default function ResultadosView({
 
       // Sección VALOR DE VENTA POR CATEGORÍA
       html += `<div class="section"><h2>💰 Valor de Venta por Categoría</h2>`;
-      
+
       // Calcular ventas por categoría y subcategoría consultando tabla productos
       const ventasPorCategoria: { [key: string]: number } = {
         comida: 0,
         bebida: 0,
-        complemento: 0
+        complemento: 0,
       };
       const ventasPorSubcategoria: { [key: string]: number } = {};
 
@@ -431,10 +430,11 @@ export default function ResultadosView({
         if (f.productos) {
           try {
             // Parsear el string JSON de productos
-            const productosArray = typeof f.productos === 'string' 
-              ? JSON.parse(f.productos) 
-              : f.productos;
-            
+            const productosArray =
+              typeof f.productos === "string"
+                ? JSON.parse(f.productos)
+                : f.productos;
+
             if (Array.isArray(productosArray)) {
               productosArray.forEach((prod: any) => {
                 if (prod.id) productosIds.add(prod.id);
@@ -456,7 +456,10 @@ export default function ResultadosView({
       const productosMap = new Map();
       if (productosInfo) {
         productosInfo.forEach((p: any) => {
-          productosMap.set(p.id, { tipo: p.tipo, subcategoria: p.subcategoria });
+          productosMap.set(p.id, {
+            tipo: p.tipo,
+            subcategoria: p.subcategoria,
+          });
         });
       }
 
@@ -465,28 +468,30 @@ export default function ResultadosView({
         if (f.productos) {
           try {
             // Parsear el string JSON de productos
-            const productosArray = typeof f.productos === 'string' 
-              ? JSON.parse(f.productos) 
-              : f.productos;
-            
+            const productosArray =
+              typeof f.productos === "string"
+                ? JSON.parse(f.productos)
+                : f.productos;
+
             if (Array.isArray(productosArray)) {
               productosArray.forEach((prod: any) => {
                 const productoInfo = productosMap.get(prod.id);
                 if (productoInfo) {
-                  const tipo = productoInfo.tipo || 'comida';
+                  const tipo = productoInfo.tipo || "comida";
                   const cantidad = prod.cantidad || 1;
                   const precio = prod.precio || 0;
                   const total = precio * cantidad;
-                  
+
                   // Sumar a categoría principal
                   if (ventasPorCategoria[tipo] !== undefined) {
                     ventasPorCategoria[tipo] += total;
                   }
-                  
+
                   // Si es comida y tiene subcategoría, sumar a subcategoría
-                  if (tipo === 'comida' && productoInfo.subcategoria) {
+                  if (tipo === "comida" && productoInfo.subcategoria) {
                     const subcat = productoInfo.subcategoria;
-                    ventasPorSubcategoria[subcat] = (ventasPorSubcategoria[subcat] || 0) + total;
+                    ventasPorSubcategoria[subcat] =
+                      (ventasPorSubcategoria[subcat] || 0) + total;
                   }
                 }
               });
@@ -504,7 +509,9 @@ export default function ResultadosView({
         html += `<table><thead><tr><th>Subcategoría</th><th>Total Ventas</th></tr></thead><tbody>`;
         subcategorias.forEach((subcat) => {
           const total = ventasPorSubcategoria[subcat];
-          const totalFmt = total.toLocaleString("de-DE", { minimumFractionDigits: 2 });
+          const totalFmt = total.toLocaleString("de-DE", {
+            minimumFractionDigits: 2,
+          });
           html += `<tr><td>${subcat}</td><td>L ${totalFmt}</td></tr>`;
         });
         html += `</tbody></table>`;
@@ -514,32 +521,84 @@ export default function ResultadosView({
       html += `<h3 style="margin-top:16px;color:#111;">Total por Categoría</h3>`;
       html += `<table><thead><tr><th>Categoría</th><th>Total Ventas</th></tr></thead><tbody>`;
       const categorias = [
-        { key: 'comida', label: '🍗 Comidas' },
-        { key: 'complemento', label: '🍟 Complementos' },
-        { key: 'bebida', label: '🥤 Bebidas' }
+        { key: "comida", label: "🍗 Comidas" },
+        { key: "complemento", label: "🍟 Complementos" },
+        { key: "bebida", label: "🥤 Bebidas" },
       ];
       categorias.forEach(({ key, label }) => {
         const total = ventasPorCategoria[key] || 0;
         if (total > 0) {
-          const totalFmt = total.toLocaleString("de-DE", { minimumFractionDigits: 2 });
+          const totalFmt = total.toLocaleString("de-DE", {
+            minimumFractionDigits: 2,
+          });
           html += `<tr><td>${label}</td><td>L ${totalFmt}</td></tr>`;
         }
       });
-      const totalCategorias = Object.values(ventasPorCategoria).reduce((sum, val) => sum + val, 0);
-      const totalCategoriasFmt = totalCategorias.toLocaleString("de-DE", { minimumFractionDigits: 2 });
+      const totalCategorias = Object.values(ventasPorCategoria).reduce(
+        (sum, val) => sum + val,
+        0
+      );
+      const totalCategoriasFmt = totalCategorias.toLocaleString("de-DE", {
+        minimumFractionDigits: 2,
+      });
       html += `<tr><th style="text-align:right">Total General</th><th>L ${totalCategoriasFmt}</th></tr>`;
       html += `</tbody></table></div>`;
 
-      html += `<div class="section"><h2>Historial de cierres (sin aclarar)</h2>`;
+      html += `<div class="section"><h2>Historial de cierres</h2>`;
       if (cierresData.length === 0) {
-        html += `<p>No hay cierres "sin aclarar" en el rango seleccionado.</p>`;
+        html += `<p>No hay cierres en el rango seleccionado.</p>`;
       } else {
-        html += `<table><thead><tr><th>Fecha</th><th>Monto</th><th>Observación</th></tr></thead><tbody>`;
+        html += `<table style="font-size:11px;"><thead><tr>`;
+        html += `<th>Fecha</th>`;
+        html += `<th>Cajero</th>`;
+        html += `<th>Caja</th>`;
+        html += `<th>Efectivo Reg.</th>`;
+        html += `<th>Efectivo Día</th>`;
+        html += `<th>Tarjeta Reg.</th>`;
+        html += `<th>Tarjeta Día</th>`;
+        html += `<th>Transf. Reg.</th>`;
+        html += `<th>Transf. Día</th>`;
+        html += `<th>Dólares Reg.</th>`;
+        html += `<th>Dólares Día</th>`;
+        html += `<th>Diferencia</th>`;
+        html += `<th>Observación</th>`;
+        html += `<th>Referencia</th>`;
+        html += `</tr></thead><tbody>`;
         cierresData.forEach((c: any) => {
           const fecha = c.fecha ? c.fecha.slice(0, 19).replace("T", " ") : "";
-          html += `<tr><td>${fecha}</td><td>L ${parseFloat(
-            c.monto || 0
-          ).toFixed(2)}</td><td>${c.observacion || ""}</td></tr>`;
+          const diferencia = parseFloat(c.diferencia || 0);
+          const difColor =
+            diferencia > 0 ? "#388e3c" : diferencia < 0 ? "#d32f2f" : "#111";
+          html += `<tr>`;
+          html += `<td>${fecha}</td>`;
+          html += `<td>${c.cajero || ""}</td>`;
+          html += `<td>${c.caja || ""}</td>`;
+          html += `<td>L ${parseFloat(c.efectivo_registrado || 0).toFixed(
+            2
+          )}</td>`;
+          html += `<td>L ${parseFloat(c.efectivo_dia || 0).toFixed(2)}</td>`;
+          html += `<td>L ${parseFloat(c.monto_tarjeta_registrado || 0).toFixed(
+            2
+          )}</td>`;
+          html += `<td>L ${parseFloat(c.monto_tarjeta_dia || 0).toFixed(
+            2
+          )}</td>`;
+          html += `<td>L ${parseFloat(
+            c.transferencias_registradas || 0
+          ).toFixed(2)}</td>`;
+          html += `<td>L ${parseFloat(c.transferencias_dia || 0).toFixed(
+            2
+          )}</td>`;
+          html += `<td>$ ${parseFloat(c.dolares_registrado || 0).toFixed(
+            2
+          )}</td>`;
+          html += `<td>$ ${parseFloat(c.dolares_dia || 0).toFixed(2)}</td>`;
+          html += `<td style="color:${difColor};font-weight:700;">L ${diferencia.toFixed(
+            2
+          )}</td>`;
+          html += `<td>${c.observacion || ""}</td>`;
+          html += `<td>${c.referencia_aclaracion || ""}</td>`;
+          html += `</tr>`;
         });
         html += `</tbody></table>`;
       }

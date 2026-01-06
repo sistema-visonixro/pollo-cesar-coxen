@@ -50,7 +50,7 @@ export default function ResultadosCajaView() {
 
   const [updatingObservacion, setUpdatingObservacion] = useState(false);
   const [tasaDolar, setTasaDolar] = useState<number>(0);
-  
+
   // Estados para modal de aclaración
   const [showModalAclaracion, setShowModalAclaracion] = useState(false);
   const [cierreSeleccionado, setCierreSeleccionado] = useState<any>(null);
@@ -119,9 +119,9 @@ export default function ResultadosCajaView() {
       // Actualizar cierre
       const { error } = await supabase
         .from("cierres")
-        .update({ 
+        .update({
           observacion: "aclarado",
-          referencia_aclaracion: referenciaAclaracion.trim()
+          referencia_aclaracion: referenciaAclaracion.trim(),
         })
         .eq("id", cierreSeleccionado.id);
 
@@ -131,10 +131,14 @@ export default function ResultadosCajaView() {
         setShowPasswordModal(false);
         setShowErrorModal(true);
       } else {
-        setCierres((prev) => 
-          prev.map((c) => 
-            c.id === cierreSeleccionado.id 
-              ? { ...c, observacion: "aclarado", referencia_aclaracion: referenciaAclaracion.trim() } 
+        setCierres((prev) =>
+          prev.map((c) =>
+            c.id === cierreSeleccionado.id
+              ? {
+                  ...c,
+                  observacion: "aclarado",
+                  referencia_aclaracion: referenciaAclaracion.trim(),
+                }
               : c
           )
         );
@@ -179,7 +183,8 @@ export default function ResultadosCajaView() {
         height: "100vh",
         display: "flex",
         flexDirection: "column",
-        background: "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+        background:
+          "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
         color: "#fff",
         position: "fixed",
         top: 0,
@@ -322,7 +327,9 @@ export default function ResultadosCajaView() {
               }}
             />
             <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
-            <p style={{ fontSize: "1.2rem", opacity: 0.8 }}>Cargando resultados...</p>
+            <p style={{ fontSize: "1.2rem", opacity: 0.8 }}>
+              Cargando resultados...
+            </p>
           </div>
         ) : cierres.length === 0 ? (
           <div
@@ -334,7 +341,9 @@ export default function ResultadosCajaView() {
               border: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            <p style={{ fontSize: "1.3rem" }}>No hay cierres registrados en las últimas 24 horas.</p>
+            <p style={{ fontSize: "1.3rem" }}>
+              No hay cierres registrados en las últimas 24 horas.
+            </p>
           </div>
         ) : (
           <>
@@ -361,7 +370,7 @@ export default function ResultadosCajaView() {
               >
                 DIFERENCIAS
               </h2>
-              
+
               {cierres.length > 0 && (
                 <div
                   style={{
@@ -374,20 +383,28 @@ export default function ResultadosCajaView() {
                   {(() => {
                     const cierre = cierres[0];
                     const efectivoDiff = parseFloat(
-                      ((parseFloat(cierre.efectivo_registrado) || 0) -
-                        (parseFloat(cierre.efectivo_dia) || 0)).toFixed(2)
+                      (
+                        (parseFloat(cierre.efectivo_registrado) || 0) -
+                        (parseFloat(cierre.efectivo_dia) || 0)
+                      ).toFixed(2)
                     );
                     const tarjetaDiff = parseFloat(
-                      ((parseFloat(cierre.monto_tarjeta_registrado) || 0) -
-                        (parseFloat(cierre.monto_tarjeta_dia) || 0)).toFixed(2)
+                      (
+                        (parseFloat(cierre.monto_tarjeta_registrado) || 0) -
+                        (parseFloat(cierre.monto_tarjeta_dia) || 0)
+                      ).toFixed(2)
                     );
                     const transDiff = parseFloat(
-                      ((parseFloat(cierre.transferencias_registradas) || 0) -
-                        (parseFloat(cierre.transferencias_dia) || 0)).toFixed(2)
+                      (
+                        (parseFloat(cierre.transferencias_registradas) || 0) -
+                        (parseFloat(cierre.transferencias_dia) || 0)
+                      ).toFixed(2)
                     );
                     const dolaresDiff = parseFloat(
-                      ((parseFloat(cierre.dolares_registrado) || 0) -
-                        (parseFloat(cierre.dolares_dia) || 0)).toFixed(2)
+                      (
+                        (parseFloat(cierre.dolares_registrado) || 0) -
+                        (parseFloat(cierre.dolares_dia) || 0)
+                      ).toFixed(2)
                     );
 
                     return (
@@ -520,16 +537,38 @@ export default function ResultadosCajaView() {
                               color: getColor(dolaresDiff),
                             }}
                           >
-                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                    <div style={{ fontSize: "2.2rem", fontWeight: 900, color: getColor(dolaresDiff), lineHeight: 1 }}>
-                                      $ {dolaresDiff.toFixed(2)}
-                                    </div>
-                                    {tasaDolar > 0 && (
-                                      <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "rgba(255,255,255,0.75)", marginTop: 6 }}>
-                                        {`(L ${Number((dolaresDiff * tasaDolar).toFixed(2))})`}
-                                      </div>
-                                    )}
-                                  </div>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: "2.2rem",
+                                  fontWeight: 900,
+                                  color: getColor(dolaresDiff),
+                                  lineHeight: 1,
+                                }}
+                              >
+                                $ {dolaresDiff.toFixed(2)}
+                              </div>
+                              {tasaDolar > 0 && (
+                                <div
+                                  style={{
+                                    fontSize: "0.95rem",
+                                    fontWeight: 600,
+                                    color: "rgba(255,255,255,0.75)",
+                                    marginTop: 6,
+                                  }}
+                                >
+                                  {`(L ${Number(
+                                    (dolaresDiff * tasaDolar).toFixed(2)
+                                  )})`}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </>
@@ -583,12 +622,12 @@ export default function ResultadosCajaView() {
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(300px, 1fr))",
                         gap: 20,
                         fontSize: "1.1rem",
                       }}
                     >
-                      
                       <div
                         style={{
                           background: "rgba(255,255,255,0.05)",
@@ -598,8 +637,12 @@ export default function ResultadosCajaView() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <span style={{ opacity: 0.8 }}>Efectivo Registrado:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.efectivo_registrado}</span>
+                        <span style={{ opacity: 0.8 }}>
+                          Efectivo Registrado:
+                        </span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.efectivo_registrado}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -611,7 +654,9 @@ export default function ResultadosCajaView() {
                         }}
                       >
                         <span style={{ opacity: 0.8 }}>Efectivo Día:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.efectivo_dia}</span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.efectivo_dia}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -622,8 +667,12 @@ export default function ResultadosCajaView() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <span style={{ opacity: 0.8 }}>Monto Tarjeta Registrado:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.monto_tarjeta_registrado}</span>
+                        <span style={{ opacity: 0.8 }}>
+                          Monto Tarjeta Registrado:
+                        </span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.monto_tarjeta_registrado}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -635,7 +684,9 @@ export default function ResultadosCajaView() {
                         }}
                       >
                         <span style={{ opacity: 0.8 }}>Monto Tarjeta Día:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.monto_tarjeta_dia}</span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.monto_tarjeta_dia}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -646,8 +697,12 @@ export default function ResultadosCajaView() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <span style={{ opacity: 0.8 }}>Transferencias Registradas:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.transferencias_registradas}</span>
+                        <span style={{ opacity: 0.8 }}>
+                          Transferencias Registradas:
+                        </span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.transferencias_registradas}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -658,8 +713,12 @@ export default function ResultadosCajaView() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <span style={{ opacity: 0.8 }}>Transferencias Día:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.transferencias_dia}</span>
+                        <span style={{ opacity: 0.8 }}>
+                          Transferencias Día:
+                        </span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.transferencias_dia}
+                        </span>
                       </div>
                       <div
                         style={{
@@ -670,14 +729,35 @@ export default function ResultadosCajaView() {
                           justifyContent: "space-between",
                         }}
                       >
-                        <span style={{ opacity: 0.8 }}>Dólares Registrado (USD):</span>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                        <span style={{ opacity: 0.8 }}>
+                          Dólares Registrado (USD):
+                        </span>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                          }}
+                        >
                           <span style={{ fontWeight: 700, fontSize: "1rem" }}>
-                            {Number(parseFloat(cierre.dolares_registrado || 0)).toFixed(2)}
+                            {Number(
+                              parseFloat(cierre.dolares_registrado || 0)
+                            ).toFixed(2)}
                           </span>
                           {tasaDolar > 0 && (
-                            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
-                              {`(L ${Number((parseFloat(cierre.dolares_registrado || 0) * tasaDolar).toFixed(2))})`}
+                            <span
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "rgba(255,255,255,0.75)",
+                                marginTop: 4,
+                              }}
+                            >
+                              {`(L ${Number(
+                                (
+                                  parseFloat(cierre.dolares_registrado || 0) *
+                                  tasaDolar
+                                ).toFixed(2)
+                              )})`}
                             </span>
                           )}
                         </div>
@@ -692,13 +772,32 @@ export default function ResultadosCajaView() {
                         }}
                       >
                         <span style={{ opacity: 0.8 }}>Dólares Día (USD):</span>
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "flex-end",
+                          }}
+                        >
                           <span style={{ fontWeight: 700, fontSize: "1rem" }}>
-                            {Number(parseFloat(cierre.dolares_dia || 0)).toFixed(2)}
+                            {Number(
+                              parseFloat(cierre.dolares_dia || 0)
+                            ).toFixed(2)}
                           </span>
                           {tasaDolar > 0 && (
-                            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
-                              {`(L ${Number((parseFloat(cierre.dolares_dia || 0) * tasaDolar).toFixed(2))})`}
+                            <span
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "rgba(255,255,255,0.75)",
+                                marginTop: 4,
+                              }}
+                            >
+                              {`(L ${Number(
+                                (
+                                  parseFloat(cierre.dolares_dia || 0) *
+                                  tasaDolar
+                                ).toFixed(2)
+                              )})`}
                             </span>
                           )}
                         </div>
@@ -713,13 +812,31 @@ export default function ResultadosCajaView() {
                           gap: 8,
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                          }}
+                        >
                           {(() => {
                             const d = parseFloat(cierre.diferencia || 0);
-                            const label = d > 0 ? "Diferencia a favor" : d < 0 ? "Diferencia en contra" : "Diferencia";
-                            const labelColor = d > 0 ? "#388e3c" : d < 0 ? "#d32f2f" : "#ffffff";
+                            const label =
+                              d > 0
+                                ? "Diferencia a favor"
+                                : d < 0
+                                ? "Diferencia en contra"
+                                : "Diferencia";
+                            const labelColor =
+                              d > 0 ? "#388e3c" : d < 0 ? "#d32f2f" : "#ffffff";
                             return (
-                              <span style={{ opacity: 0.95, color: labelColor, fontWeight: 700 }}>
+                              <span
+                                style={{
+                                  opacity: 0.95,
+                                  color: labelColor,
+                                  fontWeight: 700,
+                                }}
+                              >
                                 {label}
                               </span>
                             );
@@ -727,11 +844,15 @@ export default function ResultadosCajaView() {
                           <span
                             style={{
                               fontWeight: 900,
-                              color: getColor(parseFloat(cierre.diferencia || 0)),
+                              color: getColor(
+                                parseFloat(cierre.diferencia || 0)
+                              ),
                               fontSize: "1.05rem",
                             }}
                           >
-                            {Number(parseFloat(cierre.diferencia || 0)).toFixed(2)}
+                            {Number(parseFloat(cierre.diferencia || 0)).toFixed(
+                              2
+                            )}
                           </span>
                         </div>
                       </div>
@@ -745,28 +866,45 @@ export default function ResultadosCajaView() {
                         }}
                       >
                         <span style={{ opacity: 0.8 }}>Observación:</span>
-                        <span style={{ fontWeight: 700 }}>{cierre.observacion || "sin aclarar"}</span>
+                        <span style={{ fontWeight: 700 }}>
+                          {cierre.observacion || "sin aclarar"}
+                        </span>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+                    <div
+                      style={{
+                        marginTop: 16,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                      }}
+                    >
                       <button
                         onClick={() => abrirModalAclaracion(cierre)}
-                        disabled={updatingObservacion || (cierre.observacion || "") === "aclarado"}
+                        disabled={
+                          updatingObservacion ||
+                          (cierre.observacion || "") === "aclarado"
+                        }
                         style={{
                           padding: "10px 18px",
-                          background: (cierre.observacion || "") === "aclarado" ? "#9e9e9e" : "#388e3c",
+                          background:
+                            (cierre.observacion || "") === "aclarado"
+                              ? "#9e9e9e"
+                              : "#388e3c",
                           color: "#fff",
                           border: "none",
                           borderRadius: 10,
                           fontWeight: 700,
-                          cursor: updatingObservacion ? "not-allowed" : "pointer",
+                          cursor: updatingObservacion
+                            ? "not-allowed"
+                            : "pointer",
                         }}
                       >
-                        { (cierre.observacion || "") === "aclarado" ? "Aclarado" : "Aclarar cierre" }
+                        {(cierre.observacion || "") === "aclarado"
+                          ? "Aclarado"
+                          : "Aclarar cierre"}
                       </button>
                     </div>
-
                   </div>
                 ))}
           </>
@@ -801,11 +939,25 @@ export default function ResultadosCajaView() {
               boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
             }}
           >
-            <h2 style={{ margin: "0 0 24px 0", color: "#1976d2", fontSize: "1.5rem", fontWeight: 700 }}>
+            <h2
+              style={{
+                margin: "0 0 24px 0",
+                color: "#1976d2",
+                fontSize: "1.5rem",
+                fontWeight: 700,
+              }}
+            >
               Aclarar Cierre
             </h2>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", marginBottom: 8, color: "#333", fontWeight: 600 }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: 8,
+                  color: "#333",
+                  fontWeight: 600,
+                }}
+              >
                 Referencia del Cierre:
               </label>
               <textarea
@@ -824,7 +976,9 @@ export default function ResultadosCajaView() {
                 }}
               />
             </div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div
+              style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}
+            >
               <button
                 onClick={cerrarModalAclaracion}
                 style={{
@@ -888,18 +1042,34 @@ export default function ResultadosCajaView() {
               boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
             }}
           >
-            <h2 style={{ margin: "0 0 24px 0", color: "#1976d2", fontSize: "1.3rem", fontWeight: 700 }}>
+            <h2
+              style={{
+                margin: "0 0 24px 0",
+                color: "#1976d2",
+                fontSize: "1.3rem",
+                fontWeight: 700,
+              }}
+            >
               Confirmar Identidad
             </h2>
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: "block", marginBottom: 8, color: "#333", fontWeight: 600 }}>
+              <label
+                style={{
+                  display: "block",
+                  marginBottom: 8,
+                  color: "#333",
+                  fontWeight: 600,
+                }}
+              >
                 Ingrese su contraseña:
               </label>
               <input
                 type="password"
                 value={passwordAclaracion}
                 onChange={(e) => setPasswordAclaracion(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && validarPasswordYAclarar()}
+                onKeyPress={(e) =>
+                  e.key === "Enter" && validarPasswordYAclarar()
+                }
                 style={{
                   width: "100%",
                   padding: 12,
@@ -911,7 +1081,9 @@ export default function ResultadosCajaView() {
                 autoFocus
               />
             </div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+            <div
+              style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}
+            >
               <button
                 onClick={() => {
                   setShowPasswordModal(false);
@@ -979,8 +1151,20 @@ export default function ResultadosCajaView() {
             }}
           >
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>⚠️</div>
-            <h3 style={{ margin: "0 0 16px 0", color: "#d32f2f", fontSize: "1.3rem" }}>Error</h3>
-            <p style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}>{errorMessage}</p>
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                color: "#d32f2f",
+                fontSize: "1.3rem",
+              }}
+            >
+              Error
+            </h3>
+            <p
+              style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}
+            >
+              {errorMessage}
+            </p>
             <button
               onClick={() => setShowErrorModal(false)}
               style={{
@@ -1029,8 +1213,18 @@ export default function ResultadosCajaView() {
             }}
           >
             <div style={{ fontSize: "3rem", marginBottom: 16 }}>✅</div>
-            <h3 style={{ margin: "0 0 16px 0", color: "#388e3c", fontSize: "1.3rem" }}>Éxito</h3>
-            <p style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}>
+            <h3
+              style={{
+                margin: "0 0 16px 0",
+                color: "#388e3c",
+                fontSize: "1.3rem",
+              }}
+            >
+              Éxito
+            </h3>
+            <p
+              style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}
+            >
               Cierre aclarado exitosamente
             </p>
             <button
