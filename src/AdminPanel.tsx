@@ -81,16 +81,36 @@ interface AdminPanelProps {
   user: any;
 }
 
-import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { useState, useEffect } from "react";
 import { useDatosNegocio } from "./useDatosNegocio";
+import UsuariosView from "./UsuariosView";
+import InventarioView from "./InventarioView";
+import CaiFacturasView from "./CaiFacturasView";
+import ResultadosView from "./ResultadosView";
+import GastosView from "./GastosView";
+import FacturasEmitidasView from "./FacturasEmitidasView";
+import CierresAdminView from "./CierresAdminView";
+import DatosNegocioView from "./DatosNegocioView";
 
 const AdminPanel: FC<AdminPanelProps> = ({ onSelect, user }) => {
   const { datos: datosNegocio } = useDatosNegocio();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showClaveModal, setShowClaveModal] = useState(false);
-  const [claveCaja, setClaveCaja] = useState<string | null>(null);
-  const [cargandoClave, setCargandoClave] = useState(false);
+  const [isDesktop, setIsDesktop] = useState<boolean>(
+    typeof window !== "undefined" ? window.innerWidth >= 1024 : false
+  );
+  const [currentView, setCurrentView] = useState<string>(
+    isDesktop ? "resultados" : "menu"
+  );
+
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    if (isDesktop) setCurrentView((v) => (v === "menu" ? "resultados" : v));
+  }, [isDesktop]);
   return (
     <div
       className="admin-panel-enterprise"
@@ -413,210 +433,443 @@ const AdminPanel: FC<AdminPanelProps> = ({ onSelect, user }) => {
         .card { padding: 0.85rem; }
         .card-icon { width: 44px; height: 44px; }
       }
+
+      /* Mobile minimal header: show only logo + nombre, hide user block and floating logout */
+      @media (max-width: 600px) {
+        .header { padding: 0.5rem 0.75rem; }
+        .header-content { justify-content: flex-start; gap: 12px; }
+        .logo { gap: 8px; font-size: 1rem; }
+        .brand-image { width: 28px !important; height: 28px !important; border-radius: 6px !important; }
+        .logo span { font-size: 0.95rem; font-weight: 700; }
+        .user-info { display: none !important; }
+      }
+
+      /* Extra small screens: make logo even smaller */
+      @media (max-width: 380px) {
+        .brand-image { width: 24px !important; height: 24px !important; }
+        .logo span { font-size: 0.9rem; }
+        .header-content { gap: 8px; }
+      }
+
+      /* Evitar overflow en vistas dentro del layout de escritorio */
+      .desktop-admin-layout { 
+        box-sizing: border-box; 
+        width: 100vw; 
+        height: 100vh;
+        overflow: hidden; 
+        display: flex;
+      }
+      .sidebar { 
+        width: 260px;
+        min-width: 260px;
+        height: 100vh;
+        overflow-y: auto;
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border-right: 1px solid #e2e8f0;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+      }
+      .sidebar::-webkit-scrollbar { width: 6px; }
+      .sidebar::-webkit-scrollbar-track { background: transparent; }
+      .sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+      .sidebar-header {
+        padding: 1.5rem 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: white;
+      }
+      .sidebar-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .sidebar-logo img, .sidebar-logo > div {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        object-fit: cover;
+      }
+      .sidebar-title {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+      }
+      .sidebar-nav {
+        flex: 1;
+        padding: 1rem 0.75rem;
+        overflow-y: auto;
+      }
+      .sidebar-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        transition: all 0.2s ease;
+        margin-bottom: 4px;
+      }
+      .sidebar-nav-item:hover {
+        background: #f1f5f9;
+        transform: translateX(2px);
+      }
+      .sidebar-nav-item.active {
+        background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+        border-left: 3px solid #3b82f6;
+        font-weight: 600;
+      }
+      .sidebar-nav-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+      }
+      .sidebar-nav-text {
+        flex: 1;
+        min-width: 0;
+      }
+      .sidebar-nav-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #0f172a;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-nav-subtitle {
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sidebar-footer {
+        padding: 1rem;
+        border-top: 1px solid #e2e8f0;
+        background: white;
+      }
+      .sidebar-logout-btn {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ef4444 0%, #f59e0b 100%);
+        color: white;
+        border: none;
+        font-weight: 600;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(239,68,68,0.2);
+      }
+      .sidebar-logout-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+      }
+      .desktop-content { 
+        flex: 1;
+        height: 100vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        background: #fafbfc;
+        box-sizing: border-box;
+        padding: 1.5rem;
+        width: 0; /* Force flex item to respect container */
+      }
+      .desktop-content::-webkit-scrollbar { width: 8px; }
+      .desktop-content::-webkit-scrollbar-track { background: #f1f5f9; }
+      .desktop-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      
+      /* Wrapper for views with strict containment */
+      .view-wrapper {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: hidden;
+        box-sizing: border-box;
+      }
+      .view-wrapper > * { 
+        max-width: 100% !important; 
+        width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        overflow-x: hidden !important;
+      }
+      .view-wrapper .admin-panel-enterprise,
+      .view-wrapper .cierres-enterprise,
+      .view-wrapper .usuarios-enterprise,
+      .view-wrapper > div[style*="100vw"],
+      .view-wrapper > div[style*="100vh"] { 
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        height: auto !important;
+        min-height: auto !important;
+        padding: 1rem !important;
+        margin: 0 !important;
+        overflow-x: hidden !important;
+      }
+      .view-wrapper .container { 
+        max-width: 100% !important; 
+        width: 100% !important; 
+        margin: 0 auto !important; 
+        padding: 1rem !important;
+      }
+      .view-wrapper .header { 
+        position: static !important; 
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .view-wrapper .table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: auto !important;
+        margin: 0 !important;
+      }
+      .view-wrapper table { 
+        max-width: 100% !important; 
+        width: 100% !important; 
+        display: table !important;
+        table-layout: auto !important;
+      }
+      .view-wrapper img { max-width: 100% !important; height: auto; }
+      .view-wrapper * { box-sizing: border-box; }
     `}</style>
 
-      <header className="header">
-        <div className="header-content">
-          <div className="logo">
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: "0.75rem",
-              }}
-            >
-              {datosNegocio.logo_url ? (
-                <img
-                  src={datosNegocio.logo_url}
-                  alt="Logo"
-                  className="brand-image"
-                  style={{
-                    width: "50px",
-                    height: "50px",
-                    borderRadius: 10,
-                    objectFit: "cover",
-                  }}
+      {isDesktop ? (
+        <div className="desktop-admin-layout">
+          <aside className="sidebar">
+            <div className="sidebar-header">
+              <div className="sidebar-logo">
+                {datosNegocio.logo_url ? (
+                  <img src={datosNegocio.logo_url} alt="Logo" />
+                ) : (
+                  <div
+                    style={{
+                      background: "linear-gradient(135deg, #667eea, #764ba2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.5rem",
+                    }}
+                  >
+                    🏪
+                  </div>
+                )}
+                <div className="sidebar-title">
+                  {datosNegocio.nombre_negocio}
+                </div>
+              </div>
+            </div>
+            <nav className="sidebar-nav">
+              {cards.map((card) => (
+                <button
+                  key={card.view}
+                  onClick={() => setCurrentView(card.view)}
+                  className={`sidebar-nav-item ${
+                    currentView === card.view ? "active" : ""
+                  }`}
+                >
+                  <div
+                    className="sidebar-nav-icon"
+                    style={{ background: card.color, color: "white" }}
+                  >
+                    {card.icon}
+                  </div>
+                  <div className="sidebar-nav-text">
+                    <div className="sidebar-nav-label">{card.label}</div>
+                    <div className="sidebar-nav-subtitle">{card.subtitle}</div>
+                  </div>
+                </button>
+              ))}
+            </nav>
+            <div className="sidebar-footer">
+              <button
+                onClick={() => setShowLogoutModal(true)}
+                className="sidebar-logout-btn"
+              >
+                🔒 Salir
+              </button>
+            </div>
+          </aside>
+          <section className="desktop-content">
+            <div className="view-wrapper">
+              {currentView === "usuarios" && (
+                <UsuariosView onBack={() => setCurrentView("resultados")} />
+              )}
+              {currentView === "inventario" && (
+                <InventarioView onBack={() => setCurrentView("resultados")} />
+              )}
+              {currentView === "cai" && (
+                <CaiFacturasView onBack={() => setCurrentView("resultados")} />
+              )}
+              {currentView === "resultados" && (
+                <ResultadosView
+                  onBack={() => setCurrentView("resultados")}
+                  onVerFacturasEmitidas={() =>
+                    setCurrentView("facturasEmitidas")
+                  }
                 />
-              ) : (
+              )}
+              {currentView === "gastos" && (
+                <GastosView onBack={() => setCurrentView("resultados")} />
+              )}
+              {currentView === "facturasEmitidas" && (
+                <FacturasEmitidasView
+                  onBack={() => setCurrentView("resultados")}
+                />
+              )}
+              {currentView === "cierreadmin" && (
+                <CierresAdminView
+                  onVolver={() => setCurrentView("resultados")}
+                />
+              )}
+              {currentView === "datosNegocio" && (
+                <DatosNegocioView onBack={() => setCurrentView("resultados")} />
+              )}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <>
+          <header className="header">
+            <div className="header-content">
+              <div className="logo">
                 <div
                   style={{
-                    width: "50px",
-                    height: "50px",
-                    borderRadius: 10,
-                    background: "linear-gradient(135deg, #667eea, #764ba2)",
                     display: "flex",
+                    flexDirection: "row",
                     alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.75rem",
+                    gap: "0.75rem",
                   }}
                 >
-                  🏪
+                  {datosNegocio.logo_url ? (
+                    <img
+                      src={datosNegocio.logo_url}
+                      alt="Logo"
+                      className="brand-image"
+                      style={{
+                        width: "50px",
+                        height: "50px",
+                        borderRadius: 10,
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "50px",
+                        height: "50px",
+                        borderRadius: 10,
+                        background: "linear-gradient(135deg, #667eea, #764ba2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "1.75rem",
+                      }}
+                    >
+                      🏪
+                    </div>
+                  )}
+                  <span
+                    style={{
+                      display: "block",
+                      textAlign: "left",
+                      fontWeight: 800,
+                      fontSize: "1.25rem",
+                      color: "#0f172a",
+                      letterSpacing: "1px",
+                    }}
+                  >
+                    {datosNegocio.nombre_negocio}
+                  </span>
                 </div>
-              )}
-              <span
-                style={{
-                  display: "block",
-                  textAlign: "left",
-                  fontWeight: 800,
-                  fontSize: "1.25rem",
-                  color: "#0f172a",
-                  letterSpacing: "1px",
-                }}
-              >
-                {datosNegocio.nombre_negocio}
-              </span>
+              </div>
+              <div className="user-info">
+                <div className="user-avatar">
+                  {user.nombre?.charAt(0).toUpperCase()}
+                </div>
+                <div className="user-details">
+                  <h1>{user.nombre}</h1>
+                  <p className="user-role">Administrador</p>
+                </div>
+                <button
+                  style={{
+                    background:
+                      "linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)",
+                    color: "white",
+                    fontWeight: 600,
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    padding: "0.5rem 0.875rem",
+                    fontSize: "0.8125rem",
+                  }}
+                  onClick={() => setShowLogoutModal(true)}
+                >
+                  🔒 Salir
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="user-info">
-            <div className="user-avatar">
-              {user.nombre?.charAt(0).toUpperCase()}
-            </div>
-            <div className="user-details">
-              <h1>{user.nombre}</h1>
-              <p className="user-role">Administrador</p>
-            </div>
+          </header>
+
+          {/* Botones flotantes (siempre visibles) */}
+          <div className="floating-controls">
             <button
-              style={{
-                background: "linear-gradient(135deg, #ef4444 0%, #f59e0b 100%)",
-                color: "white",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                padding: "0.5rem 0.875rem",
-                fontSize: "0.8125rem",
-                boxShadow: "0 2px 8px rgba(239,68,68,0.2)",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
+              className="floating-btn logout"
               onClick={() => setShowLogoutModal(true)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(239,68,68,0.3)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(239,68,68,0.2)";
-              }}
             >
-              🔒 Salir
-            </button>
-            <button
-              style={{
-                background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-                color: "white",
-                fontWeight: 600,
-                border: "none",
-                borderRadius: "8px",
-                cursor: "pointer",
-                padding: "0.5rem 0.875rem",
-                fontSize: "0.8125rem",
-                boxShadow: "0 2px 8px rgba(59,130,246,0.2)",
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-              onClick={async () => {
-                setShowClaveModal(true);
-                setCargandoClave(true);
-                try {
-                  const { data, error } = await supabase
-                    .from("claves_autorizacion")
-                    .select("clave")
-                    .eq("id", 1)
-                    .single();
-                  if (!error && data) {
-                    setClaveCaja(String(data.clave));
-                  } else {
-                    setClaveCaja(null);
-                  }
-                } catch (err) {
-                  console.error("Error obteniendo clave:", err);
-                  setClaveCaja(null);
-                } finally {
-                  setCargandoClave(false);
-                }
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(59,130,246,0.3)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(59,130,246,0.2)";
-              }}
-            >
-              🔐 Clave
+              🔒
             </button>
           </div>
-        </div>
-      </header>
 
-      {/* Botones flotantes para móvil */}
-      <div className="floating-controls" style={{ display: "none" }}>
-        <button
-          className="floating-btn logout"
-          onClick={() => setShowLogoutModal(true)}
-        >
-          🔒
-        </button>
-        <button
-          className="floating-btn clave"
-          onClick={async () => {
-            setShowClaveModal(true);
-            setCargandoClave(true);
-            try {
-              const { data, error } = await supabase
-                .from("claves_autorizacion")
-                .select("clave")
-                .eq("id", 1)
-                .single();
-              if (!error && data) setClaveCaja(String(data.clave));
-              else setClaveCaja(null);
-            } catch (err) {
-              console.error("Error obteniendo clave:", err);
-              setClaveCaja(null);
-            } finally {
-              setCargandoClave(false);
-            }
-          }}
-        >
-          🔐
-        </button>
-      </div>
-
-      <main className="main-content">
-        <div className="welcome-section">
-          <h1 className="welcome-title">Panel de Control</h1>
-        </div>
-
-        <div className="cards-grid">
-          {cards.map((card) => (
-            <div
-              key={card.view}
-              className="card"
-              onClick={() => onSelect(card.view)}
-              style={{ "--card-color": card.color } as React.CSSProperties}
-            >
-              <div className="card-header">
+          <main className="main-content">
+            <div className="welcome-section">
+              <h1 className="welcome-title">Panel de Control</h1>
+            </div>
+            <div className="cards-grid">
+              {cards.map((card) => (
                 <div
-                  className="card-icon"
+                  key={card.view}
+                  className="card"
+                  onClick={() => onSelect(card.view)}
                   style={{ "--card-color": card.color } as React.CSSProperties}
                 >
-                  {card.icon}
+                  <div className="card-header">
+                    <div
+                      className="card-icon"
+                      style={
+                        { "--card-color": card.color } as React.CSSProperties
+                      }
+                    >
+                      {card.icon}
+                    </div>
+                    <div className="card-content">
+                      <h3>{card.label}</h3>
+                      <p className="card-subtitle">{card.subtitle}</p>
+                    </div>
+                  </div>
+                  <div className="card-footer">
+                    <span className="card-arrow">→</span>
+                  </div>
                 </div>
-                <div className="card-content">
-                  <h3>{card.label}</h3>
-                  <p className="card-subtitle">{card.subtitle}</p>
-                </div>
-              </div>
-              <div className="card-footer">
-                <span className="card-arrow">→</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </main>
+          </main>
+        </>
+      )}
       {/* Modal de cierre de sesión */}
       {showLogoutModal && (
         <div
@@ -710,97 +963,7 @@ const AdminPanel: FC<AdminPanelProps> = ({ onSelect, user }) => {
           </div>
         </div>
       )}
-      {/* Modal para mostrar clave de caja */}
-      {showClaveModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(15,23,42,0.5)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-          }}
-          onClick={() => setShowClaveModal(false)}
-        >
-          <div
-            style={{
-              background: "white",
-              borderRadius: "24px",
-              padding: "2.5rem 3rem",
-              minWidth: 360,
-              textAlign: "center",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
-              border: "1px solid #e2e8f0",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>🔐</div>
-            <h3
-              style={{
-                marginTop: 0,
-                color: "#0f172a",
-                fontSize: "1.5rem",
-                fontWeight: 800,
-                marginBottom: "1.5rem",
-              }}
-            >
-              Clave de Aclaración
-            </h3>
-            {cargandoClave ? (
-              <div style={{ color: "#64748b", fontSize: "1.05rem" }}>
-                Consultando seguridad...
-              </div>
-            ) : claveCaja ? (
-              <div
-                style={{
-                  fontSize: "3rem",
-                  fontWeight: 900,
-                  color: "#3b82f6",
-                  letterSpacing: "8px",
-                  marginBottom: "1.5rem",
-                  padding: "1rem",
-                  background:
-                    "linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%)",
-                  borderRadius: "16px",
-                  border: "2px dashed #3b82f6",
-                }}
-              >
-                {claveCaja}
-              </div>
-            ) : (
-              <div style={{ color: "#94a3b8", fontSize: "1.05rem" }}>
-                No se encontró la clave
-              </div>
-            )}
-            <div style={{ marginTop: 16 }}>
-              <button
-                style={{
-                  padding: "0.85rem 2.5rem",
-                  borderRadius: 12,
-                  border: "none",
-                  background:
-                    "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
-                  color: "white",
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 16px rgba(59,130,246,0.25)",
-                  transition: "all 0.3s ease",
-                }}
-                onClick={() => setShowClaveModal(false)}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Clave modal eliminado */}
     </div>
   );
 };

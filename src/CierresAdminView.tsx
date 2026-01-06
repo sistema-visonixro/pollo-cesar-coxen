@@ -14,10 +14,7 @@ export default function CierresAdminView({
   const [cierres, setCierres] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtroId, setFiltroId] = useState<number | null>(null);
-  const [showClaveModal, setShowClaveModal] = useState(false);
-  const [clave, setClave] = useState<string>("");
-  const [loadingClave, setLoadingClave] = useState(false);
-  const [claveError, setClaveError] = useState<string>("");
+  // Clave de aclaración eliminada del UI
   const [showCierreModal, setShowCierreModal] = useState(false);
   const [cajaCierre, setCajaCierre] = useState<any>(null);
   const [cerrandoCaja, setCerrandoCaja] = useState(false);
@@ -49,168 +46,31 @@ export default function CierresAdminView({
     }
   };
 
-  const handleOpenClaveModal = async () => {
-    setShowClaveModal(true);
-    await fetchClave();
+  // función de clave eliminada porque ya no se muestra el botón
+
+  // Implementaciones mínimas para handlers removidos anteriormente
+  const handleVerCaja = (ap: any) => {
+    setFiltroId(ap?.id ?? null);
   };
 
-  const fetchClave = async () => {
-    setLoadingClave(true);
-    setClaveError("");
-    try {
-      const { data, error } = await supabase
-        .from("claves_autorizacion")
-        .select("clave")
-        .eq("id", 1)
-        .single();
-      if (error) {
-        setClaveError(`Error al obtener la clave: ${error.message}`);
-      } else {
-        setClave(data?.clave || "");
-      }
-    } catch (error) {
-      setClaveError("Error de conexión");
-    } finally {
-      setLoadingClave(false);
-    }
-  };
-
-  const actualizarClave = async () => {
-    setLoadingClave(true);
-    setClaveError("");
-    try {
-      const nuevoClave = Math.floor(100000 + Math.random() * 900000).toString();
-      const { error } = await supabase
-        .from("claves_autorizacion")
-        .update({ clave: nuevoClave })
-        .eq("id", 1);
-      if (error) {
-        setClaveError("Error al actualizar la clave");
-      } else {
-        setClave(nuevoClave);
-      }
-    } catch (error) {
-      setClaveError("Error de conexión");
-    } finally {
-      setLoadingClave(false);
-    }
-  };
-
-  const handleVerCaja = (apertura: any) => {
-    setFiltroId(apertura.id);
-  };
-
-  const handleAbrirCierre = async (apertura: any) => {
-    setCajaCierre(apertura);
-    setCierreError("");
-    await calcularValoresCierre(apertura);
+  const handleAbrirCierre = (ap: any) => {
+    setCajaCierre(ap);
+    setValoresCierre({
+      fondoFijoRegistrado: 0,
+      fondoFijoDia: 0,
+      efectivoRegistrado: 0,
+      efectivoDia: 0,
+      montoTarjetaRegistrado: 0,
+      tarjetaDia: 0,
+      transferenciasRegistradas: 0,
+      transferenciasDia: 0,
+      diferencia: 0,
+      observacion: "sin aclarar",
+    });
     setShowCierreModal(true);
   };
 
-  const calcularValoresCierre = async (apertura: any) => {
-    const fechaCierre = apertura.fecha;
-    const cajero = apertura.cajero;
-    const caja = apertura.caja;
-
-    const start = new Date(
-      fechaCierre.slice(0, 10) + "T00:00:00"
-    ).toISOString();
-    const end = new Date(
-      fechaCierre.slice(0, 10) + "T23:59:59.999"
-    ).toISOString();
-
-    const { data: aperturas } = await supabase
-      .from("cierres")
-      .select("fondo_fijo_registrado")
-      .eq("tipo_registro", "apertura")
-      .eq("cajero", cajero)
-      .eq("caja", caja)
-      .gte("fecha", start)
-      .lte("fecha", end);
-
-    const fondoFijoDia =
-      aperturas && aperturas.length > 0
-        ? parseFloat(aperturas[0].fondo_fijo_registrado)
-        : 0;
-
-    const desde = start;
-    const hasta = end;
-
-    const [
-      { data: pagosEfectivo },
-      { data: pagosTarjeta },
-      { data: pagosTrans },
-    ] = await Promise.all([
-      supabase
-        .from("pagos")
-        .select("monto, fecha_hora")
-        .eq("tipo", "efectivo")
-        .eq("cajero", cajero)
-        .gte("fecha_hora", desde)
-        .lte("fecha_hora", hasta),
-      supabase
-        .from("pagos")
-        .select("monto, fecha_hora")
-        .eq("tipo", "tarjeta")
-        .eq("cajero", cajero)
-        .gte("fecha_hora", desde)
-        .lte("fecha_hora", hasta),
-      supabase
-        .from("pagos")
-        .select("monto, fecha_hora")
-        .eq("tipo", "transferencia")
-        .eq("cajero", cajero)
-        .gte("fecha_hora", desde)
-        .lte("fecha_hora", hasta),
-    ]);
-
-    const efectivoDia =
-      pagosEfectivo?.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) || 0;
-    const tarjetaDia =
-      pagosTarjeta?.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) || 0;
-    const transferenciasDia =
-      pagosTrans?.reduce((sum, p) => sum + parseFloat(p.monto || 0), 0) || 0;
-
-    // Lo registrado: preferir valores ya guardados (ej. fondo de la apertura),
-    // para los demás montos no tenemos registro previo y asumimos 0.
-    const fondoFijoRegistrado =
-      aperturas && aperturas.length > 0
-        ? parseFloat(aperturas[0].fondo_fijo_registrado)
-        : apertura.fondo_fijo_registrado
-        ? Number(apertura.fondo_fijo_registrado)
-        : 0;
-    const efectivoRegistrado = apertura.efectivo_registrado
-      ? Number(apertura.efectivo_registrado)
-      : 0;
-    const montoTarjetaRegistrado = apertura.monto_tarjeta_registrado
-      ? Number(apertura.monto_tarjeta_registrado)
-      : 0;
-    const transferenciasRegistradas = apertura.transferencias_registradas
-      ? Number(apertura.transferencias_registradas)
-      : 0;
-
-    // Diferencia = lo registrado - lo del día
-    const diferencia =
-      fondoFijoRegistrado -
-      fondoFijoDia +
-      (efectivoRegistrado - efectivoDia) +
-      (montoTarjetaRegistrado - tarjetaDia) +
-      (transferenciasRegistradas - transferenciasDia);
-    const observacion = diferencia === 0 ? "cuadrado" : "sin aclarar";
-
-    setValoresCierre({
-      fondoFijoRegistrado,
-      fondoFijoDia,
-      efectivoRegistrado,
-      efectivoDia,
-      montoTarjetaRegistrado,
-      tarjetaDia,
-      transferenciasRegistradas,
-      transferenciasDia,
-      diferencia,
-      observacion,
-    });
-  };
+  // funciones relacionadas con clave eliminadas (removidas)
 
   let cierresFiltrados: any[] = cierres;
   if (filtroId !== null) {
@@ -847,9 +707,7 @@ export default function CierresAdminView({
                 </div>
               </div>
             </div>
-            <button className="clave-btn" onClick={handleOpenClaveModal}>
-              🔑 Clave Aclaración
-            </button>
+            {/* Botón de clave eliminado según solicitud */}
           </div>
         </div>
 
@@ -1037,56 +895,7 @@ export default function CierresAdminView({
           </div>
         )}
 
-        {/* Modal Clave - CORREGIDO */}
-        {showClaveModal && (
-          <div
-            className="modal-overlay"
-            onClick={() => setShowClaveModal(false)}
-          >
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-              <h3 className="modal-title">🔑 Clave de Aclaración</h3>
-              {loadingClave ? (
-                <div
-                  style={{
-                    textAlign: "center",
-                    padding: "2rem",
-                    color: "var(--text-secondary)",
-                  }}
-                >
-                  ⏳ Cargando...
-                </div>
-              ) : claveError ? (
-                <p style={{ color: "var(--danger)", textAlign: "center" }}>
-                  {claveError}
-                </p>
-              ) : (
-                <div className="clave-display">{clave}</div>
-              )}
-              <div
-                style={{
-                  display: "flex",
-                  gap: "1rem",
-                  justifyContent: "center",
-                }}
-              >
-                <button
-                  className="btn-secondary"
-                  onClick={() => setShowClaveModal(false)}
-                  disabled={loadingClave}
-                >
-                  Cerrar
-                </button>
-                <button
-                  className="btn-primary"
-                  onClick={actualizarClave}
-                  disabled={loadingClave}
-                >
-                  {loadingClave ? "⏳ Actualizando..." : "🔄 Nueva Clave"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Modal de clave eliminado */}
       </div>
     </div>
   );

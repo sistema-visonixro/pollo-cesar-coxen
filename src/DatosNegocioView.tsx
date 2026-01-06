@@ -27,7 +27,10 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
   });
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [mensaje, setMensaje] = useState<{ tipo: "success" | "error"; texto: string } | null>(null);
+  const [mensaje, setMensaje] = useState<{
+    tipo: "success" | "error";
+    texto: string;
+  } | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -38,7 +41,7 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-      
+
       // Intentar obtener el primer registro
       const { data, error } = await supabase
         .from("datos_negocio")
@@ -68,7 +71,7 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
           propietario: "",
           logo_url: null,
         };
-        
+
         const { data: nuevoRegistro, error: insertError } = await supabase
           .from("datos_negocio")
           .insert([datosIniciales])
@@ -177,21 +180,27 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
         }
       }
 
-      setMensaje({ tipo: "success", texto: "✓ Datos actualizados correctamente" });
-      
+      setMensaje({
+        tipo: "success",
+        texto: "✓ Datos actualizados correctamente",
+      });
+
       // Invalidar cache para que se recarguen los datos en toda la app
       invalidarCacheDatosNegocio();
-      
+
       await cargarDatos();
       setLogoFile(null);
-      
+
       // Recargar la página para actualizar título y favicon
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (error: any) {
       console.error("Error al guardar:", error);
-      setMensaje({ tipo: "error", texto: error.message || "Error al actualizar los datos" });
+      setMensaje({
+        tipo: "error",
+        texto: error.message || "Error al actualizar los datos",
+      });
     } finally {
       setGuardando(false);
     }
@@ -199,32 +208,42 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
   if (loading) {
     return (
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "center", 
-        alignItems: "center", 
-        width: "100vw",
-        height: "100vh",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-      }}>
-        <div style={{ 
-          textAlign: "center",
-          background: "rgba(255, 255, 255, 0.95)",
-          padding: "3rem 4rem",
-          borderRadius: "20px",
-          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
-        }}>
-          <div style={{ 
-            fontSize: "3.5rem", 
-            marginBottom: "1.5rem",
-            animation: "pulse 2s infinite",
-          }}>🏪</div>
-          <p style={{ 
-            color: "#1e293b", 
-            fontSize: "1.125rem", 
-            fontWeight: 700,
-            margin: 0,
-          }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100vw",
+          height: "100vh",
+          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            background: "rgba(255, 255, 255, 0.95)",
+            padding: "3rem 4rem",
+            borderRadius: "20px",
+            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "3.5rem",
+              marginBottom: "1.5rem",
+              animation: "pulse 2s infinite",
+            }}
+          >
+            🏪
+          </div>
+          <p
+            style={{
+              color: "#1e293b",
+              fontSize: "1.125rem",
+              fontWeight: 700,
+              margin: 0,
+            }}
+          >
             Cargando información del negocio...
           </p>
         </div>
@@ -233,62 +252,90 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
   }
 
   return (
-    <div style={{
-      width: "100%",
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-      padding: "2rem 1rem",
-    }}>
+    <div
+      className="datos-negocio-view"
+      style={{
+        width: "100%",
+        minHeight: "100vh",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        fontFamily:
+          "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        padding: "2rem 1rem",
+        boxSizing: "border-box",
+      }}
+    >
       {/* Contenedor Principal */}
-      <div style={{
-        maxWidth: "1400px",
-        margin: "0 auto",
-      }}>
+      <div
+        className="datos-container"
+        style={{
+          maxWidth: "1400px",
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
         {/* Header Card */}
-        <div style={{
-          background: "rgba(255, 255, 255, 0.98)",
-          borderRadius: "20px 20px 0 0",
-          padding: "2rem 2.5rem",
-          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
-            <div style={{
-              width: "70px",
-              height: "70px",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              borderRadius: "16px",
+        <div
+          className="datos-header"
+          style={{
+            background: "rgba(255, 255, 255, 0.98)",
+            borderRadius: "20px 20px 0 0",
+            padding: "2rem 2.5rem",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "1rem",
+          }}
+        >
+          <div
+            className="datos-header-content"
+            style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              fontSize: "2rem",
-              boxShadow: "0 8px 24px rgba(102, 126, 234, 0.4)",
-            }}>
+              gap: "1.5rem",
+              flex: 1,
+              minWidth: 0,
+            }}
+          >
+            <div
+              style={{
+                width: "70px",
+                height: "70px",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                borderRadius: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "2rem",
+                boxShadow: "0 8px 24px rgba(102, 126, 234, 0.4)",
+              }}
+            >
               🏪
             </div>
             <div>
-              <h1 style={{
-                margin: 0,
-                fontSize: "2rem",
-                fontWeight: 800,
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: "2rem",
+                  fontWeight: 800,
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
                 Datos del Negocio
               </h1>
-              <p style={{
-                margin: "0.5rem 0 0 0",
-                color: "#64748b",
-                fontSize: "1rem",
-                fontWeight: 500,
-              }}>
+              <p
+                style={{
+                  margin: "0.5rem 0 0 0",
+                  color: "#64748b",
+                  fontSize: "1rem",
+                  fontWeight: 500,
+                }}
+              >
                 Administra la información corporativa de tu empresa
               </p>
             </div>
@@ -312,11 +359,13 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 8px 25px rgba(102, 126, 234, 0.5)";
+              e.currentTarget.style.boxShadow =
+                "0 8px 25px rgba(102, 126, 234, 0.5)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.4)";
+              e.currentTarget.style.boxShadow =
+                "0 4px 15px rgba(102, 126, 234, 0.4)";
             }}
           >
             <span style={{ fontSize: "1.25rem" }}>←</span>
@@ -326,57 +375,73 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
         {/* Formulario Card */}
         <form onSubmit={handleSubmit}>
-          <div style={{
-            background: "rgba(255, 255, 255, 0.98)",
-            borderRadius: "0 0 20px 20px",
-            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
-            overflow: "hidden",
-          }}>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "400px 1fr",
-              minHeight: "600px",
-            }}>
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.98)",
+              borderRadius: "0 0 20px 20px",
+              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              className="datos-form-grid"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "400px 1fr",
+                minHeight: "600px",
+              }}
+            >
               {/* Panel Izquierdo - Logo */}
-              <div style={{
-                background: "linear-gradient(180deg, #f8fafc 0%, #e0e7ff 100%)",
-                borderRight: "1px solid #e2e8f0",
-                padding: "3rem 2rem",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-              }}>
-                <div style={{
-                  width: "100%",
-                  maxWidth: "280px",
-                  textAlign: "center",
-                }}>
-                  <h3 style={{
-                    margin: "0 0 2rem 0",
-                    fontSize: "1.25rem",
-                    fontWeight: 700,
-                    color: "#1e293b",
-                    textTransform: "uppercase",
-                    letterSpacing: "1px",
-                  }}>
+              <div
+                style={{
+                  background:
+                    "linear-gradient(180deg, #f8fafc 0%, #e0e7ff 100%)",
+                  borderRight: "1px solid #e2e8f0",
+                  padding: "3rem 2rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: "280px",
+                    textAlign: "center",
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: "0 0 2rem 0",
+                      fontSize: "1.25rem",
+                      fontWeight: 700,
+                      color: "#1e293b",
+                      textTransform: "uppercase",
+                      letterSpacing: "1px",
+                    }}
+                  >
                     Logotipo
                   </h3>
-                  
-                  <div style={{
-                    width: "240px",
-                    height: "240px",
-                    border: "3px dashed #cbd5e1",
-                    borderRadius: "20px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    background: previewUrl ? "white" : "#f1f5f9",
-                    marginBottom: "2rem",
-                    transition: "all 0.3s ease",
-                    boxShadow: previewUrl ? "0 8px 24px rgba(0, 0, 0, 0.1)" : "none",
-                  }}>
+
+                  <div
+                    style={{
+                      width: "240px",
+                      height: "240px",
+                      border: "3px dashed #cbd5e1",
+                      borderRadius: "20px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      background: previewUrl ? "white" : "#f1f5f9",
+                      marginBottom: "2rem",
+                      transition: "all 0.3s ease",
+                      boxShadow: previewUrl
+                        ? "0 8px 24px rgba(0, 0, 0, 0.1)"
+                        : "none",
+                    }}
+                  >
                     {previewUrl ? (
                       <img
                         src={previewUrl}
@@ -389,18 +454,28 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                         }}
                       />
                     ) : (
-                      <div style={{
-                        textAlign: "center",
-                        color: "#94a3b8",
-                      }}>
-                        <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>📷</div>
-                        <p style={{ margin: 0, fontSize: "0.875rem", fontWeight: 600 }}>
+                      <div
+                        style={{
+                          textAlign: "center",
+                          color: "#94a3b8",
+                        }}
+                      >
+                        <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>
+                          📷
+                        </div>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "0.875rem",
+                            fontWeight: 600,
+                          }}
+                        >
                           Sin imagen
                         </p>
                       </div>
                     )}
                   </div>
-                  
+
                   <input
                     type="file"
                     accept="image/*"
@@ -427,66 +502,85 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = "0 8px 25px rgba(102, 126, 234, 0.4)";
+                      e.currentTarget.style.boxShadow =
+                        "0 8px 25px rgba(102, 126, 234, 0.4)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 4px 15px rgba(102, 126, 234, 0.3)";
+                      e.currentTarget.style.boxShadow =
+                        "0 4px 15px rgba(102, 126, 234, 0.3)";
                     }}
                   >
                     <span style={{ fontSize: "1.25rem" }}>📁</span>
                     Cargar Imagen
                   </label>
-                  <p style={{
-                    marginTop: "1.25rem",
-                    fontSize: "0.8125rem",
-                    color: "#64748b",
-                    lineHeight: 1.6,
-                    fontWeight: 500,
-                  }}>
-                    Formatos: PNG, JPG, WebP<br />
-                    Tamaño máximo: 2MB<br />
+                  <p
+                    style={{
+                      marginTop: "1.25rem",
+                      fontSize: "0.8125rem",
+                      color: "#64748b",
+                      lineHeight: 1.6,
+                      fontWeight: 500,
+                    }}
+                  >
+                    Formatos: PNG, JPG, WebP
+                    <br />
+                    Tamaño máximo: 2MB
+                    <br />
                     Recomendado: 500x500px
                   </p>
                 </div>
               </div>
 
               {/* Panel Derecho - Formulario */}
-              <div style={{ padding: "3rem 3.5rem" }}>
-                <h3 style={{
-                  margin: "0 0 2.5rem 0",
-                  fontSize: "1.5rem",
-                  fontWeight: 700,
-                  color: "#1e293b",
-                }}>
+              <div
+                className="datos-form-right"
+                style={{ padding: "2rem 2rem" }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 2.5rem 0",
+                    fontSize: "1.5rem",
+                    fontWeight: 700,
+                    color: "#1e293b",
+                  }}
+                >
                   Información Empresarial
                 </h3>
-                
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: "2rem",
-                }}>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: "2rem",
+                  }}
+                >
                   {/* Nombre del Negocio */}
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{
-                      display: "flex",
-                      marginBottom: "0.75rem",
-                      fontSize: "0.9375rem",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        marginBottom: "0.75rem",
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <span style={{ fontSize: "1.25rem" }}>🏢</span>
                       Nombre del Negocio
-                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>*</span>
+                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>
+                        *
+                      </span>
                     </label>
                     <input
                       type="text"
                       required
                       value={datos.nombre_negocio}
-                      onChange={(e) => setDatos({ ...datos, nombre_negocio: e.target.value })}
+                      onChange={(e) =>
+                        setDatos({ ...datos, nombre_negocio: e.target.value })
+                      }
                       placeholder="Ej: Pollería Doña Concha"
                       style={{
                         width: "100%",
@@ -503,7 +597,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = "#667eea";
-                        e.target.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+                        e.target.style.boxShadow =
+                          "0 0 0 4px rgba(102, 126, 234, 0.1)";
                         e.target.style.background = "white";
                       }}
                       onBlur={(e) => {
@@ -516,24 +611,30 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
                   {/* RTN */}
                   <div>
-                    <label style={{
-                      display: "flex",
-                      marginBottom: "0.75rem",
-                      fontSize: "0.9375rem",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        marginBottom: "0.75rem",
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <span style={{ fontSize: "1.25rem" }}>🆔</span>
                       RTN
-                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>*</span>
+                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>
+                        *
+                      </span>
                     </label>
                     <input
                       type="text"
                       required
                       value={datos.rtn}
-                      onChange={(e) => setDatos({ ...datos, rtn: e.target.value })}
+                      onChange={(e) =>
+                        setDatos({ ...datos, rtn: e.target.value })
+                      }
                       placeholder="0000-0000-000000"
                       style={{
                         width: "100%",
@@ -550,7 +651,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = "#667eea";
-                        e.target.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+                        e.target.style.boxShadow =
+                          "0 0 0 4px rgba(102, 126, 234, 0.1)";
                         e.target.style.background = "white";
                       }}
                       onBlur={(e) => {
@@ -563,24 +665,30 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
                   {/* Teléfono */}
                   <div>
-                    <label style={{
-                      display: "flex",
-                      marginBottom: "0.75rem",
-                      fontSize: "0.9375rem",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        marginBottom: "0.75rem",
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <span style={{ fontSize: "1.25rem" }}>📞</span>
                       Teléfono
-                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>*</span>
+                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>
+                        *
+                      </span>
                     </label>
                     <input
                       type="tel"
                       required
                       value={datos.celular}
-                      onChange={(e) => setDatos({ ...datos, celular: e.target.value })}
+                      onChange={(e) =>
+                        setDatos({ ...datos, celular: e.target.value })
+                      }
                       placeholder="+504 0000-0000"
                       style={{
                         width: "100%",
@@ -597,7 +705,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = "#667eea";
-                        e.target.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+                        e.target.style.boxShadow =
+                          "0 0 0 4px rgba(102, 126, 234, 0.1)";
                         e.target.style.background = "white";
                       }}
                       onBlur={(e) => {
@@ -610,24 +719,30 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
                   {/* Propietario */}
                   <div>
-                    <label style={{
-                      display: "flex",
-                      marginBottom: "0.75rem",
-                      fontSize: "0.9375rem",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        marginBottom: "0.75rem",
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <span style={{ fontSize: "1.25rem" }}>👤</span>
                       Propietario
-                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>*</span>
+                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>
+                        *
+                      </span>
                     </label>
                     <input
                       type="text"
                       required
                       value={datos.propietario}
-                      onChange={(e) => setDatos({ ...datos, propietario: e.target.value })}
+                      onChange={(e) =>
+                        setDatos({ ...datos, propietario: e.target.value })
+                      }
                       placeholder="Nombre del propietario"
                       style={{
                         width: "100%",
@@ -644,7 +759,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = "#667eea";
-                        e.target.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+                        e.target.style.boxShadow =
+                          "0 0 0 4px rgba(102, 126, 234, 0.1)";
                         e.target.style.background = "white";
                       }}
                       onBlur={(e) => {
@@ -657,23 +773,29 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
 
                   {/* Dirección - Ocupa toda la fila */}
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <label style={{
-                      display: "flex",
-                      marginBottom: "0.75rem",
-                      fontSize: "0.9375rem",
-                      fontWeight: 700,
-                      color: "#1e293b",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}>
+                    <label
+                      style={{
+                        display: "flex",
+                        marginBottom: "0.75rem",
+                        fontSize: "0.9375rem",
+                        fontWeight: 700,
+                        color: "#1e293b",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
                       <span style={{ fontSize: "1.25rem" }}>📍</span>
                       Dirección Completa
-                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>*</span>
+                      <span style={{ color: "#ef4444", fontSize: "1.125rem" }}>
+                        *
+                      </span>
                     </label>
                     <textarea
                       required
                       value={datos.direccion}
-                      onChange={(e) => setDatos({ ...datos, direccion: e.target.value })}
+                      onChange={(e) =>
+                        setDatos({ ...datos, direccion: e.target.value })
+                      }
                       placeholder="Ingrese la dirección completa del establecimiento..."
                       rows={4}
                       style={{
@@ -693,7 +815,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                       }}
                       onFocus={(e) => {
                         e.target.style.borderColor = "#667eea";
-                        e.target.style.boxShadow = "0 0 0 4px rgba(102, 126, 234, 0.1)";
+                        e.target.style.boxShadow =
+                          "0 0 0 4px rgba(102, 126, 234, 0.1)";
                         e.target.style.background = "white";
                       }}
                       onBlur={(e) => {
@@ -708,29 +831,36 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
             </div>
 
             {/* Footer con Botones y Mensajes */}
-            <div style={{
-              padding: "2rem 2.5rem",
-              background: "linear-gradient(to right, #f8fafc, #f1f5f9)",
-              borderTop: "2px solid #e2e8f0",
-            }}>
+            <div
+              style={{
+                padding: "2rem 2.5rem",
+                background: "linear-gradient(to right, #f8fafc, #f1f5f9)",
+                borderTop: "2px solid #e2e8f0",
+              }}
+            >
               {/* Mensaje de Estado */}
               {mensaje && (
-                <div style={{
-                  padding: "1.125rem 1.5rem",
-                  borderRadius: "12px",
-                  marginBottom: "1.5rem",
-                  background: mensaje.tipo === "success" 
-                    ? "linear-gradient(135deg, #d1fae5, #a7f3d0)" 
-                    : "linear-gradient(135deg, #fee2e2, #fecaca)",
-                  border: `2px solid ${mensaje.tipo === "success" ? "#10b981" : "#ef4444"}`,
-                  color: mensaje.tipo === "success" ? "#065f46" : "#991b1b",
-                  fontWeight: 700,
-                  fontSize: "1rem",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
-                }}>
+                <div
+                  style={{
+                    padding: "1.125rem 1.5rem",
+                    borderRadius: "12px",
+                    marginBottom: "1.5rem",
+                    background:
+                      mensaje.tipo === "success"
+                        ? "linear-gradient(135deg, #d1fae5, #a7f3d0)"
+                        : "linear-gradient(135deg, #fee2e2, #fecaca)",
+                    border: `2px solid ${
+                      mensaje.tipo === "success" ? "#10b981" : "#ef4444"
+                    }`,
+                    color: mensaje.tipo === "success" ? "#065f46" : "#991b1b",
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.08)",
+                  }}
+                >
                   <span style={{ fontSize: "1.5rem" }}>
                     {mensaje.tipo === "success" ? "✅" : "⚠️"}
                   </span>
@@ -739,12 +869,14 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
               )}
 
               {/* Botones de Acción */}
-              <div style={{ 
-                display: "flex", 
-                gap: "1.25rem", 
-                justifyContent: "flex-end",
-                flexWrap: "wrap",
-              }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "1.25rem",
+                  justifyContent: "flex-end",
+                  flexWrap: "wrap",
+                }}
+              >
                 <button
                   type="button"
                   onClick={onBack}
@@ -778,8 +910,8 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                   disabled={guardando}
                   style={{
                     padding: "1rem 2.5rem",
-                    background: guardando 
-                      ? "#cbd5e1" 
+                    background: guardando
+                      ? "#cbd5e1"
                       : "linear-gradient(135deg, #667eea, #764ba2)",
                     border: "none",
                     borderRadius: "12px",
@@ -787,7 +919,9 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                     fontWeight: 700,
                     fontSize: "1rem",
                     cursor: guardando ? "not-allowed" : "pointer",
-                    boxShadow: guardando ? "none" : "0 6px 20px rgba(102, 126, 234, 0.4)",
+                    boxShadow: guardando
+                      ? "none"
+                      : "0 6px 20px rgba(102, 126, 234, 0.4)",
                     transition: "all 0.3s ease",
                     display: "flex",
                     alignItems: "center",
@@ -796,23 +930,29 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
                   onMouseEnter={(e) => {
                     if (!guardando) {
                       e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = "0 10px 30px rgba(102, 126, 234, 0.5)";
+                      e.currentTarget.style.boxShadow =
+                        "0 10px 30px rgba(102, 126, 234, 0.5)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!guardando) {
                       e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = "0 6px 20px rgba(102, 126, 234, 0.4)";
+                      e.currentTarget.style.boxShadow =
+                        "0 6px 20px rgba(102, 126, 234, 0.4)";
                     }
                   }}
                 >
                   {guardando ? (
                     <>
-                      <span style={{ 
-                        animation: "spin 1s linear infinite",
-                        display: "inline-block",
-                        fontSize: "1.25rem",
-                      }}>⟳</span>
+                      <span
+                        style={{
+                          animation: "spin 1s linear infinite",
+                          display: "inline-block",
+                          fontSize: "1.25rem",
+                        }}
+                      >
+                        ⟳
+                      </span>
                       Guardando...
                     </>
                   ) : (
@@ -840,22 +980,97 @@ const DatosNegocioView: FC<DatosNegocioViewProps> = ({ onBack }) => {
           50% { opacity: 0.8; transform: scale(1.05); }
         }
         
+        /* Responsive design */
         @media (max-width: 1200px) {
-          div[style*="gridTemplateColumns: '400px 1fr'"] {
+          .datos-form-grid {
             grid-template-columns: 1fr !important;
+          }
+          .datos-negocio-view {
+            padding: 1.5rem 0.75rem !important;
           }
         }
         
         @media (max-width: 768px) {
-          div[style*="gridTemplateColumns: 'repeat(2, 1fr)'"] {
+          .datos-header {
+            padding: 1.5rem 1rem !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .datos-header-content {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+          }
+          .datos-header-content > div:first-child {
+            width: 50px !important;
+            height: 50px !important;
+            font-size: 1.5rem !important;
+          }
+          .datos-header-content h1 {
+            font-size: 1.5rem !important;
+          }
+          .datos-header-content p {
+            font-size: 0.875rem !important;
+          }
+          .datos-header button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .datos-form-grid > div {
+            padding: 1.5rem 1rem !important;
+          }
+          div[style*="gridTemplateColumns"][style*="repeat(2, 1fr)"] {
             grid-template-columns: 1fr !important;
           }
         }
         
         @media (max-width: 640px) {
+          .datos-negocio-view {
+            padding: 1rem 0.5rem !important;
+          }
+          .datos-header {
+            border-radius: 16px 16px 0 0 !important;
+            padding: 1rem !important;
+          }
+          .datos-container {
+            padding: 0 !important;
+          }
           input, textarea, button {
             font-size: 16px !important;
           }
+          .datos-header-content > div:first-child {
+            width: 40px !important;
+            height: 40px !important;
+            font-size: 1.25rem !important;
+          }
+          .datos-header-content h1 {
+            font-size: 1.25rem !important;
+          }
+          label {
+            font-size: 0.875rem !important;
+          }
+        }
+        /* Inputs and form adjustments */
+        .datos-form-right input,
+        .datos-form-right textarea,
+        .datos-form-right select {
+          min-width: 0 !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .datos-form-right {
+          padding: 2rem 2rem !important;
+        }
+        @media (max-width: 768px) {
+          .datos-form-right { padding: 1rem !important; }
+          .datos-form-grid { gap: 1rem !important; }
+          .datos-form-right input,
+          .datos-form-right textarea { padding: 0.75rem 1rem !important; font-size: 0.975rem !important; }
+        }
+        @media (max-width: 420px) {
+          .datos-form-right { padding: 0.75rem !important; }
+          .datos-form-right input,
+          .datos-form-right textarea { padding: 0.6rem 0.75rem !important; font-size: 0.95rem !important; }
         }
       `}</style>
     </div>
