@@ -347,6 +347,16 @@ export default function PuntoDeVentaView({
   };
   const [showGastoSuccess, setShowGastoSuccess] = useState(false);
   const [gastoSuccessMessage, setGastoSuccessMessage] = useState<string>("");
+  // Estados para modal de devolución
+  const [showDevolucionModal, setShowDevolucionModal] = useState(false);
+  const [devolucionFactura, setDevolucionFactura] = useState<string>("");
+  const [devolucionData, setDevolucionData] = useState<any>(null);
+  const [devolucionBuscando, setDevolucionBuscando] = useState(false);
+  const [devolucionPassword, setDevolucionPassword] = useState<string>("");
+  const [devolucionProcesando, setDevolucionProcesando] = useState(false);
+  const [showDevolucionPasswordModal, setShowDevolucionPasswordModal] = useState(false);
+  const [showDevolucionError, setShowDevolucionError] = useState(false);
+  const [showDevolucionSuccess, setShowDevolucionSuccess] = useState(false);
   // Eliminado showFacturaModal
   const [nombreCliente, setNombreCliente] = useState("");
   const [showOrdenModal, setShowOrdenModal] = useState(false);
@@ -650,6 +660,171 @@ export default function PuntoDeVentaView({
     }
   };
 
+  // Función para buscar factura para devolución
+  const buscarFacturaDevolucion = async () => {
+    if (!devolucionFactura.trim()) {
+      alert("Ingrese el número de factura");
+      return;
+    }
+    setDevolucionBuscando(true);
+    try {
+      const { data: factura, error: facturaError } = await supabase
+        .from("facturas")
+        .select("*")
+        .eq("factura", devolucionFactura.trim())
+        .eq("cajero_id", usuarioActual?.id)
+        .single();
+
+      if (facturaError || !factura) {
+        setShowDevolucionError(true);
+        setDevolucionData(null);
+        return;
+      }
+
+      // Verificar si ya existe una devolución para esta factura
+      const { data: devolucionExistente } = await supabase
+        .from("facturas")
+        .select("id")
+        .eq("factura", devolucionFactura.trim())
+        .eq("cajero_id", usuarioActual?.id)
+        .like("cliente", "%(DEVOLUCIÓN)%")
+        .limit(1);
+
+      if (devolucionExistente && devolucionExistente.length > 0) {
+        alert("Esta factura ya tiene una devolución registrada");
+        setDevolucionData(null);
+        setDevolucionBuscando(false);
+        return;
+      }
+
+      // Buscar los pagos asociados a esta factura
+      const { data: pagos, error: pagosError } = await supabase
+        .from("pagos")
+        .select("*")
+        .eq("factura_venta", devolucionFactura.trim())
+        .eq("cajero_id", usuarioActual?.id);
+
+      if (pagosError) {
+        console.error("Error buscando pagos:", pagosError);
+      }
+
+      setDevolucionData({ factura, pagos: pagos || [] });
+    } catch (err) {
+      console.error("Error buscando factura:", err);
+      alert("Error al buscar factura");
+      setDevolucionData(null);
+    } finally {
+      setDevolucionBuscando(false);
+    }
+  };
+
+  // Función para procesar la devolución
+  const procesarDevolucion = async () => {
+    if (!devolucionData) return;
+    
+    setDevolucionProcesando(true);
+    try {
+      const { factura, pagos } = devolucionData;
+      const fechaHoraActual = formatToHondurasLocal();
+
+      // 1. Insertar factura con montos negativos
+      const facturaDevolucion = {
+        fecha_hora: fechaHoraActual,
+        cajero: usuarioActual?.nombre || "",
+        cajero_id: usuarioActual?.id || null,
+        caja: caiInfo?.caja_asignada || "",
+        cai: factura.cai || "",
+        factura: factura.factura,
+        cliente: factura.cliente + " (DEVOLUCIÓN)",
+        productos: factura.productos,
+        sub_total: (-parseFloat(factura.sub_total || 0)).toFixed(2),
+        isv_15: (-parseFloat(factura.isv_15 || 0)).toFixed(2),
+        isv_18: (-parseFloat(factura.isv_18 || 0)).toFixed(2),
+        total: (-parseFloat(factura.total || 0)).toFixed(2),
+      };
+
+      const { error: facturaError } = await supabase
+        .from("facturas")
+        .insert([facturaDevolucion]);
+
+      if (facturaError) {
+        console.error("Error insertando factura de devolución:", facturaError);
+        alert("Error al registrar la devolución en facturas: " + facturaError.message);
+        return;
+      }
+
+      // 2. Insertar pagos con montos invertidos
+      const pagosDevolucion = pagos.map((pago: any) => {
+        // Si el pago es CAMBIO (tiene referencia "CAMBIO"), invertir el signo
+        const esCambio = pago.referencia === "CAMBIO";
+        const montoOriginal = parseFloat(pago.monto || 0);
+        const montoDevolucion = esCambio ? Math.abs(montoOriginal) : -Math.abs(montoOriginal);
+
+        return {
+          tipo: pago.tipo,
+          monto: montoDevolucion,
+          banco: pago.banco || null,
+          tarjeta: pago.tarjeta || null,
+          factura: pago.factura || null,
+          autorizador: pago.autorizador || null,
+          referencia: esCambio ? "RECUPERACIÓN CAMBIO" : "DEVOLUCIÓN",
+          usd_monto: pago.usd_monto ? -parseFloat(pago.usd_monto) : null,
+          fecha_hora: fechaHoraActual,
+          cajero: usuarioActual?.nombre || "",
+          cajero_id: usuarioActual?.id || null,
+          cliente: factura.cliente + " (DEVOLUCIÓN)",
+          factura_venta: factura.factura,
+          recibido: pago.recibido ? -parseFloat(pago.recibido) : null,
+          cambio: pago.cambio ? -parseFloat(pago.cambio) : null,
+        };
+      });
+
+      const { error: pagosError } = await supabase
+        .from("pagos")
+        .insert(pagosDevolucion);
+
+      if (pagosError) {
+        console.error("Error insertando pagos de devolución:", pagosError);
+        alert("Error al registrar los pagos de devolución: " + pagosError.message);
+        return;
+      }
+
+      // Éxito
+      setShowDevolucionPasswordModal(false);
+      setShowDevolucionModal(false);
+      setShowDevolucionSuccess(true);
+      setDevolucionFactura("");
+      setDevolucionData(null);
+      setDevolucionPassword("");
+    } catch (err) {
+      console.error("Error procesando devolución:", err);
+      alert("Error al procesar la devolución");
+    } finally {
+      setDevolucionProcesando(false);
+    }
+  };
+
+  // Función para validar contraseña del cajero desde la base de datos
+  const validarPasswordCajero = async (password: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("clave")
+        .eq("id", usuarioActual?.id)
+        .single();
+
+      if (error || !data) {
+        console.error("Error validando contraseña:", error);
+        return false;
+      }
+
+      return data.clave === password;
+    } catch (err) {
+      console.error("Error en validarPasswordCajero:", err);
+      return false;
+    }
+  };
+
   // Función para registrar apertura con fondo inicial en 0
   const registrarAperturaRapida = async () => {
     if (!usuarioActual) return;
@@ -838,6 +1013,49 @@ export default function PuntoDeVentaView({
             ? `Factura: ${facturaActual}`
             : ""}
         </span>
+        {/* Botones de tema después de la información del cajero */}
+        <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
+          <button
+            onClick={() => {
+              setTheme("dark");
+              localStorage.setItem("theme", "dark");
+            }}
+            style={{
+              background: theme === "dark" ? "#1976d2" : "transparent",
+              color: theme === "dark" ? "#fff" : theme === "lite" ? "#1976d2" : "#fff",
+              border: theme === "dark" ? "none" : "1px solid #1976d2",
+              borderRadius: 6,
+              padding: "6px 10px",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              boxShadow: theme === "dark" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+            }}
+            title="Activar modo oscuro"
+          >
+            Modo oscuro
+          </button>
+          <button
+            onClick={() => {
+              setTheme("lite");
+              localStorage.setItem("theme", "lite");
+            }}
+            style={{
+              background: theme === "lite" ? "#1976d2" : "transparent",
+              color: theme === "lite" ? "#fff" : theme === "dark" ? "#f5f5f5" : "#1976d2",
+              border: theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 6,
+              padding: "6px 10px",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+              boxShadow: theme === "lite" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+            }}
+            title="Activar modo claro"
+          >
+            Modo claro
+          </button>
+        </div>
         {/* QZ Tray indicators removed */}
       </div>
       {/* Modal de resumen de caja (fuera del header) */}
@@ -949,57 +1167,6 @@ export default function PuntoDeVentaView({
           zIndex: 10000,
         }}
       >
-        <button
-          onClick={() => {
-            setTheme("dark");
-            localStorage.setItem("theme", "dark");
-          }}
-          style={{
-            background: theme === "dark" ? "#1976d2" : "transparent",
-            color:
-              theme === "dark" ? "#fff" : theme === "lite" ? "#1976d2" : "#fff",
-            border: theme === "dark" ? "none" : "1px solid #1976d2",
-            borderRadius: 8,
-            padding: "8px 12px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow:
-              theme === "dark"
-                ? "0 2px 10px rgba(0,0,0,0.12)"
-                : "0 2px 8px rgba(25,118,210,0.12)",
-          }}
-          title="Activar modo oscuro"
-        >
-          Modo oscuro
-        </button>
-        <button
-          onClick={() => {
-            setTheme("lite");
-            localStorage.setItem("theme", "lite");
-          }}
-          style={{
-            background: theme === "lite" ? "#1976d2" : "transparent",
-            color:
-              theme === "lite"
-                ? "#fff"
-                : theme === "dark"
-                ? "#f5f5f5"
-                : "#1976d2",
-            border:
-              theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 8,
-            padding: "8px 12px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow:
-              theme === "lite"
-                ? "0 2px 10px rgba(0,0,0,0.12)"
-                : "0 2px 8px rgba(0,0,0,0.12)",
-          }}
-          title="Activar modo claro"
-        >
-          Modo claro
-        </button>
         {usuarioActual?.rol === "admin" && (
           <button
             onClick={() => (window.location.href = "/")}
@@ -1086,6 +1253,28 @@ export default function PuntoDeVentaView({
             }}
           >
             Registrar gasto
+          </button>
+          <button
+            onClick={() => {
+              setShowDevolucionModal(true);
+              setDevolucionFactura("");
+              setDevolucionData(null);
+              setDevolucionPassword("");
+            }}
+            style={{
+              fontSize: 16,
+              padding: "10px 22px",
+              borderRadius: 8,
+              background: theme === "lite" ? "rgba(255,152,0,0.95)" : "rgba(230,81,0,0.95)",
+              color: "#fff",
+              fontWeight: 700,
+              border: "none",
+              cursor: "pointer",
+              opacity: 0.95,
+              marginLeft: 12,
+            }}
+          >
+            Devolución
           </button>
           <button
             onClick={async () => {
@@ -4411,6 +4600,447 @@ export default function PuntoDeVentaView({
                 Aceptar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Devolución */}
+      {showDevolucionModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 120000,
+          }}
+          onClick={() => {
+            setShowDevolucionModal(false);
+            setDevolucionFactura("");
+            setDevolucionData(null);
+          }}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#232526",
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 400,
+              maxWidth: 600,
+              boxShadow: "0 8px 32px #0003",
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, color: "#ff9800" }}>
+              Devolución de Factura
+            </h3>
+            
+            {/* Paso 1: Buscar factura */}
+            {!devolucionData && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <input
+                  type="text"
+                  placeholder="Número de factura"
+                  value={devolucionFactura}
+                  onChange={(e) => setDevolucionFactura(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") buscarFacturaDevolucion();
+                  }}
+                  style={{
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid #ccc",
+                    fontSize: 16,
+                  }}
+                  autoFocus
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    justifyContent: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setShowDevolucionModal(false);
+                      setDevolucionFactura("");
+                      setDevolucionData(null);
+                    }}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#9e9e9e",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: 15,
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={buscarFacturaDevolucion}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#1976d2",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                    disabled={devolucionBuscando}
+                  >
+                    {devolucionBuscando ? "Buscando..." : "Buscar"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Paso 2: Mostrar datos y confirmar */}
+            {devolucionData && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div
+                  style={{
+                    background: theme === "lite" ? "#f5f5f5" : "#1a1a1a",
+                    padding: 16,
+                    borderRadius: 8,
+                    border: "1px solid #ddd",
+                  }}
+                >
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>Factura:</strong> {devolucionData.factura.factura}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>Cliente:</strong> {devolucionData.factura.cliente}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>Monto:</strong> L{" "}
+                    {parseFloat(devolucionData.factura.total || 0).toFixed(2)}
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <strong>Fecha:</strong>{" "}
+                    {devolucionData.factura.fecha_hora
+                      ? new Date(
+                          devolucionData.factura.fecha_hora
+                        ).toLocaleString("es-HN")
+                      : "N/A"}
+                  </div>
+                  <div style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
+                    <strong>Pagos registrados:</strong> {devolucionData.pagos.length}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: "#fff3cd",
+                    padding: 12,
+                    borderRadius: 8,
+                    border: "1px solid #ffc107",
+                    color: "#856404",
+                    fontSize: 13,
+                  }}
+                >
+                  ⚠️ Esta acción registrará una devolución con valores negativos
+                  en las tablas de facturas y pagos.
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    justifyContent: "center",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setDevolucionData(null);
+                      setDevolucionFactura("");
+                    }}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#9e9e9e",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: 15,
+                    }}
+                  >
+                    Volver
+                  </button>
+                  <button
+                    onClick={() => setShowDevolucionPasswordModal(true)}
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#ff9800",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      fontSize: 15,
+                    }}
+                  >
+                    Realizar Devolución
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de contraseña para devolución */}
+      {showDevolucionPasswordModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 130000,
+          }}
+          onClick={() => {
+            setShowDevolucionPasswordModal(false);
+            setDevolucionPassword("");
+          }}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#232526",
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 350,
+              boxShadow: "0 8px 32px #0003",
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0, color: "#d32f2f" }}>
+              Confirmar con contraseña
+            </h3>
+            <p style={{ fontSize: 14, marginBottom: 16 }}>
+              Ingrese su contraseña para autorizar la devolución
+            </p>
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={devolucionPassword}
+              onChange={(e) => setDevolucionPassword(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter" && devolucionPassword.trim()) {
+                  // Validar contraseña y procesar
+                  const esValida = await validarPasswordCajero(devolucionPassword);
+                  if (esValida) {
+                    procesarDevolucion();
+                  } else {
+                    alert("Contraseña incorrecta");
+                    setDevolucionPassword("");
+                  }
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid #ccc",
+                fontSize: 16,
+                marginBottom: 16,
+              }}
+              autoFocus
+            />
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={() => {
+                  setShowDevolucionPasswordModal(false);
+                  setDevolucionPassword("");
+                }}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#9e9e9e",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 15,
+                }}
+                disabled={devolucionProcesando}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  const esValida = await validarPasswordCajero(devolucionPassword);
+                  if (esValida) {
+                    procesarDevolucion();
+                  } else {
+                    alert("Contraseña incorrecta");
+                    setDevolucionPassword("");
+                  }
+                }}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#d32f2f",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  fontSize: 15,
+                }}
+                disabled={devolucionProcesando || !devolucionPassword.trim()}
+              >
+                {devolucionProcesando ? "Procesando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de error de devolución */}
+      {showDevolucionError && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 140000,
+          }}
+          onClick={() => setShowDevolucionError(false)}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#232526",
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 320,
+              maxWidth: 400,
+              boxShadow: "0 8px 32px #0003",
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontSize: 48,
+                marginBottom: 12,
+              }}
+            >
+              ⚠️
+            </div>
+            <h3 style={{ marginTop: 0, marginBottom: 12, color: "#d32f2f" }}>
+              Factura no encontrada
+            </h3>
+            <p style={{ marginBottom: 20, fontSize: 14 }}>
+              La factura no existe o no pertenece a este cajero
+            </p>
+            <button
+              onClick={() => setShowDevolucionError(false)}
+              style={{
+                padding: "10px 24px",
+                borderRadius: 8,
+                border: "none",
+                background: "#1976d2",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de éxito de devolución */}
+      {showDevolucionSuccess && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 140000,
+          }}
+          onClick={() => setShowDevolucionSuccess(false)}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#232526",
+              borderRadius: 12,
+              padding: 24,
+              minWidth: 320,
+              maxWidth: 400,
+              boxShadow: "0 8px 32px #0003",
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontSize: 48,
+                marginBottom: 12,
+              }}
+            >
+              ✅
+            </div>
+            <h3 style={{ marginTop: 0, marginBottom: 12, color: "#388e3c" }}>
+              Devolución exitosa
+            </h3>
+            <p style={{ marginBottom: 20, fontSize: 14 }}>
+              La devolución ha sido procesada correctamente
+            </p>
+            <button
+              onClick={() => setShowDevolucionSuccess(false)}
+              style={{
+                padding: "10px 24px",
+                borderRadius: 8,
+                border: "none",
+                background: "#388e3c",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              Aceptar
+            </button>
           </div>
         </div>
       )}
