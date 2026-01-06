@@ -105,7 +105,9 @@ export default function PuntoDeVentaView({
       // Si no hay apertura registrada, mostrar advertencia y salir
       if (!aperturaActual) {
         setResumenLoading(false);
-        alert("No hay apertura de caja registrada. Por favor, registra primero una apertura.");
+        alert(
+          "No hay apertura de caja registrada. Por favor, registra primero una apertura."
+        );
         setShowResumen(false);
         return;
       }
@@ -354,15 +356,20 @@ export default function PuntoDeVentaView({
   const [devolucionBuscando, setDevolucionBuscando] = useState(false);
   const [devolucionPassword, setDevolucionPassword] = useState<string>("");
   const [devolucionProcesando, setDevolucionProcesando] = useState(false);
-  const [showDevolucionPasswordModal, setShowDevolucionPasswordModal] = useState(false);
+  const [showDevolucionPasswordModal, setShowDevolucionPasswordModal] =
+    useState(false);
   const [showDevolucionError, setShowDevolucionError] = useState(false);
   const [showDevolucionSuccess, setShowDevolucionSuccess] = useState(false);
   // Eliminado showFacturaModal
   const [nombreCliente, setNombreCliente] = useState("");
   const [showOrdenModal, setShowOrdenModal] = useState(false);
-  const [tipoOrden, setTipoOrden] = useState<"PARA LLEVAR" | "COMER AQUÍ">("PARA LLEVAR");
+  const [tipoOrden, setTipoOrden] = useState<"PARA LLEVAR" | "COMER AQUÍ">(
+    "PARA LLEVAR"
+  );
   const [showComplementosModal, setShowComplementosModal] = useState(false);
-  const [selectedProductIndex, setSelectedProductIndex] = useState<number | null>(null);
+  const [selectedProductIndex, setSelectedProductIndex] = useState<
+    number | null
+  >(null);
   const [showPiezasModal, setShowPiezasModal] = useState(false);
   const [caiInfo, setCaiInfo] = useState<{
     caja_asignada: string;
@@ -557,14 +564,14 @@ export default function PuntoDeVentaView({
         );
       } else {
         nuevos = [
-          ...prev, 
-          { 
-            ...producto, 
-            cantidad: 1, 
+          ...prev,
+          {
+            ...producto,
+            cantidad: 1,
             tipo: producto.tipo,
             complementos: "CON TODO",
-            piezas: "PIEZAS VARIAS"
-          }
+            piezas: "PIEZAS VARIAS",
+          },
         ];
       }
       localStorage.setItem("seleccionados", JSON.stringify(nuevos));
@@ -630,7 +637,7 @@ export default function PuntoDeVentaView({
 
       // Obtener timestamp actual en formato ISO para fecha_hora
       const fechaHora = formatToHondurasLocal(new Date());
-      
+
       const { error } = await supabase.from("gastos").insert([
         {
           fecha,
@@ -721,7 +728,7 @@ export default function PuntoDeVentaView({
   // Función para procesar la devolución
   const procesarDevolucion = async () => {
     if (!devolucionData) return;
-    
+
     setDevolucionProcesando(true);
     try {
       const { factura, pagos } = devolucionData;
@@ -749,7 +756,10 @@ export default function PuntoDeVentaView({
 
       if (facturaError) {
         console.error("Error insertando factura de devolución:", facturaError);
-        alert("Error al registrar la devolución en facturas: " + facturaError.message);
+        alert(
+          "Error al registrar la devolución en facturas: " +
+            facturaError.message
+        );
         return;
       }
 
@@ -758,7 +768,9 @@ export default function PuntoDeVentaView({
         // Si el pago es CAMBIO (tiene referencia "CAMBIO"), invertir el signo
         const esCambio = pago.referencia === "CAMBIO";
         const montoOriginal = parseFloat(pago.monto || 0);
-        const montoDevolucion = esCambio ? Math.abs(montoOriginal) : -Math.abs(montoOriginal);
+        const montoDevolucion = esCambio
+          ? Math.abs(montoOriginal)
+          : -Math.abs(montoOriginal);
 
         return {
           tipo: pago.tipo,
@@ -785,7 +797,9 @@ export default function PuntoDeVentaView({
 
       if (pagosError) {
         console.error("Error insertando pagos de devolución:", pagosError);
-        alert("Error al registrar los pagos de devolución: " + pagosError.message);
+        alert(
+          "Error al registrar los pagos de devolución: " + pagosError.message
+        );
         return;
       }
 
@@ -1022,14 +1036,20 @@ export default function PuntoDeVentaView({
             }}
             style={{
               background: theme === "dark" ? "#1976d2" : "transparent",
-              color: theme === "dark" ? "#fff" : theme === "lite" ? "#1976d2" : "#fff",
+              color:
+                theme === "dark"
+                  ? "#fff"
+                  : theme === "lite"
+                  ? "#1976d2"
+                  : "#fff",
               border: theme === "dark" ? "none" : "1px solid #1976d2",
               borderRadius: 6,
               padding: "6px 10px",
               fontWeight: 600,
               fontSize: 13,
               cursor: "pointer",
-              boxShadow: theme === "dark" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+              boxShadow:
+                theme === "dark" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
             }}
             title="Activar modo oscuro"
           >
@@ -1042,14 +1062,21 @@ export default function PuntoDeVentaView({
             }}
             style={{
               background: theme === "lite" ? "#1976d2" : "transparent",
-              color: theme === "lite" ? "#fff" : theme === "dark" ? "#f5f5f5" : "#1976d2",
-              border: theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
+              color:
+                theme === "lite"
+                  ? "#fff"
+                  : theme === "dark"
+                  ? "#f5f5f5"
+                  : "#1976d2",
+              border:
+                theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
               borderRadius: 6,
               padding: "6px 10px",
               fontWeight: 600,
               fontSize: 13,
               cursor: "pointer",
-              boxShadow: theme === "lite" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+              boxShadow:
+                theme === "lite" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
             }}
             title="Activar modo claro"
           >
@@ -1265,7 +1292,10 @@ export default function PuntoDeVentaView({
               fontSize: 16,
               padding: "10px 22px",
               borderRadius: 8,
-              background: theme === "lite" ? "rgba(255,152,0,0.95)" : "rgba(230,81,0,0.95)",
+              background:
+                theme === "lite"
+                  ? "rgba(255,152,0,0.95)"
+                  : "rgba(230,81,0,0.95)",
               color: "#fff",
               fontWeight: 700,
               border: "none",
@@ -1444,11 +1474,20 @@ export default function PuntoDeVentaView({
               try {
                 // Verificar si hay conexión
                 if (!navigator.onLine) {
-                  console.warn("Sin conexión a internet. Guardando pagos localmente...");
-                  const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                  console.warn(
+                    "Sin conexión a internet. Guardando pagos localmente..."
+                  );
+                  const pendingPayments = JSON.parse(
+                    localStorage.getItem("pendingPayments") || "[]"
+                  );
                   pendingPayments.push(...pagosToInsert);
-                  localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-                  alert("Sin conexión. Los pagos se guardarán cuando se restaure la conexión.");
+                  localStorage.setItem(
+                    "pendingPayments",
+                    JSON.stringify(pendingPayments)
+                  );
+                  alert(
+                    "Sin conexión. Los pagos se guardarán cuando se restaure la conexión."
+                  );
                 } else {
                   const { error: pagoError } = await supabase
                     .from("pagos")
@@ -1457,22 +1496,41 @@ export default function PuntoDeVentaView({
                   if (pagoError) {
                     console.error("Error al guardar pagos:", pagoError);
                     // Intentar guardar localmente como respaldo
-                    const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                    const pendingPayments = JSON.parse(
+                      localStorage.getItem("pendingPayments") || "[]"
+                    );
                     pendingPayments.push(...pagosToInsert);
-                    localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-                    alert("Error al registrar los pagos: " + pagoError.message + "\nSe guardaron localmente y se sincronizarán después.");
+                    localStorage.setItem(
+                      "pendingPayments",
+                      JSON.stringify(pendingPayments)
+                    );
+                    alert(
+                      "Error al registrar los pagos: " +
+                        pagoError.message +
+                        "\nSe guardaron localmente y se sincronizarán después."
+                    );
                     return;
                   }
 
                   console.log("Pagos guardados exitosamente");
                 }
               } catch (fetchError) {
-                console.error("Error de conexión al guardar pagos:", fetchError);
+                console.error(
+                  "Error de conexión al guardar pagos:",
+                  fetchError
+                );
                 // Guardar localmente como respaldo
-                const pendingPayments = JSON.parse(localStorage.getItem('pendingPayments') || '[]');
+                const pendingPayments = JSON.parse(
+                  localStorage.getItem("pendingPayments") || "[]"
+                );
                 pendingPayments.push(...pagosToInsert);
-                localStorage.setItem('pendingPayments', JSON.stringify(pendingPayments));
-                alert("Error de conexión. Los pagos se guardaron localmente y se sincronizarán cuando se restaure la conexión.");
+                localStorage.setItem(
+                  "pendingPayments",
+                  JSON.stringify(pendingPayments)
+                );
+                alert(
+                  "Error de conexión. Los pagos se guardaron localmente y se sincronizarán cuando se restaure la conexión."
+                );
               }
             }
           } catch (err) {
@@ -1524,10 +1582,20 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                              p.cantidad
+                            }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
-                            ${p.complementos ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>` : ''}
-                            ${p.piezas && p.piezas !== 'PIEZAS VARIAS' ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>` : ''}
+                            ${
+                              p.complementos
+                                ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>`
+                                : ""
+                            }
+                            ${
+                              p.piezas && p.piezas !== "PIEZAS VARIAS"
+                                ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
+                                : ""
+                            }
                           </li>`
                       )
                       .join("")}
@@ -1549,7 +1617,9 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                              p.cantidad
+                            }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                           </li>`
                       )
@@ -1571,7 +1641,9 @@ export default function PuntoDeVentaView({
                           `<li style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 20
                           }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
+                            <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                              p.cantidad
+                            }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                           </li>`
                       )
@@ -2689,10 +2761,10 @@ export default function PuntoDeVentaView({
               color: theme === "lite" ? "#222" : "#f5f5f5",
             }}
           >
-            <h2 
-              style={{ 
-                color: "#1976d2", 
-                marginBottom: 8, 
+            <h2
+              style={{
+                color: "#1976d2",
+                marginBottom: 8,
                 textAlign: "center",
                 fontSize: 32,
                 fontWeight: 800,
@@ -2700,7 +2772,14 @@ export default function PuntoDeVentaView({
             >
               ORDEN
             </h2>
-            <p style={{ textAlign: "center", color: "#666", fontSize: 16, margin: 0 }}>
+            <p
+              style={{
+                textAlign: "center",
+                color: "#666",
+                fontSize: 16,
+                margin: 0,
+              }}
+            >
               Seleccione el tipo de orden
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -2711,7 +2790,8 @@ export default function PuntoDeVentaView({
                   setShowClienteModal(true);
                 }}
                 style={{
-                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                   color: "#fff",
                   borderRadius: 12,
                   border: "none",
@@ -2724,11 +2804,13 @@ export default function PuntoDeVentaView({
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(102,126,234,0.6)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 20px rgba(102,126,234,0.6)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(102,126,234,0.4)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 15px rgba(102,126,234,0.4)";
                 }}
               >
                 PARA LLEVAR
@@ -2740,7 +2822,8 @@ export default function PuntoDeVentaView({
                   setShowClienteModal(true);
                 }}
                 style={{
-                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  background:
+                    "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
                   color: "#fff",
                   borderRadius: 12,
                   border: "none",
@@ -2753,11 +2836,13 @@ export default function PuntoDeVentaView({
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = "translateY(-2px)";
-                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(245,87,108,0.6)";
+                  e.currentTarget.style.boxShadow =
+                    "0 6px 20px rgba(245,87,108,0.6)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 15px rgba(245,87,108,0.4)";
+                  e.currentTarget.style.boxShadow =
+                    "0 4px 15px rgba(245,87,108,0.4)";
                 }}
               >
                 COMER AQUÍ
@@ -2815,10 +2900,10 @@ export default function PuntoDeVentaView({
               color: theme === "lite" ? "#222" : "#f5f5f5",
             }}
           >
-            <h2 
-              style={{ 
-                color: "#4caf50", 
-                marginBottom: 8, 
+            <h2
+              style={{
+                color: "#4caf50",
+                marginBottom: 8,
                 textAlign: "center",
                 fontSize: 28,
                 fontWeight: 800,
@@ -2826,12 +2911,28 @@ export default function PuntoDeVentaView({
             >
               🍗 COMPLEMENTOS INCLUIDOS
             </h2>
-            <p style={{ textAlign: "center", color: "#666", fontSize: 14, margin: 0 }}>
-              Seleccione las opciones para {seleccionados[selectedProductIndex]?.nombre}
+            <p
+              style={{
+                textAlign: "center",
+                color: "#666",
+                fontSize: 14,
+                margin: 0,
+              }}
+            >
+              Seleccione las opciones para{" "}
+              {seleccionados[selectedProductIndex]?.nombre}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {["CON TODO", "SIN NADA", "SIN SALSAS", "SIN REPOLLO", "SIN ADEREZO", "SIN CEBOLLA"].map((opcion) => {
-                const isSelected = seleccionados[selectedProductIndex]?.complementos === opcion;
+              {[
+                "CON TODO",
+                "SIN NADA",
+                "SIN SALSAS",
+                "SIN REPOLLO",
+                "SIN ADEREZO",
+                "SIN CEBOLLA",
+              ].map((opcion) => {
+                const isSelected =
+                  seleccionados[selectedProductIndex]?.complementos === opcion;
                 return (
                   <button
                     key={opcion}
@@ -2844,18 +2945,28 @@ export default function PuntoDeVentaView({
                       setSeleccionados(newSeleccionados);
                     }}
                     style={{
-                      background: isSelected 
-                        ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)" 
-                        : theme === "lite" ? "#f5f5f5" : "#424242",
-                      color: isSelected ? "#fff" : theme === "lite" ? "#222" : "#f5f5f5",
+                      background: isSelected
+                        ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
+                        : theme === "lite"
+                        ? "#f5f5f5"
+                        : "#424242",
+                      color: isSelected
+                        ? "#fff"
+                        : theme === "lite"
+                        ? "#222"
+                        : "#f5f5f5",
                       borderRadius: 10,
-                      border: isSelected ? "3px solid #2e7d32" : "2px solid #ddd",
+                      border: isSelected
+                        ? "3px solid #2e7d32"
+                        : "2px solid #ddd",
                       padding: "16px 24px",
                       fontWeight: isSelected ? 700 : 600,
                       fontSize: 16,
                       cursor: "pointer",
                       transition: "all 0.2s",
-                      boxShadow: isSelected ? "0 4px 15px rgba(76,175,80,0.4)" : "none",
+                      boxShadow: isSelected
+                        ? "0 4px 15px rgba(76,175,80,0.4)"
+                        : "none",
                     }}
                   >
                     {opcion}
@@ -2918,10 +3029,10 @@ export default function PuntoDeVentaView({
               color: theme === "lite" ? "#222" : "#f5f5f5",
             }}
           >
-            <h2 
-              style={{ 
-                color: "#ff9800", 
-                marginBottom: 8, 
+            <h2
+              style={{
+                color: "#ff9800",
+                marginBottom: 8,
                 textAlign: "center",
                 fontSize: 28,
                 fontWeight: 800,
@@ -2929,67 +3040,91 @@ export default function PuntoDeVentaView({
             >
               🍖 PIEZAS
             </h2>
-            <p style={{ textAlign: "center", color: "#666", fontSize: 14, margin: 0 }}>
-              Seleccione las piezas para {seleccionados[selectedProductIndex]?.nombre}
+            <p
+              style={{
+                textAlign: "center",
+                color: "#666",
+                fontSize: 14,
+                margin: 0,
+              }}
+            >
+              Seleccione las piezas para{" "}
+              {seleccionados[selectedProductIndex]?.nombre}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {["PIEZAS VARIAS", "PECHUGA", "ALA", "CADERA", "PIERNA"].map((pieza) => {
-                const currentPiezas = seleccionados[selectedProductIndex]?.piezas || "PIEZAS VARIAS";
-                const piezasArray = currentPiezas.split(", ");
-                const isSelected = piezasArray.includes(pieza);
-                
-                return (
-                  <button
-                    key={pieza}
-                    onClick={() => {
-                      const newSeleccionados = [...seleccionados];
-                      let newPiezas: string[];
-                      
-                      if (pieza === "PIEZAS VARIAS") {
-                        // Si selecciona PIEZAS VARIAS, deseleccionar todo lo demás
-                        newPiezas = ["PIEZAS VARIAS"];
-                      } else {
-                        // Si selecciona otra pieza, quitar PIEZAS VARIAS
-                        newPiezas = piezasArray.filter(p => p !== "PIEZAS VARIAS");
-                        
-                        if (isSelected) {
-                          // Deseleccionar
-                          newPiezas = newPiezas.filter(p => p !== pieza);
-                          // Si no queda nada, volver a PIEZAS VARIAS
-                          if (newPiezas.length === 0) {
-                            newPiezas = ["PIEZAS VARIAS"];
-                          }
+              {["PIEZAS VARIAS", "PECHUGA", "ALA", "CADERA", "PIERNA"].map(
+                (pieza) => {
+                  const currentPiezas =
+                    seleccionados[selectedProductIndex]?.piezas ||
+                    "PIEZAS VARIAS";
+                  const piezasArray = currentPiezas.split(", ");
+                  const isSelected = piezasArray.includes(pieza);
+
+                  return (
+                    <button
+                      key={pieza}
+                      onClick={() => {
+                        const newSeleccionados = [...seleccionados];
+                        let newPiezas: string[];
+
+                        if (pieza === "PIEZAS VARIAS") {
+                          // Si selecciona PIEZAS VARIAS, deseleccionar todo lo demás
+                          newPiezas = ["PIEZAS VARIAS"];
                         } else {
-                          // Seleccionar
-                          newPiezas.push(pieza);
+                          // Si selecciona otra pieza, quitar PIEZAS VARIAS
+                          newPiezas = piezasArray.filter(
+                            (p) => p !== "PIEZAS VARIAS"
+                          );
+
+                          if (isSelected) {
+                            // Deseleccionar
+                            newPiezas = newPiezas.filter((p) => p !== pieza);
+                            // Si no queda nada, volver a PIEZAS VARIAS
+                            if (newPiezas.length === 0) {
+                              newPiezas = ["PIEZAS VARIAS"];
+                            }
+                          } else {
+                            // Seleccionar
+                            newPiezas.push(pieza);
+                          }
                         }
-                      }
-                      
-                      newSeleccionados[selectedProductIndex] = {
-                        ...newSeleccionados[selectedProductIndex],
-                        piezas: newPiezas.join(", "),
-                      };
-                      setSeleccionados(newSeleccionados);
-                    }}
-                    style={{
-                      background: isSelected 
-                        ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)" 
-                        : theme === "lite" ? "#f5f5f5" : "#424242",
-                      color: isSelected ? "#fff" : theme === "lite" ? "#222" : "#f5f5f5",
-                      borderRadius: 10,
-                      border: isSelected ? "3px solid #f57c00" : "2px solid #ddd",
-                      padding: "16px 24px",
-                      fontWeight: isSelected ? 700 : 600,
-                      fontSize: 16,
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                      boxShadow: isSelected ? "0 4px 15px rgba(255,152,0,0.4)" : "none",
-                    }}
-                  >
-                    {pieza}
-                  </button>
-                );
-              })}
+
+                        newSeleccionados[selectedProductIndex] = {
+                          ...newSeleccionados[selectedProductIndex],
+                          piezas: newPiezas.join(", "),
+                        };
+                        setSeleccionados(newSeleccionados);
+                      }}
+                      style={{
+                        background: isSelected
+                          ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
+                          : theme === "lite"
+                          ? "#f5f5f5"
+                          : "#424242",
+                        color: isSelected
+                          ? "#fff"
+                          : theme === "lite"
+                          ? "#222"
+                          : "#f5f5f5",
+                        borderRadius: 10,
+                        border: isSelected
+                          ? "3px solid #f57c00"
+                          : "2px solid #ddd",
+                        padding: "16px 24px",
+                        fontWeight: isSelected ? 700 : 600,
+                        fontSize: 16,
+                        cursor: "pointer",
+                        transition: "all 0.2s",
+                        boxShadow: isSelected
+                          ? "0 4px 15px rgba(255,152,0,0.4)"
+                          : "none",
+                      }}
+                    >
+                      {pieza}
+                    </button>
+                  );
+                }
+              )}
             </div>
             <button
               onClick={() => {
@@ -3140,10 +3275,12 @@ export default function PuntoDeVentaView({
               minWidth: 400,
               maxWidth: 900,
               width: "90%",
-              boxShadow: theme === "lite" 
-                ? "0 20px 60px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.1)" 
-                : "0 20px 60px rgba(0,0,0,0.5)",
-              border: theme === "lite" ? "1px solid #e2e8f0" : "1px solid #334155",
+              boxShadow:
+                theme === "lite"
+                  ? "0 20px 60px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.1)"
+                  : "0 20px 60px rgba(0,0,0,0.5)",
+              border:
+                theme === "lite" ? "1px solid #e2e8f0" : "1px solid #334155",
             }}
           >
             {/* Header */}
@@ -3154,7 +3291,8 @@ export default function PuntoDeVentaView({
                 justifyContent: "space-between",
                 marginBottom: 24,
                 paddingBottom: 16,
-                borderBottom: theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
+                borderBottom:
+                  theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
               }}
             >
               <div>
@@ -3169,11 +3307,13 @@ export default function PuntoDeVentaView({
                 >
                   📦 Pedido por Teléfono
                 </h3>
-                <p style={{
-                  margin: "4px 0 0 0",
-                  color: theme === "lite" ? "#64748b" : "#94a3b8",
-                  fontSize: 14,
-                }}>
+                <p
+                  style={{
+                    margin: "4px 0 0 0",
+                    color: theme === "lite" ? "#64748b" : "#94a3b8",
+                    fontSize: 14,
+                  }}
+                >
                   Ingresa los datos del cliente y tipo de pago
                 </p>
               </div>
@@ -3195,7 +3335,8 @@ export default function PuntoDeVentaView({
                   transition: "all 0.2s",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = theme === "lite" ? "#f1f5f9" : "#334155";
+                  e.currentTarget.style.background =
+                    theme === "lite" ? "#f1f5f9" : "#334155";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
@@ -3233,12 +3374,15 @@ export default function PuntoDeVentaView({
                     value={envioCliente}
                     onChange={(e) => setEnvioCliente(e.target.value)}
                     className="form-input"
-                    style={{ 
+                    style={{
                       width: "100%",
                       padding: "12px 16px",
                       fontSize: 15,
                       borderRadius: 10,
-                      border: theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
+                      border:
+                        theme === "lite"
+                          ? "2px solid #e2e8f0"
+                          : "2px solid #334155",
                       background: theme === "lite" ? "#ffffff" : "#0f172a",
                     }}
                   />
@@ -3261,12 +3405,15 @@ export default function PuntoDeVentaView({
                     value={envioCelular}
                     onChange={(e) => setEnvioCelular(e.target.value)}
                     className="form-input"
-                    style={{ 
+                    style={{
                       width: "100%",
                       padding: "12px 16px",
                       fontSize: 15,
                       borderRadius: 10,
-                      border: theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
+                      border:
+                        theme === "lite"
+                          ? "2px solid #e2e8f0"
+                          : "2px solid #334155",
                       background: theme === "lite" ? "#ffffff" : "#0f172a",
                     }}
                   />
@@ -3288,7 +3435,7 @@ export default function PuntoDeVentaView({
                     {[
                       { value: "Efectivo", icon: "💵", color: "#10b981" },
                       { value: "Tarjeta", icon: "💳", color: "#3b82f6" },
-                      { value: "Transferencia", icon: "🏦", color: "#8b5cf6" }
+                      { value: "Transferencia", icon: "🏦", color: "#8b5cf6" },
                     ].map((tipo) => {
                       const isSelected = envioTipoPago === tipo.value;
                       return (
@@ -3299,15 +3446,21 @@ export default function PuntoDeVentaView({
                             flex: 1,
                             padding: "12px 16px",
                             borderRadius: 10,
-                            border: isSelected 
-                              ? `3px solid ${tipo.color}` 
-                              : theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
-                            background: isSelected 
-                              ? `${tipo.color}15` 
-                              : theme === "lite" ? "#ffffff" : "#0f172a",
-                            color: isSelected 
-                              ? tipo.color 
-                              : theme === "lite" ? "#64748b" : "#94a3b8",
+                            border: isSelected
+                              ? `3px solid ${tipo.color}`
+                              : theme === "lite"
+                              ? "2px solid #e2e8f0"
+                              : "2px solid #334155",
+                            background: isSelected
+                              ? `${tipo.color}15`
+                              : theme === "lite"
+                              ? "#ffffff"
+                              : "#0f172a",
+                            color: isSelected
+                              ? tipo.color
+                              : theme === "lite"
+                              ? "#64748b"
+                              : "#94a3b8",
                             fontWeight: isSelected ? 700 : 600,
                             fontSize: 14,
                             cursor: "pointer",
@@ -3345,12 +3498,15 @@ export default function PuntoDeVentaView({
                     onChange={(e) => setEnvioCosto(e.target.value)}
                     className="form-input"
                     placeholder="0.00"
-                    style={{ 
+                    style={{
                       width: "100%",
                       padding: "12px 16px",
                       fontSize: 15,
                       borderRadius: 10,
-                      border: theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
+                      border:
+                        theme === "lite"
+                          ? "2px solid #e2e8f0"
+                          : "2px solid #334155",
                       background: theme === "lite" ? "#ffffff" : "#0f172a",
                     }}
                   />
@@ -3360,15 +3516,20 @@ export default function PuntoDeVentaView({
               {/* Summary Section */}
               <div
                 style={{
-                  background: theme === "lite" 
-                    ? "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)" 
-                    : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                  background:
+                    theme === "lite"
+                      ? "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)"
+                      : "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
                   borderRadius: 16,
                   padding: 24,
-                  boxShadow: theme === "lite" 
-                    ? "0 4px 12px rgba(0,0,0,0.05)" 
-                    : "0 4px 12px rgba(0,0,0,0.3)",
-                  border: theme === "lite" ? "1px solid #e2e8f0" : "1px solid #334155",
+                  boxShadow:
+                    theme === "lite"
+                      ? "0 4px 12px rgba(0,0,0,0.05)"
+                      : "0 4px 12px rgba(0,0,0,0.3)",
+                  border:
+                    theme === "lite"
+                      ? "1px solid #e2e8f0"
+                      : "1px solid #334155",
                 }}
               >
                 <div
@@ -3404,7 +3565,9 @@ export default function PuntoDeVentaView({
                   }}
                 >
                   <div>Costo de envío</div>
-                  <div style={{ fontWeight: 600 }}>L {Number(envioCosto || 0).toFixed(2)}</div>
+                  <div style={{ fontWeight: 600 }}>
+                    L {Number(envioCosto || 0).toFixed(2)}
+                  </div>
                 </div>
                 <div
                   style={{
@@ -3438,7 +3601,10 @@ export default function PuntoDeVentaView({
                     style={{
                       padding: "12px 20px",
                       borderRadius: 10,
-                      border: theme === "lite" ? "2px solid #e2e8f0" : "2px solid #334155",
+                      border:
+                        theme === "lite"
+                          ? "2px solid #e2e8f0"
+                          : "2px solid #334155",
                       background: "transparent",
                       color: theme === "lite" ? "#64748b" : "#94a3b8",
                       fontWeight: 600,
@@ -3543,10 +3709,22 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
-                                      <div style='font-weight:700;'>${p.nombre}</div>
-                                      ${p.complementos ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>` : ''}
-                                      ${p.piezas && p.piezas !== 'PIEZAS VARIAS' ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>` : ''}
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                                        p.cantidad
+                                      }x</div>
+                                      <div style='font-weight:700;'>${
+                                        p.nombre
+                                      }</div>
+                                      ${
+                                        p.complementos
+                                          ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>`
+                                          : ""
+                                      }
+                                      ${
+                                        p.piezas && p.piezas !== "PIEZAS VARIAS"
+                                          ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
+                                          : ""
+                                      }
                                     </li>`
                                 )
                                 .join("")}
@@ -3569,8 +3747,12 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
-                                      <div style='font-weight:700;'>${p.nombre}</div>
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                                        p.cantidad
+                                      }x</div>
+                                      <div style='font-weight:700;'>${
+                                        p.nombre
+                                      }</div>
                                     </li>`
                                 )
                                 .join("")}
@@ -3592,8 +3774,12 @@ export default function PuntoDeVentaView({
                                     `<li style='font-size:${
                                       etiquetaConfig?.etiqueta_fontsize || 20
                                     }px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
-                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
-                                      <div style='font-weight:700;'>${p.nombre}</div>
+                                      <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${
+                                        p.cantidad
+                                      }x</div>
+                                      <div style='font-weight:700;'>${
+                                        p.nombre
+                                      }</div>
                                     </li>`
                                 )
                                 .join("")}
@@ -3834,19 +4020,29 @@ export default function PuntoDeVentaView({
                       padding: "14px 24px",
                       borderRadius: 10,
                       border: "none",
-                      background: savingEnvio || !envioCliente || !envioCelular
-                        ? theme === "lite" ? "#e2e8f0" : "#334155"
-                        : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                      color: savingEnvio || !envioCliente || !envioCelular
-                        ? theme === "lite" ? "#94a3b8" : "#64748b"
-                        : "#ffffff",
+                      background:
+                        savingEnvio || !envioCliente || !envioCelular
+                          ? theme === "lite"
+                            ? "#e2e8f0"
+                            : "#334155"
+                          : "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                      color:
+                        savingEnvio || !envioCliente || !envioCelular
+                          ? theme === "lite"
+                            ? "#94a3b8"
+                            : "#64748b"
+                          : "#ffffff",
                       fontWeight: 700,
                       fontSize: 16,
-                      cursor: savingEnvio || !envioCliente || !envioCelular ? "not-allowed" : "pointer",
+                      cursor:
+                        savingEnvio || !envioCliente || !envioCelular
+                          ? "not-allowed"
+                          : "pointer",
                       transition: "all 0.2s",
-                      boxShadow: savingEnvio || !envioCliente || !envioCelular
-                        ? "none"
-                        : "0 4px 12px rgba(16, 185, 129, 0.3)",
+                      boxShadow:
+                        savingEnvio || !envioCliente || !envioCelular
+                          ? "none"
+                          : "0 4px 12px rgba(16, 185, 129, 0.3)",
                     }}
                   >
                     {savingEnvio ? "⏳ Guardando..." : "✓ Guardar Pedido"}
@@ -4640,10 +4836,12 @@ export default function PuntoDeVentaView({
             <h3 style={{ marginTop: 0, color: "#ff9800" }}>
               Devolución de Factura
             </h3>
-            
+
             {/* Paso 1: Buscar factura */}
             {!devolucionData && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
                 <input
                   type="text"
                   placeholder="Número de factura"
@@ -4708,7 +4906,9 @@ export default function PuntoDeVentaView({
 
             {/* Paso 2: Mostrar datos y confirmar */}
             {devolucionData && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}
+              >
                 <div
                   style={{
                     background: theme === "lite" ? "#f5f5f5" : "#1a1a1a",
@@ -4736,7 +4936,8 @@ export default function PuntoDeVentaView({
                       : "N/A"}
                   </div>
                   <div style={{ marginTop: 12, fontSize: 13, color: "#666" }}>
-                    <strong>Pagos registrados:</strong> {devolucionData.pagos.length}
+                    <strong>Pagos registrados:</strong>{" "}
+                    {devolucionData.pagos.length}
                   </div>
                 </div>
 
@@ -4846,7 +5047,9 @@ export default function PuntoDeVentaView({
               onKeyDown={async (e) => {
                 if (e.key === "Enter" && devolucionPassword.trim()) {
                   // Validar contraseña y procesar
-                  const esValida = await validarPasswordCajero(devolucionPassword);
+                  const esValida = await validarPasswordCajero(
+                    devolucionPassword
+                  );
                   if (esValida) {
                     procesarDevolucion();
                   } else {
@@ -4892,7 +5095,9 @@ export default function PuntoDeVentaView({
               </button>
               <button
                 onClick={async () => {
-                  const esValida = await validarPasswordCajero(devolucionPassword);
+                  const esValida = await validarPasswordCajero(
+                    devolucionPassword
+                  );
                   if (esValida) {
                     procesarDevolucion();
                   } else {

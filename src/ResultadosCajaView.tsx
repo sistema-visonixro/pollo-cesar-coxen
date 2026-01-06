@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-// Imagen de fondo personalizada
 import { supabase } from "./supabaseClient";
 import { useDatosNegocio } from "./useDatosNegocio";
 
@@ -7,10 +6,6 @@ export default function ResultadosCajaView() {
   const { datos: datosNegocio } = useDatosNegocio();
   const [cierres, setCierres] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [clave, setClave] = useState("");
-  const [validando, setValidando] = useState(false);
-  const [correcto, setCorrecto] = useState(false);
-  // const [mostrarCerrar, setMostrarCerrar] = useState(false); // Eliminado para evitar error TS6133
 
   // Obtener usuario actual de localStorage
   const usuarioActual = (() => {
@@ -25,7 +20,6 @@ export default function ResultadosCajaView() {
   useEffect(() => {
     const fetchCierres = async () => {
       setLoading(true);
-      // Obtener fecha y hora actual y hace 24 horas
       const ahora = new Date();
       const hace24h = new Date(ahora.getTime() - 24 * 60 * 60 * 1000);
       const fechaInicio = hace24h.toISOString();
@@ -36,7 +30,6 @@ export default function ResultadosCajaView() {
         .eq("tipo_registro", "cierre")
         .gte("fecha", fechaInicio)
         .lte("fecha", fechaFin);
-      // Si el usuario es cajero, filtrar por su id
       if (usuarioActual && usuarioActual.rol === "cajero") {
         query = query.eq("cajero_id", usuarioActual.id);
       }
@@ -49,794 +42,1014 @@ export default function ResultadosCajaView() {
     fetchCierres();
   }, []);
 
+  const getColor = (value: number) => {
+    if (value > 0) return "#388e3c"; // Verde para positivos
+    if (value < 0) return "#d32f2f"; // Rojo para negativos
+    return "#1976d2"; // Azul para cero
+  };
+
+  const [updatingObservacion, setUpdatingObservacion] = useState(false);
+  const [tasaDolar, setTasaDolar] = useState<number>(0);
+  
+  // Estados para modal de aclaración
+  const [showModalAclaracion, setShowModalAclaracion] = useState(false);
+  const [cierreSeleccionado, setCierreSeleccionado] = useState<any>(null);
+  const [referenciaAclaracion, setReferenciaAclaracion] = useState("");
+  const [passwordAclaracion, setPasswordAclaracion] = useState("");
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  const abrirModalAclaracion = (cierre: any) => {
+    setCierreSeleccionado(cierre);
+    setReferenciaAclaracion("");
+    setPasswordAclaracion("");
+    setShowModalAclaracion(true);
+  };
+
+  const cerrarModalAclaracion = () => {
+    setShowModalAclaracion(false);
+    setCierreSeleccionado(null);
+    setReferenciaAclaracion("");
+    setPasswordAclaracion("");
+  };
+
+  const solicitarPassword = () => {
+    if (!referenciaAclaracion.trim()) {
+      setErrorMessage("Debe ingresar una referencia del cierre");
+      setShowErrorModal(true);
+      return;
+    }
+    setShowModalAclaracion(false);
+    setShowPasswordModal(true);
+  };
+
+  const validarPasswordYAclarar = async () => {
+    if (!passwordAclaracion.trim()) {
+      setErrorMessage("Debe ingresar su contraseña");
+      setShowPasswordModal(false);
+      setShowErrorModal(true);
+      return;
+    }
+
+    setUpdatingObservacion(true);
+    try {
+      // Validar contraseña
+      const { data: userData, error: userError } = await supabase
+        .from("usuarios")
+        .select("clave")
+        .eq("id", usuarioActual.id)
+        .single();
+
+      if (userError || !userData) {
+        setErrorMessage("Error al validar usuario");
+        setShowPasswordModal(false);
+        setShowErrorModal(true);
+        return;
+      }
+
+      if (userData.clave !== passwordAclaracion) {
+        setErrorMessage("Contraseña incorrecta");
+        setShowPasswordModal(false);
+        setShowErrorModal(true);
+        return;
+      }
+
+      // Actualizar cierre
+      const { error } = await supabase
+        .from("cierres")
+        .update({ 
+          observacion: "aclarado",
+          referencia_aclaracion: referenciaAclaracion.trim()
+        })
+        .eq("id", cierreSeleccionado.id);
+
+      if (error) {
+        console.error("Error actualizando cierre:", error);
+        setErrorMessage("Error al actualizar el cierre");
+        setShowPasswordModal(false);
+        setShowErrorModal(true);
+      } else {
+        setCierres((prev) => 
+          prev.map((c) => 
+            c.id === cierreSeleccionado.id 
+              ? { ...c, observacion: "aclarado", referencia_aclaracion: referenciaAclaracion.trim() } 
+              : c
+          )
+        );
+        setShowPasswordModal(false);
+        setShowSuccessModal(true);
+        setReferenciaAclaracion("");
+        setPasswordAclaracion("");
+        setCierreSeleccionado(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMessage("Error inesperado");
+      setShowPasswordModal(false);
+      setShowErrorModal(true);
+    } finally {
+      setUpdatingObservacion(false);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: precioData, error } = await supabase
+          .from("precio_dolar")
+          .select("valor")
+          .eq("id", "singleton")
+          .limit(1)
+          .single();
+        if (!error && precioData && typeof precioData.valor !== "undefined") {
+          setTasaDolar(Number(precioData.valor) || 0);
+        }
+      } catch (e) {
+        console.warn("No se pudo obtener tasa de precio_dolar:", e);
+      }
+    })();
+  }, []);
+
   return (
     <div
       style={{
         width: "100vw",
-        minHeight: "100vh",
+        height: "100vh",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f5f5f5",
+        flexDirection: "column",
+        background: "linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)",
+        color: "#fff",
         position: "fixed",
         top: 0,
         left: 0,
         zIndex: 9999,
         overflowY: "auto",
-        height: "100vh",
       }}
     >
-      <style>{`
-        @media (max-width: 600px) {
-          .caja-responsive {
-            padding: 16px !important;
-            min-width: 0 !important;
-            max-width: 98vw !important;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 16px #1976d222 !important;
-          }
-          .caja-responsive h2 {
-            font-size: 1.3rem !important;
-          }
-          .caja-responsive img {
-            width: 120px !important;
-            height: 120px !important;
-          }
-        }
-      `}</style>
+      {/* Header */}
       <div
-        className="caja-responsive"
         style={{
-          background: "linear-gradient(135deg, #e3f2fd 0%, #fff 100%)",
-          borderRadius: 24,
-          boxShadow: "0 12px 36px #1976d244",
-          padding: "3vw 4vw 3vw 4vw",
-          minWidth: 320,
-          maxWidth: 480,
-          width: "100%",
-          display: "flex",
-          flexDirection: "column",
-          gap: 22,
-          margin: "auto",
-          alignItems: "center",
-          border: "1px solid #bbdefb",
-          maxHeight: "98vh",
-          overflowY: "auto",
+          padding: "24px 48px",
+          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          background: "rgba(0,0,0,0.2)",
+          backdropFilter: "blur(10px)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            marginBottom: 8,
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           {datosNegocio.logo_url ? (
             <img
               src={datosNegocio.logo_url}
               alt="Logo"
               style={{
-                width: "clamp(120px, 30vw, 205px)",
-                height: "clamp(120px, 28vw, 200px)",
+                width: 80,
+                height: 80,
                 borderRadius: "50%",
                 objectFit: "cover",
-                boxShadow: "0 2px 8px #1976d222",
-                background: "#fff",
-                transition: "width 0.3s, height 0.3s",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
+                border: "3px solid rgba(255,255,255,0.2)",
               }}
             />
           ) : (
             <div
               style={{
-                width: "clamp(120px, 30vw, 205px)",
-                height: "clamp(120px, 28vw, 200px)",
+                width: 80,
+                height: 80,
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #667eea, #764ba2)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "4rem",
-                boxShadow: "0 2px 8px #1976d222",
+                fontSize: "2.5rem",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
               }}
             >
               🏪
             </div>
           )}
-        </div>
-        <h2
-          style={{
-            color: "#1976d2",
-            marginBottom: 10,
-            fontWeight: 900,
-            fontSize: "clamp(1.3rem, 6vw, 2rem)",
-            letterSpacing: 1.5,
-            textShadow: "0 2px 8px #1976d222",
-            textAlign: "center",
-            transition: "font-size 0.3s",
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              padding: "6px 18px",
-              background: "#e3f2fd",
-              borderRadius: 12,
-              boxShadow: "0 2px 8px #1976d222",
-            }}
-          >
-            Resultados de Caja
-          </span>
-        </h2>
-        {/* Mostrar cajero, caja y fecha debajo del título */}
-        {cierres.length > 0 && (
-          <div
-            style={{
-              marginBottom: 18,
-              fontSize: "clamp(1rem, 4vw, 1.1rem)",
-              color: "#1976d2",
-              background: "#e3f2fd",
-              borderRadius: 12,
-              padding: "10px 4vw",
-              fontWeight: 700,
-              boxShadow: "0 2px 8px #1976d222",
-              textAlign: "center",
-              border: "1px solid #bbdefb",
-              transition: "font-size 0.3s, padding 0.3s",
-            }}
-          >
-            <span style={{ marginRight: 18 }}>
-              <b>Cajero:</b>{" "}
-              <span style={{ color: "#1565c0" }}>{cierres[0].cajero}</span>
-            </span>
-            <span style={{ marginRight: 18 }}>
-              <b>Caja:</b>{" "}
-              <span style={{ color: "#1565c0" }}>{cierres[0].caja}</span>
-            </span>
-            <span>
-              <b>Fecha:</b>{" "}
-              <span style={{ color: "#1565c0" }}>
-                {new Date(cierres[0].fecha).toLocaleDateString()}
-              </span>
-            </span>
-          </div>
-        )}
-        {loading ? (
-          <p>Cargando...</p>
-        ) : cierres.length === 0 ? (
-          <p>No hay cierres registrados hoy.</p>
-        ) : (
-          <>
-            {/* Tabla de cierres oculta intencionalmente */}
-            {/* Cálculos de diferencias y total */}
-            <div
+          <div style={{ flex: 1 }}>
+            <h1
               style={{
-                marginTop: 30,
-                padding: "6vw 4vw",
-                background: "linear-gradient(135deg, #fffde7 0%, #fff 100%)",
-                borderRadius: 16,
-                boxShadow: "0 4px 16px #fbc02d44",
-                border: "1px solid #ffe082",
-                width: "100%",
-                maxWidth: 400,
-                transition: "padding 0.3s",
+                margin: 0,
+                fontSize: "2.5rem",
+                fontWeight: 900,
+                letterSpacing: 1,
+                background: "linear-gradient(90deg, #fff 0%, #90caf9 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
               }}
             >
-              <h3
+              RESULTADOS DE CAJA
+            </h1>
+            {cierres.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: "1.1rem", opacity: 0.9 }}>
+                <span style={{ marginRight: 24 }}>
+                  <strong>Cajero:</strong> {cierres[0].cajero}
+                </span>
+                <span style={{ marginRight: 24 }}>
+                  <strong>Caja:</strong> {cierres[0].caja}
+                </span>
+                <span>
+                  <strong>Fecha:</strong>{" "}
+                  {new Date(cierres[0].fecha).toLocaleDateString("es-HN", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              try {
+                localStorage.setItem("vista", "puntoDeVenta");
+              } catch {}
+              window.location.href = "/punto-de-venta";
+            }}
+            style={{
+              padding: "16px 32px",
+              background: "#1976d2",
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              fontWeight: 700,
+              fontSize: "1.1rem",
+              cursor: "pointer",
+              boxShadow: "0 4px 16px rgba(25, 118, 210, 0.4)",
+              transition: "all 0.3s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#1565c0";
+              e.currentTarget.style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#1976d2";
+              e.currentTarget.style.transform = "translateY(0)";
+            }}
+          >
+            ← REGRESAR A PUNTO DE VENTAS
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div
+        style={{
+          flex: 1,
+          padding: "48px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 32,
+          maxWidth: 1400,
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
+        {loading ? (
+          <div style={{ textAlign: "center", padding: 48 }}>
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                border: "6px solid rgba(255,255,255,0.2)",
+                borderTop: "6px solid #fff",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+                margin: "0 auto 24px",
+              }}
+            />
+            <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
+            <p style={{ fontSize: "1.2rem", opacity: 0.8 }}>Cargando resultados...</p>
+          </div>
+        ) : cierres.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: 48,
+              background: "rgba(255,255,255,0.05)",
+              borderRadius: 16,
+              border: "1px solid rgba(255,255,255,0.1)",
+            }}
+          >
+            <p style={{ fontSize: "1.3rem" }}>No hay cierres registrados en las últimas 24 horas.</p>
+          </div>
+        ) : (
+          <>
+            {/* Sección de Diferencias */}
+            <div
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                borderRadius: 20,
+                padding: 40,
+                border: "1px solid rgba(255,255,255,0.1)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
+            >
+              <h2
                 style={{
-                  color: "#d32f2f",
+                  margin: "0 0 32px 0",
+                  fontSize: "2rem",
                   fontWeight: 900,
-                  fontSize: 22,
-                  marginBottom: 18,
                   textAlign: "center",
-                  letterSpacing: 1,
+                  color: "#ffd54f",
+                  textTransform: "uppercase",
+                  letterSpacing: 2,
                 }}
               >
-                DIFERENCIA
-              </h3>
-              {/* Nuevo: tarjeta resumen por tipo para identificar dónde está la diferencia */}
+                DIFERENCIAS
+              </h2>
+              
               {cierres.length > 0 && (
                 <div
                   style={{
-                    marginBottom: 12,
-                    display: "flex",
-                    gap: 8,
-                    justifyContent: "space-between",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gap: 24,
+                    marginBottom: 32,
                   }}
                 >
-                  {cierres.slice(0, 1).map((cierre, i) => {
-                    const efectivoDiff = (
-                      (parseFloat(cierre.efectivo_registrado) || 0) -
-                      (parseFloat(cierre.efectivo_dia) || 0)
-                    ).toFixed(2);
-                    const tarjetaDiff = (
-                      (parseFloat(cierre.monto_tarjeta_registrado) || 0) -
-                      (parseFloat(cierre.monto_tarjeta_dia) || 0)
-                    ).toFixed(2);
-                    const transDiff = (
-                      (parseFloat(cierre.transferencias_registradas) || 0) -
-                      (parseFloat(cierre.transferencias_dia) || 0)
-                    ).toFixed(2);
-                    const dolaresDiff = (
-                      (parseFloat(cierre.dolares_registrado) || 0) -
-                      (parseFloat(cierre.dolares_dia) || 0)
-                    ).toFixed(2);
+                  {(() => {
+                    const cierre = cierres[0];
+                    const efectivoDiff = parseFloat(
+                      ((parseFloat(cierre.efectivo_registrado) || 0) -
+                        (parseFloat(cierre.efectivo_dia) || 0)).toFixed(2)
+                    );
+                    const tarjetaDiff = parseFloat(
+                      ((parseFloat(cierre.monto_tarjeta_registrado) || 0) -
+                        (parseFloat(cierre.monto_tarjeta_dia) || 0)).toFixed(2)
+                    );
+                    const transDiff = parseFloat(
+                      ((parseFloat(cierre.transferencias_registradas) || 0) -
+                        (parseFloat(cierre.transferencias_dia) || 0)).toFixed(2)
+                    );
+                    const dolaresDiff = parseFloat(
+                      ((parseFloat(cierre.dolares_registrado) || 0) -
+                        (parseFloat(cierre.dolares_dia) || 0)).toFixed(2)
+                    );
+
                     return (
-                      <div
-                        key={i}
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          width: "100%",
-                          justifyContent: "space-between",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <>
                         <div
                           style={{
-                            flex: 1,
-                            background: "#fff",
-                            padding: 12,
-                            borderRadius: 10,
+                            background: "rgba(255,255,255,0.08)",
+                            padding: 24,
+                            borderRadius: 16,
                             textAlign: "center",
-                            boxShadow: "0 2px 8px #00000010",
-                            minWidth: 100,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            transition: "all 0.3s",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: "0.9rem",
                               fontWeight: 700,
-                              color: "#1976d2",
+                              color: "#90caf9",
+                              marginBottom: 12,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
                             }}
                           >
                             EFECTIVO
                           </div>
                           <div
                             style={{
-                              fontSize: 20,
+                              fontSize: "2.5rem",
                               fontWeight: 900,
-                              color:
-                                efectivoDiff === "0.00" ? "#388e3c" : "#d32f2f",
+                              color: getColor(efectivoDiff),
                             }}
                           >
-                            L {efectivoDiff}
+                            L {efectivoDiff.toFixed(2)}
                           </div>
                         </div>
+
                         <div
                           style={{
-                            flex: 1,
-                            background: "#fff",
-                            padding: 12,
-                            borderRadius: 10,
+                            background: "rgba(255,255,255,0.08)",
+                            padding: 24,
+                            borderRadius: 16,
                             textAlign: "center",
-                            boxShadow: "0 2px 8px #00000010",
-                            minWidth: 100,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            transition: "all 0.3s",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: "0.9rem",
                               fontWeight: 700,
-                              color: "#1976d2",
+                              color: "#90caf9",
+                              marginBottom: 12,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
                             }}
                           >
                             TARJETA
                           </div>
                           <div
                             style={{
-                              fontSize: 20,
+                              fontSize: "2.5rem",
                               fontWeight: 900,
-                              color:
-                                tarjetaDiff === "0.00" ? "#388e3c" : "#d32f2f",
+                              color: getColor(tarjetaDiff),
                             }}
                           >
-                            L {tarjetaDiff}
+                            L {tarjetaDiff.toFixed(2)}
                           </div>
                         </div>
+
                         <div
                           style={{
-                            flex: 1,
-                            background: "#fff",
-                            padding: 12,
-                            borderRadius: 10,
+                            background: "rgba(255,255,255,0.08)",
+                            padding: 24,
+                            borderRadius: 16,
                             textAlign: "center",
-                            boxShadow: "0 2px 8px #00000010",
-                            minWidth: 100,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            transition: "all 0.3s",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: "0.9rem",
                               fontWeight: 700,
-                              color: "#1976d2",
+                              color: "#90caf9",
+                              marginBottom: 12,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
                             }}
                           >
                             TRANSFERENCIA
                           </div>
                           <div
                             style={{
-                              fontSize: 20,
+                              fontSize: "2.5rem",
                               fontWeight: 900,
-                              color:
-                                transDiff === "0.00" ? "#388e3c" : "#d32f2f",
+                              color: getColor(transDiff),
                             }}
                           >
-                            L {transDiff}
+                            L {transDiff.toFixed(2)}
                           </div>
                         </div>
+
                         <div
                           style={{
-                            flex: 1,
-                            background: "#fff",
-                            padding: 12,
-                            borderRadius: 10,
+                            background: "rgba(255,255,255,0.08)",
+                            padding: 24,
+                            borderRadius: 16,
                             textAlign: "center",
-                            boxShadow: "0 2px 8px #00000010",
-                            minWidth: 100,
+                            border: "1px solid rgba(255,255,255,0.1)",
+                            transition: "all 0.3s",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: "0.9rem",
                               fontWeight: 700,
-                              color: "#f57c00",
+                              color: "#ffd54f",
+                              marginBottom: 12,
+                              textTransform: "uppercase",
+                              letterSpacing: 1,
                             }}
                           >
                             DÓLARES
                           </div>
                           <div
                             style={{
-                              fontSize: 20,
+                              fontSize: "2.5rem",
                               fontWeight: 900,
-                              color:
-                                dolaresDiff === "0.00" ? "#388e3c" : "#d32f2f",
+                              color: getColor(dolaresDiff),
                             }}
                           >
-                            $ {dolaresDiff}
+                                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                    <div style={{ fontSize: "2.2rem", fontWeight: 900, color: getColor(dolaresDiff), lineHeight: 1 }}>
+                                      $ {dolaresDiff.toFixed(2)}
+                                    </div>
+                                    {tasaDolar > 0 && (
+                                      <div style={{ fontSize: "0.95rem", fontWeight: 600, color: "rgba(255,255,255,0.75)", marginTop: 6 }}>
+                                        {`(L ${Number((dolaresDiff * tasaDolar).toFixed(2))})`}
+                                      </div>
+                                    )}
+                                  </div>
                           </div>
                         </div>
-                      </div>
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               )}
-              {cierres.length > 0 &&
-                cierres
-                  .filter((cierre) => {
-                    // Filtrar por usuario actual y fecha actual (solo fecha, sin hora)
-                    if (!usuarioActual) return false;
-                    const hoy = new Date();
-                    const yyyy = hoy.getFullYear();
-                    const mm = String(hoy.getMonth() + 1).padStart(2, "0");
-                    const dd = String(hoy.getDate()).padStart(2, "0");
-                    const fechaHoy = `${yyyy}-${mm}-${dd}`;
-                    return (
-                      cierre.cajero_id === usuarioActual.id &&
-                      cierre.fecha &&
-                      cierre.fecha.startsWith(fechaHoy)
-                    );
-                  })
-                  .map((cierre, idx) => {
-                    // Mostrar todos los campos relevantes del cierre
-                    return (
-                      <div key={idx} style={{ marginBottom: 24 }}>
-                        <table
-                          style={{
-                            width: "100%",
-                            background: "#fffde7",
-                            borderRadius: 8,
-                            marginBottom: 8,
-                            fontSize: 15,
-                          }}
-                        >
-                          <tbody>
-                            <tr>
-                              <td>
-                                <b>Fondo Fijo Registrado:</b>
-                              </td>
-                              <td>{cierre.fondo_fijo_registrado}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Fondo Fijo:</b>
-                              </td>
-                              <td>{cierre.fondo_fijo}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Efectivo Registrado:</b>
-                              </td>
-                              <td>{cierre.efectivo_registrado}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Efectivo Día:</b>
-                              </td>
-                              <td>{cierre.efectivo_dia}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Monto Tarjeta Registrado:</b>
-                              </td>
-                              <td>{cierre.monto_tarjeta_registrado}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Monto Tarjeta Día:</b>
-                              </td>
-                              <td>{cierre.monto_tarjeta_dia}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Transferencias Registradas:</b>
-                              </td>
-                              <td>{cierre.transferencias_registradas}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Transferencias Día:</b>
-                              </td>
-                              <td>{cierre.transferencias_dia}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Dólares Registrado (USD):</b>
-                              </td>
-                              <td>{cierre.dolares_registrado || 0}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Dólares Día (USD):</b>
-                              </td>
-                              <td>{cierre.dolares_dia || 0}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Diferencia:</b>
-                              </td>
-                              <td>{cierre.diferencia}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <b>Observación:</b>
-                              </td>
-                              <td>{cierre.observacion || "-"}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                        {/* Cálculos de diferencias */}
-                        <div>
-                          <b>FONDO FIJO:</b>{" "}
-                          {(
-                            (parseFloat(cierre.fondo_fijo_registrado) || 0) -
-                            (parseFloat(cierre.fondo_fijo) || 0)
-                          ).toFixed(2)}
-                        </div>
-                        <div>
-                          <b>EFECTIVO:</b>{" "}
-                          {(
-                            (parseFloat(cierre.efectivo_registrado) || 0) -
-                            (parseFloat(cierre.efectivo_dia) || 0)
-                          ).toFixed(2)}
-                        </div>
-                        <div>
-                          <b>TARJETA:</b>{" "}
-                          {(
-                            (parseFloat(cierre.monto_tarjeta_registrado) || 0) -
-                            (parseFloat(cierre.monto_tarjeta_dia) || 0)
-                          ).toFixed(2)}
-                        </div>
-                        <div>
-                          <b>TRANSFERENCIA:</b>{" "}
-                          {(
-                            (parseFloat(cierre.transferencias_registradas) ||
-                              0) - (parseFloat(cierre.transferencias_dia) || 0)
-                          ).toFixed(2)}
-                        </div>
-                        <div>
-                          <b>DÓLARES (USD):</b>{" "}
-                          {(
-                            (parseFloat(cierre.dolares_registrado) || 0) -
-                            (parseFloat(cierre.dolares_dia) || 0)
-                          ).toFixed(2)}
-                        </div>
-                        {/* Si existe diferencia aquí mostramos una indicación; la validación/guardado
-                            se realiza en el bloque de 'TOTAL' más abajo para evitar duplicados del formulario. */}
-                        {parseFloat(cierre.diferencia) !== 0 && (
-                          <div
-                            style={{
-                              color: "#d32f2f",
-                              fontWeight: 700,
-                              marginTop: 8,
-                            }}
-                          >
-                            Diferencia pendiente
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-              {cierres.length > 0 && (
-                <>
-                  <div style={{ marginTop: 12, fontWeight: 700, fontSize: 18 }}>
-                    TOTAL:{" "}
-                    {(() => {
-                      let total = 0;
-                      cierres.forEach((cierre) => {
-                        const fondoFijoRegistrado =
-                          parseFloat(cierre.fondo_fijo_registrado) || 0;
-                        const fondoFijo = parseFloat(cierre.fondo_fijo) || 0;
-                        const efectivoRegistrado =
-                          parseFloat(cierre.efectivo_registrado) || 0;
-                        const efectivoDia =
-                          parseFloat(cierre.efectivo_dia) || 0;
-                        const montoTarjetaRegistrado =
-                          parseFloat(cierre.monto_tarjeta_registrado) || 0;
-                        const montoTarjetaDia =
-                          parseFloat(cierre.monto_tarjeta_dia) || 0;
-                        const transferenciasRegistradas =
-                          parseFloat(cierre.transferencias_registradas) || 0;
-                        const transferenciasDia =
-                          parseFloat(cierre.transferencias_dia) || 0;
-                        const dolaresRegistrado =
-                          parseFloat(cierre.dolares_registrado) || 0;
-                        const dolaresDia = parseFloat(cierre.dolares_dia) || 0;
-                        const diferenciaFondoFijo =
-                          fondoFijoRegistrado - fondoFijo;
-                        const diferenciaEfectivo =
-                          efectivoRegistrado - efectivoDia;
-                        const diferenciaTarjeta =
-                          montoTarjetaRegistrado - montoTarjetaDia;
-                        const diferenciaTransferencia =
-                          transferenciasRegistradas - transferenciasDia;
-                        const diferenciaDolares =
-                          dolaresRegistrado - dolaresDia;
-                        total +=
-                          diferenciaFondoFijo +
-                          diferenciaEfectivo +
-                          diferenciaTarjeta +
-                          diferenciaTransferencia +
-                          diferenciaDolares;
-                      });
-                      return total.toFixed(2);
-                    })()}
-                  </div>
-                  {/* Input y botón si el total es distinto de 0 */}
-                  {(() => {
-                    let total = 0;
-                    cierres.forEach((cierre) => {
-                      const efectivoRegistrado =
-                        parseFloat(cierre.efectivo_registrado) || 0;
-                      const efectivoDia = parseFloat(cierre.efectivo_dia) || 0;
-                      const montoTarjetaRegistrado =
-                        parseFloat(cierre.monto_tarjeta_registrado) || 0;
-                      const montoTarjetaDia =
-                        parseFloat(cierre.monto_tarjeta_dia) || 0;
-                      const transferenciasRegistradas =
-                        parseFloat(cierre.transferencias_registradas) || 0;
-                      const transferenciasDia =
-                        parseFloat(cierre.transferencias_dia) || 0;
-                      const dolaresRegistrado =
-                        parseFloat(cierre.dolares_registrado) || 0;
-                      const dolaresDia = parseFloat(cierre.dolares_dia) || 0;
-                      const diferenciaEfectivo =
-                        efectivoRegistrado - efectivoDia;
-                      const diferenciaTarjeta =
-                        montoTarjetaRegistrado - montoTarjetaDia;
-                      const diferenciaTransferencia =
-                        transferenciasRegistradas - transferenciasDia;
-                      const diferenciaDolares = dolaresRegistrado - dolaresDia;
-                      total +=
-                        diferenciaEfectivo +
-                        diferenciaTarjeta +
-                        diferenciaTransferencia +
-                        diferenciaDolares;
-                    });
-                    if (total !== 0) {
-                      if (validando) {
-                        return (
-                          <div
-                            style={{
-                              marginTop: 24,
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: 12,
-                            }}
-                          >
-                            <div
-                              className="loader"
-                              style={{
-                                width: 48,
-                                height: 48,
-                                border: "6px solid #1976d2",
-                                borderTop: "6px solid #fff",
-                                borderRadius: "50%",
-                                animation: "spin 1s linear infinite",
-                                margin: "0 auto",
-                              }}
-                            />
-                            <style>{`@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }`}</style>
-                            <div
-                              style={{
-                                color: "#1976d2",
-                                fontWeight: 700,
-                                fontSize: 18,
-                                marginTop: 10,
-                              }}
-                            >
-                              Validando clave...
-                            </div>
-                          </div>
-                        );
-                      }
-                      if (correcto) {
-                        // Actualizar observacion SOLO del cierre del usuario actual y recargar automáticamente
-                        (async () => {
-                          const today = new Date();
-                          const yyyy = today.getFullYear();
-                          const mm = String(today.getMonth() + 1).padStart(
-                            2,
-                            "0"
-                          );
-                          const dd = String(today.getDate()).padStart(2, "0");
-                          const fechaHoy = `${yyyy}-${mm}-${dd}`;
-                          const { data: cierreHoy } = await supabase
-                            .from("cierres")
-                            .select("id")
-                            .eq("tipo_registro", "cierre")
-                            .eq("cajero_id", usuarioActual.id)
-                            .gte("fecha", fechaHoy + "T00:00:00")
-                            .lte("fecha", fechaHoy + "T23:59:59")
-                            .single();
-                          if (cierreHoy && cierreHoy.id) {
-                            await supabase
-                              .from("cierres")
-                              .update({ observacion: "aclarado" })
-                              .eq("id", cierreHoy.id)
-                              .eq("cajero_id", usuarioActual.id);
-                          }
-                          window.location.reload();
-                        })();
-                        return (
-                          <div
-                            style={{
-                              marginTop: 24,
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              gap: 12,
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: "#388e3c",
-                                fontWeight: 700,
-                                fontSize: 20,
-                              }}
-                            >
-                              Correcto, aclarando...
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <form
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            setValidando(true);
-                            // Ocultar card de diferencias
-                            // Consultar clave en Supabase
-                            const { data, error } = await supabase
-                              .from("claves_autorizacion")
-                              .select("clave")
-                              .eq("id", 1)
-                              .single();
-                            if (
-                              !error &&
-                              data &&
-                              String(data.clave) === clave
-                            ) {
-                              setTimeout(() => {
-                                setValidando(false);
-                                setCorrecto(true);
-                                setTimeout(() => {
-                                  setCorrecto(false);
-                                  // setMostrarCerrar(true); // Eliminado para evitar error TS2304
-                                }, 100);
-                              }, 800);
-                            } else {
-                              setValidando(false);
-                              setCorrecto(false);
-                              alert("Clave incorrecta");
-                            }
-                          }}
-                          style={{
-                            marginTop: 24,
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 12,
-                          }}
-                        >
-                          <label
-                            htmlFor="claveAclaracion"
-                            style={{ fontWeight: 600 }}
-                          >
-                            CLAVE DE ACLARACION
-                          </label>
-                          <input
-                            id="claveAclaracion"
-                            type="text"
-                            value={clave}
-                            onChange={(e) => setClave(e.target.value)}
-                            style={{
-                              padding: 8,
-                              borderRadius: 6,
-                              border: "1px solid #1976d2",
-                              fontSize: 16,
-                            }}
-                          />
-                          <button
-                            type="submit"
-                            style={{
-                              padding: "10px 18px",
-                              background: "#1976d2",
-                              color: "#fff",
-                              border: "none",
-                              borderRadius: 8,
-                              fontWeight: 700,
-                              fontSize: 16,
-                              cursor: "pointer",
-                            }}
-                          >
-                            GUARDAR
-                          </button>
-                        </form>
-                      );
-                    }
-                    return null;
-                  })()}
-                </>
-              )}
             </div>
+
+            {/* Sección de Detalles */}
+            {cierres.length > 0 &&
+              cierres
+                .filter((cierre) => {
+                  if (!usuarioActual) return false;
+                  const hoy = new Date();
+                  const yyyy = hoy.getFullYear();
+                  const mm = String(hoy.getMonth() + 1).padStart(2, "0");
+                  const dd = String(hoy.getDate()).padStart(2, "0");
+                  const fechaHoy = `${yyyy}-${mm}-${dd}`;
+                  return (
+                    cierre.cajero_id === usuarioActual.id &&
+                    cierre.fecha &&
+                    cierre.fecha.startsWith(fechaHoy)
+                  );
+                })
+                .map((cierre, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: "rgba(0,0,0,0.3)",
+                      borderRadius: 20,
+                      padding: 40,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                    }}
+                  >
+                    <h2
+                      style={{
+                        margin: "0 0 32px 0",
+                        fontSize: "1.8rem",
+                        fontWeight: 900,
+                        textAlign: "center",
+                        color: "#90caf9",
+                        textTransform: "uppercase",
+                        letterSpacing: 2,
+                      }}
+                    >
+                      DETALLE DEL CIERRE
+                    </h2>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                        gap: 20,
+                        fontSize: "1.1rem",
+                      }}
+                    >
+                      
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Efectivo Registrado:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.efectivo_registrado}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Efectivo Día:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.efectivo_dia}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Monto Tarjeta Registrado:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.monto_tarjeta_registrado}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Monto Tarjeta Día:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.monto_tarjeta_dia}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Transferencias Registradas:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.transferencias_registradas}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Transferencias Día:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.transferencias_dia}</span>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Dólares Registrado (USD):</span>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                          <span style={{ fontWeight: 700, fontSize: "1rem" }}>
+                            {Number(parseFloat(cierre.dolares_registrado || 0)).toFixed(2)}
+                          </span>
+                          {tasaDolar > 0 && (
+                            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
+                              {`(L ${Number((parseFloat(cierre.dolares_registrado || 0) * tasaDolar).toFixed(2))})`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Dólares Día (USD):</span>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                          <span style={{ fontWeight: 700, fontSize: "1rem" }}>
+                            {Number(parseFloat(cierre.dolares_dia || 0)).toFixed(2)}
+                          </span>
+                          {tasaDolar > 0 && (
+                            <span style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.75)", marginTop: 4 }}>
+                              {`(L ${Number((parseFloat(cierre.dolares_dia || 0) * tasaDolar).toFixed(2))})`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                          {(() => {
+                            const d = parseFloat(cierre.diferencia || 0);
+                            const label = d > 0 ? "Diferencia a favor" : d < 0 ? "Diferencia en contra" : "Diferencia";
+                            const labelColor = d > 0 ? "#388e3c" : d < 0 ? "#d32f2f" : "#ffffff";
+                            return (
+                              <span style={{ opacity: 0.95, color: labelColor, fontWeight: 700 }}>
+                                {label}
+                              </span>
+                            );
+                          })()}
+                          <span
+                            style={{
+                              fontWeight: 900,
+                              color: getColor(parseFloat(cierre.diferencia || 0)),
+                              fontSize: "1.05rem",
+                            }}
+                          >
+                            {Number(parseFloat(cierre.diferencia || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "rgba(255,255,255,0.05)",
+                          padding: 16,
+                          borderRadius: 12,
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <span style={{ opacity: 0.8 }}>Observación:</span>
+                        <span style={{ fontWeight: 700 }}>{cierre.observacion || "sin aclarar"}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => abrirModalAclaracion(cierre)}
+                        disabled={updatingObservacion || (cierre.observacion || "") === "aclarado"}
+                        style={{
+                          padding: "10px 18px",
+                          background: (cierre.observacion || "") === "aclarado" ? "#9e9e9e" : "#388e3c",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 10,
+                          fontWeight: 700,
+                          cursor: updatingObservacion ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        { (cierre.observacion || "") === "aclarado" ? "Aclarado" : "Aclarar cierre" }
+                      </button>
+                    </div>
+
+                  </div>
+                ))}
           </>
         )}
+      </div>
 
-        {/* Botón para regresar a Punto de Ventas */}
-        <button
-          onClick={() => {
-            // Actualizar la vista almacenada antes de navegar para que App.tsx la restaure
-            try {
-              localStorage.setItem("vista", "puntoDeVenta");
-            } catch {}
-            window.location.href = "/punto-de-venta";
-          }}
+      {/* Modal Referencia de Aclaración */}
+      {showModalAclaracion && (
+        <div
           style={{
-            marginTop: 24,
-            padding: "14px 28px",
-            background: "#1976d2",
-            color: "#fff",
-            border: "none",
-            borderRadius: 10,
-            fontWeight: 700,
-            fontSize: 16,
-            cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
-            transition: "all 0.2s",
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#1565c0";
-            e.currentTarget.style.transform = "translateY(-2px)";
+          onClick={cerrarModalAclaracion}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 32,
+              minWidth: 400,
+              maxWidth: 500,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            }}
+          >
+            <h2 style={{ margin: "0 0 24px 0", color: "#1976d2", fontSize: "1.5rem", fontWeight: 700 }}>
+              Aclarar Cierre
+            </h2>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", marginBottom: 8, color: "#333", fontWeight: 600 }}>
+                Referencia del Cierre:
+              </label>
+              <textarea
+                value={referenciaAclaracion}
+                onChange={(e) => setReferenciaAclaracion(e.target.value)}
+                placeholder="Ej: Se facturó producto fuera de sistema"
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  border: "2px solid #ddd",
+                  borderRadius: 8,
+                  fontSize: "1rem",
+                  fontFamily: "inherit",
+                  minHeight: 100,
+                  resize: "vertical",
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={cerrarModalAclaracion}
+                style={{
+                  padding: "10px 20px",
+                  background: "#9e9e9e",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={solicitarPassword}
+                style={{
+                  padding: "10px 20px",
+                  background: "#1976d2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Registrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Contraseña */}
+      {showPasswordModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10001,
           }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "#1976d2";
-            e.currentTarget.style.transform = "translateY(0)";
+          onClick={() => {
+            setShowPasswordModal(false);
+            setPasswordAclaracion("");
           }}
         >
-          REGRESAR A PUNTO DE VENTAS
-        </button>
-      </div>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 32,
+              minWidth: 350,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            }}
+          >
+            <h2 style={{ margin: "0 0 24px 0", color: "#1976d2", fontSize: "1.3rem", fontWeight: 700 }}>
+              Confirmar Identidad
+            </h2>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", marginBottom: 8, color: "#333", fontWeight: 600 }}>
+                Ingrese su contraseña:
+              </label>
+              <input
+                type="password"
+                value={passwordAclaracion}
+                onChange={(e) => setPasswordAclaracion(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && validarPasswordYAclarar()}
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  border: "2px solid #ddd",
+                  borderRadius: 8,
+                  fontSize: "1rem",
+                  fontFamily: "inherit",
+                }}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordAclaracion("");
+                }}
+                style={{
+                  padding: "10px 20px",
+                  background: "#9e9e9e",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={validarPasswordYAclarar}
+                disabled={updatingObservacion}
+                style={{
+                  padding: "10px 20px",
+                  background: updatingObservacion ? "#ccc" : "#388e3c",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  cursor: updatingObservacion ? "not-allowed" : "pointer",
+                }}
+              >
+                {updatingObservacion ? "Procesando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Error */}
+      {showErrorModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+          }}
+          onClick={() => setShowErrorModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 32,
+              minWidth: 300,
+              maxWidth: 400,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "3rem", marginBottom: 16 }}>⚠️</div>
+            <h3 style={{ margin: "0 0 16px 0", color: "#d32f2f", fontSize: "1.3rem" }}>Error</h3>
+            <p style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}>{errorMessage}</p>
+            <button
+              onClick={() => setShowErrorModal(false)}
+              style={{
+                padding: "10px 24px",
+                background: "#d32f2f",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Éxito */}
+      {showSuccessModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10002,
+          }}
+          onClick={() => setShowSuccessModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              padding: 32,
+              minWidth: 300,
+              maxWidth: 400,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: "3rem", marginBottom: 16 }}>✅</div>
+            <h3 style={{ margin: "0 0 16px 0", color: "#388e3c", fontSize: "1.3rem" }}>Éxito</h3>
+            <p style={{ margin: "0 0 24px 0", color: "#666", fontSize: "1rem" }}>
+              Cierre aclarado exitosamente
+            </p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              style={{
+                padding: "10px 24px",
+                background: "#388e3c",
+                color: "#fff",
+                border: "none",
+                borderRadius: 8,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

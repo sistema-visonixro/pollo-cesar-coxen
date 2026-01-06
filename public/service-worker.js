@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdv-cache-v1';
+const CACHE_NAME = 'pdv-cache-v1.2.8';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
