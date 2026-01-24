@@ -35,7 +35,6 @@ export default function ResultadosView({
   const [ventasMensuales, setVentasMensuales] = useState<any[]>([]);
   const [balance, setBalance] = useState(0);
   const [ventasPorDia, setVentasPorDia] = useState<any[]>([]);
-  const [mesFiltro, setMesFiltro] = useState("");
   const [cajeros, setCajeros] = useState<any[]>([]);
   const [cajeroFiltro, setCajeroFiltro] = useState("");
   // Obtener usuario actual de localStorage
@@ -118,7 +117,7 @@ export default function ResultadosView({
             query = query.eq("cajero_id", cajeroFiltro);
           }
 
-          const { data, error, count } = await query
+          const { data, error } = await query
             .order("fecha_hora", { ascending: false })
             .range(desde_pag, desde_pag + limite - 1);
 
@@ -785,7 +784,6 @@ export default function ResultadosView({
     setBalance(totalVentas - totalGastos);
   }
 
-  const mesesDisponibles = ventasMensuales.map((r) => r.mes);
   const facturasFiltradas = facturas;
   const gastosFiltrados = gastos;
 
