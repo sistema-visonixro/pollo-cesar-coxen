@@ -103,9 +103,7 @@ export default function ResultadosView({
         let hayMasRegistros = true;
 
         while (hayMasRegistros) {
-          let query = supabase
-            .from("facturas")
-            .select("*", { count: "exact" });
+          let query = supabase.from("facturas").select("*", { count: "exact" });
 
           if (desdeInicio && hastaFin) {
             query = query
@@ -140,14 +138,10 @@ export default function ResultadosView({
         let hayMasRegistros = true;
 
         while (hayMasRegistros) {
-          let query = supabase
-            .from("gastos")
-            .select("*");
+          let query = supabase.from("gastos").select("*");
 
           if (desde && hasta) {
-            query = query
-              .gte("fecha", desde)
-              .lte("fecha", hasta);
+            query = query.gte("fecha", desde).lte("fecha", hasta);
           }
 
           const { data, error } = await query
@@ -185,7 +179,7 @@ export default function ResultadosView({
         });
         // Convertir a array para la gráfica
         const ventasArray = Object.entries(ventasAgrupadas).map(
-          ([fecha, total]) => ({ fecha, total })
+          ([fecha, total]) => ({ fecha, total }),
         );
         setVentasPorDia(ventasArray);
       }
@@ -197,7 +191,7 @@ export default function ResultadosView({
   async function generarReportePDF() {
     if (!desde || !hasta) {
       alert(
-        "Por favor selecciona las fechas Desde y Hasta antes de generar el reporte."
+        "Por favor selecciona las fechas Desde y Hasta antes de generar el reporte.",
       );
       return;
     }
@@ -206,13 +200,13 @@ export default function ResultadosView({
     const win = window.open("", "_blank");
     if (!win) {
       alert(
-        "Popup bloqueado. Por favor permite popups o usa la opción alternativa."
+        "Popup bloqueado. Por favor permite popups o usa la opción alternativa.",
       );
       return;
     }
     // Mostrar placeholder de carga
     win.document.write(
-      `<!doctype html><html><head><meta charset="utf-8"><title>Generando reporte...</title></head><body><h3>Cargando reporte...</h3></body></html>`
+      `<!doctype html><html><head><meta charset="utf-8"><title>Generando reporte...</title></head><body><h3>Cargando reporte...</h3></body></html>`,
     );
     win.document.close();
 
@@ -278,7 +272,7 @@ export default function ResultadosView({
       }, 0);
       const totalGastos = gastData.reduce(
         (s: number, g: any) => s + parseFloat(g.monto || 0),
-        0
+        0,
       );
       const balanceReporte = totalVentas - totalGastos;
       const rentabilidadPercent =
@@ -352,7 +346,7 @@ export default function ResultadosView({
       const pagosUnicosArray = Array.from(pagosPorFacturaMap.values());
       const totalPagosUnique = pagosUnicosArray.reduce(
         (s, p) => s + (p.monto || 0),
-        0
+        0,
       );
 
       // Debug: comparar facturas y pagos por factura (opcional)
@@ -361,7 +355,7 @@ export default function ResultadosView({
           "ReportePDF: facturas count",
           factData.length,
           "pagos count",
-          pagosData.length
+          pagosData.length,
         );
         console.debug(
           "ReportePDF: totalVentas (facturas)",
@@ -369,7 +363,7 @@ export default function ResultadosView({
           "totalPagosRaw (pagos)",
           totalPagosRaw,
           "totalPagosUnique",
-          totalPagosUnique
+          totalPagosUnique,
         );
       } catch (e) {}
 
@@ -386,13 +380,13 @@ export default function ResultadosView({
       html += `<div class="section"><h2>Resumen</h2><table><tbody>`;
       html += `<tr><th>Total facturas</th><td>${totalFacturas}</td></tr>`;
       html += `<tr><th>Total ventas</th><td>L ${totalVentas.toFixed(
-        2
+        2,
       )}</td></tr>`;
       html += `<tr><th>Total gastos</th><td>L ${totalGastos.toFixed(
-        2
+        2,
       )}</td></tr>`;
       html += `<tr><th>Balance</th><td>L ${balanceReporte.toFixed(
-        2
+        2,
       )}</td></tr>`;
       html += `<tr><th>Rentabilidad</th><td>${
         rentabilidadPercent !== null
@@ -403,7 +397,7 @@ export default function ResultadosView({
       html += `<div class="section"><h2>Pagos</h2>`;
       if (precioDolar > 0) {
         html += `<p style="background:#fff9e6;padding:8px;border-radius:4px;font-size:13px;"><b>Tipo de Cambio:</b> L ${precioDolar.toFixed(
-          2
+          2,
         )} por $1.00 USD</p>`;
       }
       html += `<table><thead><tr><th>Tipo</th><th>Monto</th></tr></thead><tbody>`;
@@ -442,7 +436,7 @@ export default function ResultadosView({
       // Total de pagos en el resumen
       const totalPagosFmt = Number(totalPagosUnique || 0).toLocaleString(
         "de-DE",
-        { minimumFractionDigits: 2 }
+        { minimumFractionDigits: 2 },
       );
       html += `<tr><th style="text-align:right">Total Pagos (por factura única)</th><th>L ${totalPagosFmt}</th></tr>`;
       // si es distinto, mostrar total raw como referencia
@@ -577,7 +571,7 @@ export default function ResultadosView({
       });
       const totalCategorias = Object.values(ventasPorCategoria).reduce(
         (sum, val) => sum + val,
-        0
+        0,
       );
       const totalCategoriasFmt = totalCategorias.toLocaleString("de-DE", {
         minimumFractionDigits: 2,
@@ -615,27 +609,27 @@ export default function ResultadosView({
           html += `<td>${c.cajero || ""}</td>`;
           html += `<td>${c.caja || ""}</td>`;
           html += `<td>L ${parseFloat(c.efectivo_registrado || 0).toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>L ${parseFloat(c.efectivo_dia || 0).toFixed(2)}</td>`;
           html += `<td>L ${parseFloat(c.monto_tarjeta_registrado || 0).toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>L ${parseFloat(c.monto_tarjeta_dia || 0).toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>L ${parseFloat(
-            c.transferencias_registradas || 0
+            c.transferencias_registradas || 0,
           ).toFixed(2)}</td>`;
           html += `<td>L ${parseFloat(c.transferencias_dia || 0).toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>$ ${parseFloat(c.dolares_registrado || 0).toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>$ ${parseFloat(c.dolares_dia || 0).toFixed(2)}</td>`;
           html += `<td style="color:${difColor};font-weight:700;">L ${diferencia.toFixed(
-            2
+            2,
           )}</td>`;
           html += `<td>${c.observacion || ""}</td>`;
           html += `<td>${c.referencia_aclaracion || ""}</td>`;
@@ -665,7 +659,7 @@ export default function ResultadosView({
         // Fila de total de ventas
         const totalVentasFmt = Number(totalVentas || 0).toLocaleString(
           "de-DE",
-          { minimumFractionDigits: 2 }
+          { minimumFractionDigits: 2 },
         );
         html += `<tr><th colspan="4" style="text-align:right">Total Ventas</th><th>L ${totalVentasFmt}</th></tr>`;
         html += `</tbody></table>`;
@@ -723,7 +717,7 @@ export default function ResultadosView({
         });
         // Fila de totales al final de la tabla de pagos
         html += `<tr><th colspan="6" style="text-align:right">Total Pagos</th><th>L ${totalPagosRaw.toFixed(
-          2
+          2,
         )}</th></tr>`;
         html += `</tbody></table>`;
       }
@@ -744,7 +738,7 @@ export default function ResultadosView({
           "<p>Error al generar el reporte. Revisa la consola para más detalles.</p>";
       } catch (e) {}
       alert(
-        "Error al generar el reporte. Revisa la consola para más detalles."
+        "Error al generar el reporte. Revisa la consola para más detalles.",
       );
     }
   }
@@ -763,7 +757,7 @@ export default function ResultadosView({
     });
 
     const meses = Array.from(
-      new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)])
+      new Set([...Object.keys(ventasPorMes), ...Object.keys(gastosPorMes)]),
     ).sort();
     const resumen = meses.map((mes) => ({
       mes,
@@ -775,11 +769,11 @@ export default function ResultadosView({
     setVentasMensuales(resumen);
     const totalVentas = facturas.reduce(
       (sum, f) => sum + parseFloat(f.total || 0),
-      0
+      0,
     );
     const totalGastos = gastos.reduce(
       (sum, g) => sum + parseFloat(g.monto || 0),
-      0
+      0,
     );
     setBalance(totalVentas - totalGastos);
   }
@@ -789,11 +783,11 @@ export default function ResultadosView({
 
   const totalVentas = facturasFiltradas.reduce(
     (sum, f) => sum + parseFloat(f.total || 0),
-    0
+    0,
   );
   const totalGastos = gastosFiltrados.reduce(
     (sum, g) => sum + parseFloat(g.monto || 0),
-    0
+    0,
   );
   const facturasCount = facturasFiltradas.length;
   const gastosCount = gastosFiltrados.length;

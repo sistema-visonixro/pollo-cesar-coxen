@@ -5,6 +5,16 @@ import RegistroCierreView from "./RegistroCierreView";
 import { supabase } from "./supabaseClient";
 import { getLocalDayRange, formatToHondurasLocal } from "./utils/fechas";
 import { useDatosNegocio } from "./useDatosNegocio";
+import {
+  inicializarSistemaOffline,
+  guardarFacturaLocal,
+  guardarPagosLocal,
+  obtenerContadorPendientes,
+  sincronizarTodo,
+  eliminarFacturaLocal,
+  eliminarPagoLocal,
+} from "./utils/offlineSync";
+import { migrarPagosDesdeLocalStorage } from "./utils/migrarLocalStorage";
 
 interface Producto {
   id: string;
@@ -284,6 +294,11 @@ export default function PuntoDeVentaView({
 
   const [showCerrarSesionModal, setShowCerrarSesionModal] = useState(false);
 
+  // Estado para sincronización offline
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendientesCount, setPendientesCount] = useState({ facturas: 0, pagos: 0 });
+  const [sincronizando, setSincronizando] = useState(false);
+
   // Cargar datos del negocio
   const { datos: datosNegocio } = useDatosNegocio();
 
@@ -348,6 +363,77 @@ export default function PuntoDeVentaView({
     setGastoFactura("");
   };
   const [showGastoSuccess, setShowGastoSuccess] = useState(false);
+
+  // Inicializar sistema de sincronización offline
+  useEffect(() => {
+    // Inicializar IndexedDB
+    inicializarSistemaOffline();
+
+    // Migrar datos antiguos de localStorage si existen
+    migrarPagosDesdeLocalStorage().catch((error) => {
+      console.error("Error en migración de localStorage:", error);
+    });
+
+    // Actualizar contador de pendientes cada 10 segundos
+    const interval = setInterval(async () => {
+      const count = await obtenerContadorPendientes();
+      setPendientesCount(count);
+    }, 10000);
+
+    // Listener para cambios en el estado de conexión
+    const handleOnline = () => {
+      setIsOnline(true);
+      console.log("✓ Conexión restaurada");
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      console.log("⚠ Sin conexión a internet");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Obtener contador inicial
+    obtenerContadorPendientes().then(setPendientesCount);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Función para sincronizar manualmente
+  const sincronizarManualmente = async () => {
+    if (!isOnline) {
+      alert("No hay conexión a internet");
+      return;
+    }
+
+    setSincronizando(true);
+    try {
+      const resultado = await sincronizarTodo();
+      const total = resultado.facturas.exitosas + resultado.pagos.exitosos;
+
+      if (total > 0) {
+        alert(
+          `✓ Sincronización exitosa:\n${resultado.facturas.exitosas} facturas\n${resultado.pagos.exitosos} pagos`
+        );
+      } else {
+        alert("No hay registros pendientes por sincronizar");
+      }
+
+      // Actualizar contador
+      const count = await obtenerContadorPendientes();
+      setPendientesCount(count);
+    } catch (error) {
+      console.error("Error en sincronización manual:", error);
+      alert("Error al sincronizar. Inténtalo de nuevo.");
+    } finally {
+      setSincronizando(false);
+    }
+  };
   const [gastoSuccessMessage, setGastoSuccessMessage] = useState<string>("");
   // Estados para modal de devolución
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
@@ -376,7 +462,6 @@ export default function PuntoDeVentaView({
     nombre_cajero: string;
     cai: string;
   } | null>(null);
-  const online = navigator.onLine;
   // QZ Tray removed: no states for qz/printer connection
 
   const [productos, setProductos] = useState<Producto[]>([]);
@@ -963,8 +1048,14 @@ export default function PuntoDeVentaView({
         }
         /* tamaños compactos para formularios dentro de modales */
         .form-input.small { padding: 8px 10px; font-size: 13px; border-radius: 8px; }
+        
+        /* Animación para indicador de conexión */
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
       `}</style>
-      {/* Indicador de conexión */}
+      {/* Indicador de conexión e información del cajero */}
       <div
         style={{
           position: "absolute",
@@ -978,31 +1069,10 @@ export default function PuntoDeVentaView({
       >
         <span
           style={{
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            background: online ? "#43a047" : "#d32f2f",
-            border: "2px solid #fff",
-            boxShadow: "0 0 4px #0002",
-            display: "inline-block",
-          }}
-        />
-        <span
-          style={{
-            color: online ? "#43a047" : "#d32f2f",
-            fontWeight: 700,
-            fontSize: 15,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {online ? "Conectado" : "Sin conexión"}
-        </span>
-        <span
-          style={{
+            color: isOnline ? "#43a047" : "#d32f2f",
             fontWeight: 700,
             fontSize: 15,
             marginLeft: 12,
-            color: online ? "#43a047" : "#d32f2f",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -1027,8 +1097,9 @@ export default function PuntoDeVentaView({
             ? `Factura: ${facturaActual}`
             : ""}
         </span>
-        {/* Botones de tema después de la información del cajero */}
-        <div style={{ display: "flex", gap: 8, marginLeft: 16 }}>
+        {/* Botones de tema y funciones principales en la misma fila */}
+        <div style={{ display: "flex", gap: 8, marginLeft: 16, flexWrap: "wrap", alignItems: "center" }}>
+          {/* Botones de tema */}
           <button
             onClick={() => {
               setTheme("dark");
@@ -1046,14 +1117,14 @@ export default function PuntoDeVentaView({
               borderRadius: 6,
               padding: "6px 10px",
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 12,
               cursor: "pointer",
               boxShadow:
                 theme === "dark" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
             }}
             title="Activar modo oscuro"
           >
-            Modo oscuro
+            🌙 Oscuro
           </button>
           <button
             onClick={() => {
@@ -1073,15 +1144,143 @@ export default function PuntoDeVentaView({
               borderRadius: 6,
               padding: "6px 10px",
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 12,
               cursor: "pointer",
               boxShadow:
                 theme === "lite" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
             }}
             title="Activar modo claro"
           >
-            Modo claro
+            ☀️ Claro
           </button>
+
+          {/* Separador visual */}
+          <div style={{ width: 1, height: 24, background: theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)" }} />
+
+          {/* Botón Resumen de caja */}
+          <button
+            style={{
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: "#1976d2",
+              color: "#fff",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+            onClick={() => fetchResumenCaja()}
+            title="Ver resumen de caja del día"
+          >
+            📊 Resumen
+          </button>
+
+          {/* Botón Registrar gasto */}
+          <button
+            onClick={() => {
+              cerrarRegistrarGasto();
+              setShowRegistrarGasto(true);
+            }}
+            style={{
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: theme === "lite" ? "rgba(211,47,47,0.95)" : "rgba(183,28,28,0.95)",
+              color: "#fff",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+            title="Registrar un gasto"
+          >
+            💰 Gasto
+          </button>
+
+          {/* Botón Devolución */}
+          <button
+            onClick={() => {
+              setShowDevolucionModal(true);
+              setDevolucionFactura("");
+              setDevolucionData(null);
+              setDevolucionPassword("");
+            }}
+            style={{
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: theme === "lite" ? "rgba(255,152,0,0.95)" : "rgba(230,81,0,0.95)",
+              color: "#fff",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+            title="Procesar devolución"
+          >
+            🔄 Devolución
+          </button>
+
+          {/* Botón Domicilios */}
+          <button
+            onClick={async () => {
+              setShowPedidosModal(true);
+              setPedidosLoading(true);
+              try {
+                const { data, error } = await supabase
+                  .from("pedidos_envio")
+                  .select("*")
+                  .eq("cajero_id", usuarioActual?.id)
+                  .order("created_at", { ascending: false })
+                  .limit(100);
+                if (!error) setPedidosList(data || []);
+                else {
+                  console.error("Error cargando pedidos:", error);
+                  setPedidosList([]);
+                }
+              } catch (e) {
+                console.error(e);
+                setPedidosList([]);
+              } finally {
+                setPedidosLoading(false);
+              }
+            }}
+            style={{
+              fontSize: 12,
+              padding: "6px 12px",
+              borderRadius: 6,
+              background: "#388e3c",
+              color: "#fff",
+              fontWeight: 600,
+              border: "none",
+              cursor: "pointer",
+            }}
+            title="Ver pedidos a domicilio"
+          >
+            🏠 Domicilios
+          </button>
+
+          {/* Botón Registrar cierre - solo visible con apertura activa */}
+          {aperturaRegistrada && (
+            <>
+              <div style={{ width: 1, height: 24, background: theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)" }} />
+              <button
+                style={{
+                  background: "#fbc02d",
+                  color: "#333",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "6px 12px",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  boxShadow: "0 2px 8px #fbc02d44",
+                }}
+                onClick={() => setShowCierre(true)}
+                title="Registrar cierre de caja"
+              >
+                🚪 Cierre de Caja
+              </button>
+            </>
+          )}
         </div>
         {/* QZ Tray indicators removed */}
       </div>
@@ -1214,137 +1413,6 @@ export default function PuntoDeVentaView({
         )}
         {/* Botón de cerrar sesión oculto */}
         <button style={{ display: "none" }}>Cerrar sesión</button>
-        {/* Botón para registrar cierre de caja - solo visible con apertura activa */}
-        {aperturaRegistrada && (
-          <button
-            style={{
-              background: "#fbc02d",
-              color: "#333",
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 22px",
-              fontWeight: 700,
-              fontSize: 16,
-              cursor: "pointer",
-              boxShadow: "0 2px 8px #fbc02d44",
-            }}
-            onClick={() => setShowCierre(true)}
-          >
-            Registrar cierre de caja
-          </button>
-        )}
-        {/* Botón visible de Resumen de caja debajo del botón 'Registrar cierre de caja' */}
-        <div
-          style={{ display: "flex", justifyContent: "center", marginTop: 12 }}
-        >
-          <button
-            style={{
-              fontSize: 16,
-              padding: "10px 22px",
-              borderRadius: 8,
-              background: "#1976d2",
-              color: "#fff",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-            }}
-            onClick={() => fetchResumenCaja()}
-          >
-            Resumen de caja
-          </button>
-        </div>
-
-        {/* Botón Registrar gasto debajo del Resumen de caja: abre modal */}
-        <div
-          style={{ display: "flex", justifyContent: "center", marginTop: 8 }}
-        >
-          <button
-            onClick={() => {
-              // Abrir modal de gasto sin prellenar número de factura (entrada manual)
-              cerrarRegistrarGasto();
-              setShowRegistrarGasto(true);
-            }}
-            style={{
-              fontSize: 16,
-              padding: "10px 22px",
-              borderRadius: 8,
-              background:
-                theme === "lite"
-                  ? "rgba(211,47,47,0.95)"
-                  : "rgba(183,28,28,0.95)",
-              color: "#fff",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              opacity: 0.95,
-            }}
-          >
-            Registrar gasto
-          </button>
-          <button
-            onClick={() => {
-              setShowDevolucionModal(true);
-              setDevolucionFactura("");
-              setDevolucionData(null);
-              setDevolucionPassword("");
-            }}
-            style={{
-              fontSize: 16,
-              padding: "10px 22px",
-              borderRadius: 8,
-              background:
-                theme === "lite"
-                  ? "rgba(255,152,0,0.95)"
-                  : "rgba(230,81,0,0.95)",
-              color: "#fff",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              opacity: 0.95,
-              marginLeft: 12,
-            }}
-          >
-            Devolución
-          </button>
-          <button
-            onClick={async () => {
-              // Abrir modal de pedidos del cajero
-              setShowPedidosModal(true);
-              setPedidosLoading(true);
-              try {
-                const { data, error } = await supabase
-                  .from("pedidos_envio")
-                  .select("*")
-                  .eq("cajero_id", usuarioActual?.id)
-                  .order("created_at", { ascending: false })
-                  .limit(100);
-                if (!error) setPedidosList(data || []);
-                else {
-                  console.error("Error cargando pedidos:", error);
-                  setPedidosList([]);
-                }
-              } catch (e) {
-                console.error(e);
-                setPedidosList([]);
-              } finally {
-                setPedidosLoading(false);
-              }
-            }}
-            style={{
-              fontSize: 16,
-              padding: "10px 22px",
-              borderRadius: 8,
-              background: "#388e3c",
-              color: "#fff",
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-              marginLeft: 12,
-            }}
-          >
-            Domicilios
-          </button>
-        </div>
 
         {showCierre && (
           <div
@@ -1471,67 +1539,37 @@ export default function PuntoDeVentaView({
 
               console.log("Insertando pagos:", pagosToInsert);
 
+              // PASO 1: Guardar primero en IndexedDB
+              const pagosIdsLocales = await guardarPagosLocal(pagosToInsert);
+              console.log(`✓ ${pagosToInsert.length} pagos guardados en IndexedDB`);
+
+              // PASO 2: Intentar guardar en Supabase
               try {
-                // Verificar si hay conexión
-                if (!navigator.onLine) {
-                  console.warn(
-                    "Sin conexión a internet. Guardando pagos localmente..."
-                  );
-                  const pendingPayments = JSON.parse(
-                    localStorage.getItem("pendingPayments") || "[]"
-                  );
-                  pendingPayments.push(...pagosToInsert);
-                  localStorage.setItem(
-                    "pendingPayments",
-                    JSON.stringify(pendingPayments)
-                  );
-                  alert(
-                    "Sin conexión. Los pagos se guardarán cuando se restaure la conexión."
-                  );
+                const { error: pagoError } = await supabase
+                  .from("pagos")
+                  .insert(pagosToInsert);
+
+                if (pagoError) {
+                  console.error("Error al guardar pagos en Supabase:", pagoError);
+                  console.log("⚠ Pagos guardados localmente, se sincronizarán después");
                 } else {
-                  const { error: pagoError } = await supabase
-                    .from("pagos")
-                    .insert(pagosToInsert);
-
-                  if (pagoError) {
-                    console.error("Error al guardar pagos:", pagoError);
-                    // Intentar guardar localmente como respaldo
-                    const pendingPayments = JSON.parse(
-                      localStorage.getItem("pendingPayments") || "[]"
-                    );
-                    pendingPayments.push(...pagosToInsert);
-                    localStorage.setItem(
-                      "pendingPayments",
-                      JSON.stringify(pendingPayments)
-                    );
-                    alert(
-                      "Error al registrar los pagos: " +
-                        pagoError.message +
-                        "\nSe guardaron localmente y se sincronizarán después."
-                    );
-                    return;
+                  // Si se guardaron exitosamente en Supabase, eliminar de IndexedDB
+                  for (const idLocal of pagosIdsLocales) {
+                    await eliminarPagoLocal(idLocal);
                   }
-
-                  console.log("Pagos guardados exitosamente");
+                  console.log("✓ Pagos sincronizados y eliminados de IndexedDB");
                 }
               } catch (fetchError) {
                 console.error(
-                  "Error de conexión al guardar pagos:",
+                  "Error de conexión al guardar pagos en Supabase:",
                   fetchError
                 );
-                // Guardar localmente como respaldo
-                const pendingPayments = JSON.parse(
-                  localStorage.getItem("pendingPayments") || "[]"
-                );
-                pendingPayments.push(...pagosToInsert);
-                localStorage.setItem(
-                  "pendingPayments",
-                  JSON.stringify(pendingPayments)
-                );
-                alert(
-                  "Error de conexión. Los pagos se guardaron localmente y se sincronizarán cuando se restaure la conexión."
-                );
+                console.log("⚠ Pagos guardados localmente, se sincronizarán cuando haya conexión");
               }
+
+              // Actualizar contador de pendientes
+              const count = await obtenerContadorPendientes();
+              setPendientesCount(count);
             }
           } catch (err) {
             console.error("Error al procesar pagos:", err);
@@ -1953,6 +1991,7 @@ export default function PuntoDeVentaView({
               }
             }
             // Guardar venta en la tabla 'facturas' con nuevos campos
+            // Primero en IndexedDB, luego en Supabase
             try {
               const subTotal = seleccionados.reduce((sum, p) => {
                 if (p.tipo === "comida") {
@@ -2006,7 +2045,33 @@ export default function PuntoDeVentaView({
                   .reduce((sum, p) => sum + p.precio * p.cantidad, 0)
                   .toFixed(2),
               };
-              await supabase.from("facturas").insert([venta]);
+
+              // PASO 1: Guardar primero en IndexedDB
+              const facturaIdLocal = await guardarFacturaLocal(venta);
+              console.log(`✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`);
+
+              // PASO 2: Intentar guardar en Supabase
+              try {
+                const { error: supabaseError } = await supabase
+                  .from("facturas")
+                  .insert([venta]);
+
+                if (supabaseError) {
+                  console.error("Error guardando en Supabase:", supabaseError);
+                  console.log("⚠ Factura guardada localmente, se sincronizará después");
+                } else {
+                  // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
+                  await eliminarFacturaLocal(facturaIdLocal);
+                  console.log("✓ Factura sincronizada y eliminada de IndexedDB");
+                }
+              } catch (supabaseErr) {
+                console.error("Error de conexión con Supabase:", supabaseErr);
+                console.log("⚠ Factura guardada localmente, se sincronizará cuando haya conexión");
+              }
+
+              // Actualizar contador de pendientes
+              const count = await obtenerContadorPendientes();
+              setPendientesCount(count);
 
               // Actualizar el número de factura actual en la vista
               if (facturaActual !== "Límite alcanzado") {
@@ -2014,16 +2079,21 @@ export default function PuntoDeVentaView({
 
                 // Actualizar factura_actual en cai_facturas
                 if (usuarioActual?.id) {
-                  await supabase
-                    .from("cai_facturas")
-                    .update({
-                      factura_actual: (parseInt(facturaActual) + 1).toString(),
-                    })
-                    .eq("cajero_id", usuarioActual.id);
+                  try {
+                    await supabase
+                      .from("cai_facturas")
+                      .update({
+                        factura_actual: (parseInt(facturaActual) + 1).toString(),
+                      })
+                      .eq("cajero_id", usuarioActual.id);
+                  } catch (err) {
+                    console.error("Error actualizando factura_actual:", err);
+                  }
                 }
               }
             } catch (err) {
               console.error("Error al guardar la venta:", err);
+              alert("Error al guardar la factura. Por favor, contacte al administrador.");
             }
             // Limpiar selección después de imprimir
             limpiarSeleccion();
@@ -5252,6 +5322,79 @@ export default function PuntoDeVentaView({
 
       {/* Modal para requerir factura */}
       {/* Eliminado el modal de confirmación de factura */}
+
+      {/* Indicador de estado de conexión y sincronización - fijo arriba a la derecha */}
+      <div
+        style={{
+          position: "fixed",
+          top: 10,
+          right: 18,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          zIndex: 12000,
+          alignItems: "flex-end",
+        }}
+      >
+        {/* Indicador de conexión */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "8px 12px",
+            background: isOnline
+              ? "rgba(76, 175, 80, 0.9)"
+              : "rgba(244, 67, 54, 0.9)",
+            borderRadius: 8,
+            fontSize: 14,
+            fontWeight: 600,
+            color: "#fff",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+          }}
+        >
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "#fff",
+              animation: isOnline ? "none" : "pulse 2s infinite",
+            }}
+          />
+          {isOnline ? "Conectado" : "Sin conexión"}
+        </div>
+
+        {/* Indicador de registros pendientes */}
+        {(pendientesCount.facturas > 0 || pendientesCount.pagos > 0) && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              padding: "8px 12px",
+              background: "rgba(255, 152, 0, 0.9)",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#fff",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              cursor: "pointer",
+            }}
+            onClick={sincronizarManualmente}
+            title="Click para sincronizar manualmente"
+          >
+            <div>⚠ Pendientes de sync:</div>
+            {pendientesCount.facturas > 0 && (
+              <div>📋 {pendientesCount.facturas} factura(s)</div>
+            )}
+            {pendientesCount.pagos > 0 && (
+              <div>💳 {pendientesCount.pagos} pago(s)</div>
+            )}
+            {sincronizando && <div>🔄 Sincronizando...</div>}
+          </div>
+        )}
+      </div>
 
       {/* Botón Cerrar Sesión - fijo abajo a la derecha */}
       <button
