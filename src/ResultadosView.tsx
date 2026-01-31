@@ -542,7 +542,14 @@ export default function ResultadosView({
       let html = `<!doctype html><html><head><meta charset="utf-8"><title>${titulo}</title>`;
       html += `<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />`;
       html += `<style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { 
+          margin: 0; 
+          padding: 0; 
+          box-sizing: border-box;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          color-adjust: exact;
+        }
         body { 
           font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -564,6 +571,8 @@ export default function ResultadosView({
           text-align: center;
           position: relative;
           overflow: hidden;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .header::before {
           content: '';
@@ -592,6 +601,8 @@ export default function ResultadosView({
           box-shadow: 0 4px 15px rgba(0,0,0,0.08);
           border-left: 5px solid;
           transition: transform 0.2s;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .kpi-card:hover { transform: translateY(-5px); }
         .kpi-card.ventas { border-left-color: #10b981; }
@@ -622,6 +633,8 @@ export default function ResultadosView({
           border-radius: 15px;
           padding: 30px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .section-title {
           font-size: 24px;
@@ -662,6 +675,8 @@ export default function ResultadosView({
           font-size: 13px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         tbody td {
           padding: 12px 15px;
@@ -678,6 +693,8 @@ export default function ResultadosView({
           background: #fef3c7 !important;
           font-weight: 700;
           color: #1a202c !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .total-row td {
           border-top: 3px solid #f59e0b;
@@ -688,6 +705,8 @@ export default function ResultadosView({
           border-radius: 20px;
           font-size: 12px;
           font-weight: 600;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
         .badge-success { background: #d1fae5; color: #065f46; }
         .badge-danger { background: #fee2e2; color: #991b1b; }
@@ -708,15 +727,49 @@ export default function ResultadosView({
           font-size: 9px !important;
         }
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
           body { background: white; padding: 0; }
           .container { box-shadow: none; border-radius: 0; }
-          .kpi-card, .section { break-inside: avoid; page-break-inside: avoid; }
+          .header {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .kpi-card {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .section { 
+            break-inside: avoid; 
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .chart-container { 
             height: 250px; 
             page-break-inside: avoid;
             break-inside: avoid;
           }
-          .section { page-break-inside: avoid; }
+          thead th {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+          }
+          .total-row {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background: #fef3c7 !important;
+          }
+          .badge {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .table-scroll { overflow-x: visible; margin: 0; padding: 0; }
           .table-cierres { font-size: 7px !important; }
           .table-cierres th,
