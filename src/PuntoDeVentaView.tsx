@@ -636,18 +636,29 @@ export default function PuntoDeVentaView({
         const fechaFin = ultimoDiaMes.toISOString();
 
         // Contar cierres del cajero actual en el mes que NO tengan observación "aclarado"
-        const { error, count } = await supabase
+        const { data, error } = await supabase
           .from("cierres")
-          .select("*", { count: "exact", head: false })
+          .select("id, observacion, estado")
           .eq("cajero_id", usuarioActual.id)
           .eq("tipo_registro", "cierre")
+          .eq("estado", "CIERRE")
           .gte("fecha", fechaInicio)
-          .lte("fecha", fechaFin)
-          .or("observacion.is.null,observacion.neq.aclarado");
+          .lte("fecha", fechaFin);
 
-        if (!error && count !== null) {
-          setCierresSinAclarar(count);
+        if (!error && data) {
+          console.log('🔍 DEBUG - Todos los cierres del mes:', data);
+          
+          // Filtrar manualmente los que NO tienen observación "aclarado"
+          const sinAclarar = data.filter((cierre) => {
+            const obs = (cierre.observacion || "").toString().toLowerCase().trim();
+            const noAclarado = obs !== "aclarado";
+            return noAclarado;
+          });
+          
+          console.log('📝 DEBUG - Cierres sin aclarar:', sinAclarar);
+          setCierresSinAclarar(sinAclarar.length);
         } else {
+          console.error('❌ Error obteniendo cierres:', error);
           setCierresSinAclarar(0);
         }
       } catch (err) {
