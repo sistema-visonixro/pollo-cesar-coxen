@@ -139,8 +139,8 @@ export default function ResultadosCajaView() {
                   observacion: "aclarado",
                   referencia_aclaracion: referenciaAclaracion.trim(),
                 }
-              : c
-          )
+              : c,
+          ),
         );
         setShowPasswordModal(false);
         setShowSuccessModal(true);
@@ -368,7 +368,7 @@ export default function ResultadosCajaView() {
                   letterSpacing: 2,
                 }}
               >
-                DIFERENCIAS
+                TOTAL DE DIFERENCIAS SIN ACLARAR
               </h2>
 
               {cierres.length > 0 && (
@@ -386,25 +386,25 @@ export default function ResultadosCajaView() {
                       (
                         (parseFloat(cierre.efectivo_registrado) || 0) -
                         (parseFloat(cierre.efectivo_dia) || 0)
-                      ).toFixed(2)
+                      ).toFixed(2),
                     );
                     const tarjetaDiff = parseFloat(
                       (
                         (parseFloat(cierre.monto_tarjeta_registrado) || 0) -
                         (parseFloat(cierre.monto_tarjeta_dia) || 0)
-                      ).toFixed(2)
+                      ).toFixed(2),
                     );
                     const transDiff = parseFloat(
                       (
                         (parseFloat(cierre.transferencias_registradas) || 0) -
                         (parseFloat(cierre.transferencias_dia) || 0)
-                      ).toFixed(2)
+                      ).toFixed(2),
                     );
                     const dolaresDiff = parseFloat(
                       (
                         (parseFloat(cierre.dolares_registrado) || 0) -
                         (parseFloat(cierre.dolares_dia) || 0)
-                      ).toFixed(2)
+                      ).toFixed(2),
                     );
 
                     return (
@@ -564,7 +564,7 @@ export default function ResultadosCajaView() {
                                   }}
                                 >
                                   {`(L ${Number(
-                                    (dolaresDiff * tasaDolar).toFixed(2)
+                                    (dolaresDiff * tasaDolar).toFixed(2),
                                   )})`}
                                 </div>
                               )}
@@ -607,7 +607,7 @@ export default function ResultadosCajaView() {
                   >
                     <h2
                       style={{
-                        margin: "0 0 32px 0",
+                        margin: "0 0 16px 0",
                         fontSize: "1.8rem",
                         fontWeight: 900,
                         textAlign: "center",
@@ -618,6 +618,234 @@ export default function ResultadosCajaView() {
                     >
                       DETALLE DEL CIERRE
                     </h2>
+
+                    {/* Fecha del cierre */}
+                    <div
+                      style={{
+                        textAlign: "center",
+                        fontSize: "1.1rem",
+                        color: "rgba(255,255,255,0.75)",
+                        marginBottom: 24,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {new Date(cierre.fecha).toLocaleDateString("es-HN", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+
+                    {/* Sección de Diferencias para este cierre */}
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        borderRadius: 12,
+                        padding: 24,
+                        marginBottom: 24,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    >
+                      <h3
+                        style={{
+                          margin: "0 0 20px 0",
+                          fontSize: "1.3rem",
+                          fontWeight: 800,
+                          textAlign: "center",
+                          color: "#ffd54f",
+                          textTransform: "uppercase",
+                          letterSpacing: 1,
+                        }}
+                      >
+                        DIFERENCIAS
+                      </h3>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "repeat(auto-fit, minmax(150px, 1fr))",
+                          gap: 16,
+                        }}
+                      >
+                        {(() => {
+                          const efectivoDiff = parseFloat(
+                            (
+                              (parseFloat(cierre.efectivo_registrado) || 0) -
+                              (parseFloat(cierre.efectivo_dia) || 0)
+                            ).toFixed(2),
+                          );
+                          const tarjetaDiff = parseFloat(
+                            (
+                              (parseFloat(cierre.monto_tarjeta_registrado) ||
+                                0) - (parseFloat(cierre.monto_tarjeta_dia) || 0)
+                            ).toFixed(2),
+                          );
+                          const transDiff = parseFloat(
+                            (
+                              (parseFloat(cierre.transferencias_registradas) ||
+                                0) -
+                              (parseFloat(cierre.transferencias_dia) || 0)
+                            ).toFixed(2),
+                          );
+                          const dolaresDiff = parseFloat(
+                            (
+                              (parseFloat(cierre.dolares_registrado) || 0) -
+                              (parseFloat(cierre.dolares_dia) || 0)
+                            ).toFixed(2),
+                          );
+
+                          return (
+                            <>
+                              <div
+                                style={{
+                                  background: "rgba(255,255,255,0.05)",
+                                  padding: 16,
+                                  borderRadius: 10,
+                                  textAlign: "center",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "0.85rem",
+                                    fontWeight: 600,
+                                    color: "#90caf9",
+                                    marginBottom: 8,
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  EFECTIVO
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "1.4rem",
+                                    fontWeight: 900,
+                                    color: getColor(efectivoDiff),
+                                  }}
+                                >
+                                  L {efectivoDiff.toFixed(2)}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  background: "rgba(255,255,255,0.05)",
+                                  padding: 16,
+                                  borderRadius: 10,
+                                  textAlign: "center",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "0.85rem",
+                                    fontWeight: 600,
+                                    color: "#90caf9",
+                                    marginBottom: 8,
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  TARJETA
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "1.4rem",
+                                    fontWeight: 900,
+                                    color: getColor(tarjetaDiff),
+                                  }}
+                                >
+                                  L {tarjetaDiff.toFixed(2)}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  background: "rgba(255,255,255,0.05)",
+                                  padding: 16,
+                                  borderRadius: 10,
+                                  textAlign: "center",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "0.85rem",
+                                    fontWeight: 600,
+                                    color: "#90caf9",
+                                    marginBottom: 8,
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  TRANSFERENCIA
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "1.4rem",
+                                    fontWeight: 900,
+                                    color: getColor(transDiff),
+                                  }}
+                                >
+                                  L {transDiff.toFixed(2)}
+                                </div>
+                              </div>
+
+                              <div
+                                style={{
+                                  background: "rgba(255,255,255,0.05)",
+                                  padding: 16,
+                                  borderRadius: 10,
+                                  textAlign: "center",
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "0.85rem",
+                                    fontWeight: 600,
+                                    color: "#ffd54f",
+                                    marginBottom: 8,
+                                    textTransform: "uppercase",
+                                  }}
+                                >
+                                  DÓLARES
+                                </div>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: "1.4rem",
+                                      fontWeight: 900,
+                                      color: getColor(dolaresDiff),
+                                    }}
+                                  >
+                                    $ {dolaresDiff.toFixed(2)}
+                                  </div>
+                                  {tasaDolar > 0 && (
+                                    <div
+                                      style={{
+                                        fontSize: "0.8rem",
+                                        fontWeight: 600,
+                                        color: "rgba(255,255,255,0.65)",
+                                        marginTop: 4,
+                                      }}
+                                    >
+                                      (L{" "}
+                                      {Number(
+                                        (dolaresDiff * tasaDolar).toFixed(2),
+                                      )}
+                                      )
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
 
                     <div
                       style={{
@@ -741,7 +969,7 @@ export default function ResultadosCajaView() {
                         >
                           <span style={{ fontWeight: 700, fontSize: "1rem" }}>
                             {Number(
-                              parseFloat(cierre.dolares_registrado || 0)
+                              parseFloat(cierre.dolares_registrado || 0),
                             ).toFixed(2)}
                           </span>
                           {tasaDolar > 0 && (
@@ -756,7 +984,7 @@ export default function ResultadosCajaView() {
                                 (
                                   parseFloat(cierre.dolares_registrado || 0) *
                                   tasaDolar
-                                ).toFixed(2)
+                                ).toFixed(2),
                               )})`}
                             </span>
                           )}
@@ -781,7 +1009,7 @@ export default function ResultadosCajaView() {
                         >
                           <span style={{ fontWeight: 700, fontSize: "1rem" }}>
                             {Number(
-                              parseFloat(cierre.dolares_dia || 0)
+                              parseFloat(cierre.dolares_dia || 0),
                             ).toFixed(2)}
                           </span>
                           {tasaDolar > 0 && (
@@ -796,7 +1024,7 @@ export default function ResultadosCajaView() {
                                 (
                                   parseFloat(cierre.dolares_dia || 0) *
                                   tasaDolar
-                                ).toFixed(2)
+                                ).toFixed(2),
                               )})`}
                             </span>
                           )}
@@ -825,8 +1053,8 @@ export default function ResultadosCajaView() {
                               d > 0
                                 ? "Diferencia a favor"
                                 : d < 0
-                                ? "Diferencia en contra"
-                                : "Diferencia";
+                                  ? "Diferencia en contra"
+                                  : "Diferencia";
                             const labelColor =
                               d > 0 ? "#388e3c" : d < 0 ? "#d32f2f" : "#ffffff";
                             return (
@@ -845,13 +1073,13 @@ export default function ResultadosCajaView() {
                             style={{
                               fontWeight: 900,
                               color: getColor(
-                                parseFloat(cierre.diferencia || 0)
+                                parseFloat(cierre.diferencia || 0),
                               ),
                               fontSize: "1.05rem",
                             }}
                           >
                             {Number(parseFloat(cierre.diferencia || 0)).toFixed(
-                              2
+                              2,
                             )}
                           </span>
                         </div>

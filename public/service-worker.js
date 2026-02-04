@@ -1,4 +1,4 @@
-const CACHE_NAME = "pdv-cache-v1.3.0";
+const CACHE_NAME = "pdv-cache-v1.4.1";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
@@ -8,22 +8,26 @@ const PRECACHE_URLS = [
 ];
 
 self.addEventListener("install", (event) => {
+  // skipWaiting hace que el nuevo SW se active inmediatamente
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
   );
+  console.log('🔧 Service Worker: Nueva versión instalada');
 });
 
 self.addEventListener("activate", (event) => {
+  // claim hace que el SW tome control inmediatamente de todas las páginas
   self.clients.claim();
   event.waitUntil(
     caches.keys().then((keys) => {
       const toDelete = keys.filter((k) => k !== CACHE_NAME);
       return Promise.all(toDelete.map((k) => caches.delete(k))).then(
         (results) => {
-          // Si se eliminaron caches antiguos, avisar a los clientes que hay nueva versión
+          // Si se eliminaron caches antiguos, notificar a los clientes
           const removedAny = results.some(Boolean);
           if (removedAny) {
+            console.log('🗑️ Service Worker: Caches antiguos eliminados');
             return self.clients.matchAll({ type: "window" }).then((clients) => {
               clients.forEach((client) => {
                 try {
@@ -39,6 +43,7 @@ self.addEventListener("activate", (event) => {
       );
     })
   );
+  console.log('✅ Service Worker: Activado y listo');
 });
 
 self.addEventListener("fetch", (event) => {

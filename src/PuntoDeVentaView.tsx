@@ -64,7 +64,7 @@ export default function PuntoDeVentaView({
       | "facturasEmitidas"
       | "apertura"
       | "resultadosCaja"
-      | "cajaOperada"
+      | "cajaOperada",
   ) => void;
 }) {
   const [showCierre, setShowCierre] = useState(false);
@@ -116,7 +116,7 @@ export default function PuntoDeVentaView({
       if (!aperturaActual) {
         setResumenLoading(false);
         alert(
-          "No hay apertura de caja registrada. Por favor, registra primero una apertura."
+          "No hay apertura de caja registrada. Por favor, registra primero una apertura.",
         );
         setShowResumen(false);
         return;
@@ -209,24 +209,24 @@ export default function PuntoDeVentaView({
 
       const efectivoSum = (pagosEfectivo || []).reduce(
         (s: number, p: any) => s + parseFloat(p.monto || 0),
-        0
+        0,
       );
       const tarjetaSum = (pagosTarjeta || []).reduce(
         (s: number, p: any) => s + parseFloat(p.monto || 0),
-        0
+        0,
       );
       const transSum = (pagosTrans || []).reduce(
         (s: number, p: any) => s + parseFloat(p.monto || 0),
-        0
+        0,
       );
       const dolaresSum = (pagosDolares || []).reduce(
         (s: number, p: any) => s + parseFloat(p.monto || 0),
-        0
+        0,
       );
 
       const dolaresSumUsd = (pagosDolares || []).reduce(
         (s: number, p: any) => s + parseFloat(p.usd_monto || 0),
-        0
+        0,
       );
 
       // obtener tasa del dolar (singleton)
@@ -249,7 +249,7 @@ export default function PuntoDeVentaView({
 
       const gastosSum = (gastosDia || []).reduce(
         (s: number, g: any) => s + parseFloat(g.monto || 0),
-        0
+        0,
       );
 
       console.log("Sumas calculadas:", {
@@ -296,7 +296,10 @@ export default function PuntoDeVentaView({
 
   // Estado para sincronización offline
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [pendientesCount, setPendientesCount] = useState({ facturas: 0, pagos: 0 });
+  const [pendientesCount, setPendientesCount] = useState({
+    facturas: 0,
+    pagos: 0,
+  });
   const [sincronizando, setSincronizando] = useState(false);
 
   // Cargar datos del negocio
@@ -349,7 +352,7 @@ export default function PuntoDeVentaView({
   const [pedidosList, setPedidosList] = useState<any[]>([]);
   const [pedidosLoading, setPedidosLoading] = useState(false);
   const [pedidosProcessingId, setPedidosProcessingId] = useState<number | null>(
-    null
+    null,
   );
   const [gastoMonto, setGastoMonto] = useState<string>("");
   const [gastoMotivo, setGastoMotivo] = useState<string>("");
@@ -418,7 +421,7 @@ export default function PuntoDeVentaView({
 
       if (total > 0) {
         alert(
-          `✓ Sincronización exitosa:\n${resultado.facturas.exitosas} facturas\n${resultado.pagos.exitosos} pagos`
+          `✓ Sincronización exitosa:\n${resultado.facturas.exitosas} facturas\n${resultado.pagos.exitosos} pagos`,
         );
       } else {
         alert("No hay registros pendientes por sincronizar");
@@ -450,7 +453,7 @@ export default function PuntoDeVentaView({
   const [nombreCliente, setNombreCliente] = useState("");
   const [showOrdenModal, setShowOrdenModal] = useState(false);
   const [tipoOrden, setTipoOrden] = useState<"PARA LLEVAR" | "COMER AQUÍ">(
-    "PARA LLEVAR"
+    "PARA LLEVAR",
   );
   const [showComplementosModal, setShowComplementosModal] = useState(false);
   const [selectedProductIndex, setSelectedProductIndex] = useState<
@@ -481,15 +484,18 @@ export default function PuntoDeVentaView({
     "comida" | "bebida" | "complemento"
   >("comida");
   const [subcategoriaFiltro, setSubcategoriaFiltro] = useState<string | null>(
-    null
+    null,
   );
 
   // Estados para control de apertura
   const [aperturaRegistrada, setAperturaRegistrada] = useState<boolean | null>(
-    null
+    null,
   );
   const [verificandoApertura, setVerificandoApertura] = useState(false);
   const [registrandoApertura, setRegistrandoApertura] = useState(false);
+
+  // Estado para contador de cierres sin aclarar
+  const [cierresSinAclarar, setCierresSinAclarar] = useState<number>(0);
 
   // Obtener datos de CAI y factura actual
   useEffect(() => {
@@ -606,6 +612,52 @@ export default function PuntoDeVentaView({
     verificarApertura();
   }, [usuarioActual, caiInfo]);
 
+  // Contar cierres sin aclarar del mes actual
+  useEffect(() => {
+    async function contarCierresSinAclarar() {
+      if (!usuarioActual) {
+        setCierresSinAclarar(0);
+        return;
+      }
+      try {
+        // Obtener primer y último día del mes actual
+        const ahora = new Date();
+        const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+        const ultimoDiaMes = new Date(
+          ahora.getFullYear(),
+          ahora.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+        );
+
+        const fechaInicio = primerDiaMes.toISOString();
+        const fechaFin = ultimoDiaMes.toISOString();
+
+        // Contar cierres del cajero actual en el mes que NO tengan observación "aclarado"
+        const { data, error, count } = await supabase
+          .from("cierres")
+          .select("*", { count: "exact", head: false })
+          .eq("cajero_id", usuarioActual.id)
+          .eq("tipo_registro", "cierre")
+          .gte("fecha", fechaInicio)
+          .lte("fecha", fechaFin)
+          .or("observacion.is.null,observacion.neq.aclarado");
+
+        if (!error && count !== null) {
+          setCierresSinAclarar(count);
+        } else {
+          setCierresSinAclarar(0);
+        }
+      } catch (err) {
+        console.error("Error contando cierres sin aclarar:", err);
+        setCierresSinAclarar(0);
+      }
+    }
+    contarCierresSinAclarar();
+  }, [usuarioActual]);
+
   // Redirección automática desactivada - el usuario puede navegar libremente
   // La lógica de verificación de cierres solo se ejecuta desde el callback onCierreGuardado
 
@@ -645,7 +697,7 @@ export default function PuntoDeVentaView({
       let nuevos;
       if (existe) {
         nuevos = prev.map((p) =>
-          p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p
+          p.id === producto.id ? { ...p, cantidad: p.cantidad + 1 } : p,
         );
       } else {
         nuevos = [
@@ -672,7 +724,7 @@ export default function PuntoDeVentaView({
       const existe = prev.find((p) => p.id === id);
       if (existe && existe.cantidad > 1) {
         const nuevos = prev.map((p) =>
-          p.id === id ? { ...p, cantidad: p.cantidad - 1 } : p
+          p.id === id ? { ...p, cantidad: p.cantidad - 1 } : p,
         );
         localStorage.setItem("seleccionados", JSON.stringify(nuevos));
         return nuevos;
@@ -843,7 +895,7 @@ export default function PuntoDeVentaView({
         console.error("Error insertando factura de devolución:", facturaError);
         alert(
           "Error al registrar la devolución en facturas: " +
-            facturaError.message
+            facturaError.message,
         );
         return;
       }
@@ -883,7 +935,7 @@ export default function PuntoDeVentaView({
       if (pagosError) {
         console.error("Error insertando pagos de devolución:", pagosError);
         alert(
-          "Error al registrar los pagos de devolución: " + pagosError.message
+          "Error al registrar los pagos de devolución: " + pagosError.message,
         );
         return;
       }
@@ -985,7 +1037,7 @@ export default function PuntoDeVentaView({
   // Calculate total
   const total = seleccionados.reduce(
     (sum, p) => sum + p.precio * p.cantidad,
-    0
+    0,
   );
 
   // Filter products by type and subcategory
@@ -1085,8 +1137,8 @@ export default function PuntoDeVentaView({
                   facturaActual ? ` | Factura: ${facturaActual}` : ""
                 }`
               : facturaActual
-              ? `Factura: ${facturaActual}`
-              : ""
+                ? `Factura: ${facturaActual}`
+                : ""
           }
         >
           {caiInfo &&
@@ -1094,11 +1146,19 @@ export default function PuntoDeVentaView({
           {caiInfo && facturaActual
             ? ` | Factura: ${facturaActual}`
             : !caiInfo && facturaActual
-            ? `Factura: ${facturaActual}`
-            : ""}
+              ? `Factura: ${facturaActual}`
+              : ""}
         </span>
         {/* Botones de tema y funciones principales en la misma fila */}
-        <div style={{ display: "flex", gap: 8, marginLeft: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            marginLeft: 16,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
           {/* Botones de tema */}
           <button
             onClick={() => {
@@ -1111,8 +1171,8 @@ export default function PuntoDeVentaView({
                 theme === "dark"
                   ? "#fff"
                   : theme === "lite"
-                  ? "#1976d2"
-                  : "#fff",
+                    ? "#1976d2"
+                    : "#fff",
               border: theme === "dark" ? "none" : "1px solid #1976d2",
               borderRadius: 6,
               padding: "6px 10px",
@@ -1137,8 +1197,8 @@ export default function PuntoDeVentaView({
                 theme === "lite"
                   ? "#fff"
                   : theme === "dark"
-                  ? "#f5f5f5"
-                  : "#1976d2",
+                    ? "#f5f5f5"
+                    : "#1976d2",
               border:
                 theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
               borderRadius: 6,
@@ -1155,7 +1215,14 @@ export default function PuntoDeVentaView({
           </button>
 
           {/* Separador visual */}
-          <div style={{ width: 1, height: 24, background: theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)" }} />
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              background:
+                theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+            }}
+          />
 
           {/* Botón Resumen de caja */}
           <button
@@ -1185,7 +1252,10 @@ export default function PuntoDeVentaView({
               fontSize: 12,
               padding: "6px 12px",
               borderRadius: 6,
-              background: theme === "lite" ? "rgba(211,47,47,0.95)" : "rgba(183,28,28,0.95)",
+              background:
+                theme === "lite"
+                  ? "rgba(211,47,47,0.95)"
+                  : "rgba(183,28,28,0.95)",
               color: "#fff",
               fontWeight: 600,
               border: "none",
@@ -1208,7 +1278,10 @@ export default function PuntoDeVentaView({
               fontSize: 12,
               padding: "6px 12px",
               borderRadius: 6,
-              background: theme === "lite" ? "rgba(255,152,0,0.95)" : "rgba(230,81,0,0.95)",
+              background:
+                theme === "lite"
+                  ? "rgba(255,152,0,0.95)"
+                  : "rgba(230,81,0,0.95)",
               color: "#fff",
               fontWeight: 600,
               border: "none",
@@ -1258,10 +1331,62 @@ export default function PuntoDeVentaView({
             🏠 Domicilios
           </button>
 
+          {/* Botón Aclaraciones - solo visible si hay 1 o más cierres sin aclarar */}
+          {cierresSinAclarar >= 1 && (
+            <button
+              onClick={() => {
+                if (setView) setView("resultadosCaja");
+              }}
+              style={{
+                fontSize: 12,
+                padding: "6px 12px",
+                borderRadius: 6,
+                background: "#f57c00",
+                color: "#fff",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+                position: "relative",
+              }}
+              title={`Hay ${cierresSinAclarar} cierre(s) sin aclarar este mes`}
+            >
+              📝 Aclaraciones
+              <span
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  background: "#d32f2f",
+                  color: "#fff",
+                  borderRadius: "50%",
+                  width: 20,
+                  height: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                }}
+              >
+                {cierresSinAclarar}
+              </span>
+            </button>
+          )}
+
           {/* Botón Registrar cierre - solo visible con apertura activa */}
           {aperturaRegistrada && (
             <>
-              <div style={{ width: 1, height: 24, background: theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)" }} />
+              <div
+                style={{
+                  width: 1,
+                  height: 24,
+                  background:
+                    theme === "lite"
+                      ? "rgba(0,0,0,0.1)"
+                      : "rgba(255,255,255,0.1)",
+                }}
+              />
               <button
                 style={{
                   background: "#fbc02d",
@@ -1541,7 +1666,9 @@ export default function PuntoDeVentaView({
 
               // PASO 1: Guardar primero en IndexedDB
               const pagosIdsLocales = await guardarPagosLocal(pagosToInsert);
-              console.log(`✓ ${pagosToInsert.length} pagos guardados en IndexedDB`);
+              console.log(
+                `✓ ${pagosToInsert.length} pagos guardados en IndexedDB`,
+              );
 
               // PASO 2: Intentar guardar en Supabase
               try {
@@ -1550,21 +1677,30 @@ export default function PuntoDeVentaView({
                   .insert(pagosToInsert);
 
                 if (pagoError) {
-                  console.error("Error al guardar pagos en Supabase:", pagoError);
-                  console.log("⚠ Pagos guardados localmente, se sincronizarán después");
+                  console.error(
+                    "Error al guardar pagos en Supabase:",
+                    pagoError,
+                  );
+                  console.log(
+                    "⚠ Pagos guardados localmente, se sincronizarán después",
+                  );
                 } else {
                   // Si se guardaron exitosamente en Supabase, eliminar de IndexedDB
                   for (const idLocal of pagosIdsLocales) {
                     await eliminarPagoLocal(idLocal);
                   }
-                  console.log("✓ Pagos sincronizados y eliminados de IndexedDB");
+                  console.log(
+                    "✓ Pagos sincronizados y eliminados de IndexedDB",
+                  );
                 }
               } catch (fetchError) {
                 console.error(
                   "Error de conexión al guardar pagos en Supabase:",
-                  fetchError
+                  fetchError,
                 );
-                console.log("⚠ Pagos guardados localmente, se sincronizarán cuando haya conexión");
+                console.log(
+                  "⚠ Pagos guardados localmente, se sincronizarán cuando haya conexión",
+                );
               }
 
               // Actualizar contador de pendientes
@@ -1595,13 +1731,13 @@ export default function PuntoDeVentaView({
               <div style='font-family:monospace; width:${
                 etiquetaConfig?.etiqueta_ancho || 80
               }mm; margin:0; padding:${
-              etiquetaConfig?.etiqueta_padding || 8
-            }px;'>
+                etiquetaConfig?.etiqueta_padding || 8
+              }px;'>
                 <div style='font-size:${
                   etiquetaConfig?.etiqueta_fontsize || 24
                 }px; font-weight:800; color:#000; text-align:center; margin-bottom:6px;'>${
-              etiquetaConfig?.etiqueta_comanda || "COMANDA COCINA"
-            }</div>
+                  etiquetaConfig?.etiqueta_comanda || "COMANDA COCINA"
+                }</div>
                 <div style='font-size:28px; font-weight:900; color:#000; text-align:center; margin:16px 0;'>${tipoOrden}</div>
                 <div style='font-size:20px; font-weight:800; color:#000; text-align:center; margin-bottom:12px;'>Cliente: <b>${nombreCliente}</b></div>
                 <div style='font-size:14px; font-weight:600; color:#222; text-align:center; margin-bottom:6px;'>Factura: ${
@@ -1634,7 +1770,7 @@ export default function PuntoDeVentaView({
                                 ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
                                 : ""
                             }
-                          </li>`
+                          </li>`,
                       )
                       .join("")}
                   </ul>
@@ -1659,7 +1795,7 @@ export default function PuntoDeVentaView({
                               p.cantidad
                             }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
-                          </li>`
+                          </li>`,
                       )
                       .join("")}
                   </ul>
@@ -1683,7 +1819,7 @@ export default function PuntoDeVentaView({
                               p.cantidad
                             }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
-                          </li>`
+                          </li>`,
                       )
                       .join("")}
                   </ul>
@@ -1707,7 +1843,7 @@ export default function PuntoDeVentaView({
               .filter((p) => p.tipo === "comida")
               .reduce(
                 (sum, p) => sum + (p.precio - p.precio / 1.15) * p.cantidad,
-                0
+                0,
               );
 
             // Calcular pagos para el recibo
@@ -1811,13 +1947,13 @@ export default function PuntoDeVentaView({
               <div style='font-family:monospace; width:${
                 reciboConfig?.recibo_ancho || 80
               }mm; margin:0; padding:${
-              reciboConfig?.recibo_padding || 8
-            }px; background:#fff;'>
+                reciboConfig?.recibo_padding || 8
+              }px; background:#fff;'>
                 <!-- Logo -->
                 <div style='text-align:center; margin-bottom:12px;'>
                   <img src='${datosNegocio.logo_url || "/favicon.ico"}' alt='${
-              datosNegocio.nombre_negocio
-            }' style='width:320px; height:320px;' onload='window.imageLoaded = true;' />
+                    datosNegocio.nombre_negocio
+                  }' style='width:320px; height:320px;' onload='window.imageLoaded = true;' />
                 </div>
                 
                 <!-- Información del Negocio -->
@@ -1844,7 +1980,7 @@ export default function PuntoDeVentaView({
                 }</div>
                 <div style='font-size:14px; margin-bottom:10px;'>Fecha: ${new Date().toLocaleString(
                   "es-HN",
-                  { timeZone: "America/Tegucigalpa" }
+                  { timeZone: "America/Tegucigalpa" },
                 )}</div>
                 
                 <!-- Tabla de Productos -->
@@ -1866,12 +2002,12 @@ export default function PuntoDeVentaView({
                               <td style='padding:4px 0;'>${p.cantidad}</td>
                               <td style='padding:4px 0;'>${p.nombre}</td>
                               <td style='text-align:right; padding:4px 0;'>L${p.precio.toFixed(
-                                2
+                                2,
                               )}</td>
                               <td style='text-align:right; padding:4px 0;'>L${(
                                 p.precio * p.cantidad
                               ).toFixed(2)}</td>
-                            </tr>`
+                            </tr>`,
                         )
                         .join("")}
                     </tbody>
@@ -1882,14 +2018,14 @@ export default function PuntoDeVentaView({
                 <div style='font-size:15px; margin-bottom:3px;'>
                   <span style='float:left;'>SUBTOTAL:</span>
                   <span style='float:right; font-weight:700;'>L ${subtotalRecibo.toFixed(
-                    2
+                    2,
                   )}</span>
                   <div style='clear:both;'></div>
                 </div>
                 <div style='font-size:15px; margin-bottom:3px;'>
                   <span style='float:left;'>ISV 15%:</span>
                   <span style='float:right; font-weight:700;'>L ${isv15Recibo.toFixed(
-                    2
+                    2,
                   )}</span>
                   <div style='clear:both;'></div>
                 </div>
@@ -2006,17 +2142,17 @@ export default function PuntoDeVentaView({
                 .filter((p) => p.tipo === "comida")
                 .reduce(
                   (sum, p) => sum + (p.precio - p.precio / 1.15) * p.cantidad,
-                  0
+                  0,
                 );
               const isv18 = seleccionados
                 .filter((p) => p.tipo === "bebida")
                 .reduce(
                   (sum, p) => sum + (p.precio - p.precio / 1.18) * p.cantidad,
-                  0
+                  0,
                 );
               if (facturaActual === "Límite alcanzado") {
                 alert(
-                  "¡Se ha alcanzado el límite de facturas para este cajero!"
+                  "¡Se ha alcanzado el límite de facturas para este cajero!",
                 );
                 return;
               }
@@ -2036,7 +2172,7 @@ export default function PuntoDeVentaView({
                     precio: p.precio,
                     cantidad: p.cantidad,
                     tipo: p.tipo,
-                  }))
+                  })),
                 ),
                 sub_total: subTotal.toFixed(2),
                 isv_15: isv15.toFixed(2),
@@ -2048,7 +2184,9 @@ export default function PuntoDeVentaView({
 
               // PASO 1: Guardar primero en IndexedDB
               const facturaIdLocal = await guardarFacturaLocal(venta);
-              console.log(`✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`);
+              console.log(
+                `✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`,
+              );
 
               // PASO 2: Intentar guardar en Supabase
               try {
@@ -2058,15 +2196,21 @@ export default function PuntoDeVentaView({
 
                 if (supabaseError) {
                   console.error("Error guardando en Supabase:", supabaseError);
-                  console.log("⚠ Factura guardada localmente, se sincronizará después");
+                  console.log(
+                    "⚠ Factura guardada localmente, se sincronizará después",
+                  );
                 } else {
                   // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
                   await eliminarFacturaLocal(facturaIdLocal);
-                  console.log("✓ Factura sincronizada y eliminada de IndexedDB");
+                  console.log(
+                    "✓ Factura sincronizada y eliminada de IndexedDB",
+                  );
                 }
               } catch (supabaseErr) {
                 console.error("Error de conexión con Supabase:", supabaseErr);
-                console.log("⚠ Factura guardada localmente, se sincronizará cuando haya conexión");
+                console.log(
+                  "⚠ Factura guardada localmente, se sincronizará cuando haya conexión",
+                );
               }
 
               // Actualizar contador de pendientes
@@ -2083,7 +2227,9 @@ export default function PuntoDeVentaView({
                     await supabase
                       .from("cai_facturas")
                       .update({
-                        factura_actual: (parseInt(facturaActual) + 1).toString(),
+                        factura_actual: (
+                          parseInt(facturaActual) + 1
+                        ).toString(),
                       })
                       .eq("cajero_id", usuarioActual.id);
                   } catch (err) {
@@ -2093,7 +2239,9 @@ export default function PuntoDeVentaView({
               }
             } catch (err) {
               console.error("Error al guardar la venta:", err);
-              alert("Error al guardar la factura. Por favor, contacte al administrador.");
+              alert(
+                "Error al guardar la factura. Por favor, contacte al administrador.",
+              );
             }
             // Limpiar selección después de imprimir
             limpiarSeleccion();
@@ -2226,8 +2374,8 @@ export default function PuntoDeVentaView({
                 new Set(
                   productos
                     .filter((p) => p.tipo === "comida" && p.subcategoria)
-                    .map((p) => p.subcategoria)
-                )
+                    .map((p) => p.subcategoria),
+                ),
               ).filter(Boolean) as string[];
 
               if (subcategorias.length === 0) return null;
@@ -2446,8 +2594,8 @@ export default function PuntoDeVentaView({
                         activeTab === "comida"
                           ? "#388e3c"
                           : activeTab === "bebida"
-                          ? "#1976d2"
-                          : "#9c27b0",
+                            ? "#1976d2"
+                            : "#9c27b0",
                       textAlign: "center",
                       marginBottom: 8,
                     }}
@@ -2645,8 +2793,8 @@ export default function PuntoDeVentaView({
                             ? "#fff"
                             : "#333"
                           : theme === "lite"
-                          ? "#fafafa"
-                          : "#383838",
+                            ? "#fafafa"
+                            : "#383838",
                       color: theme === "lite" ? "#222" : "#f5f5f5",
                     }}
                   >
@@ -3018,13 +3166,13 @@ export default function PuntoDeVentaView({
                       background: isSelected
                         ? "linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)"
                         : theme === "lite"
-                        ? "#f5f5f5"
-                        : "#424242",
+                          ? "#f5f5f5"
+                          : "#424242",
                       color: isSelected
                         ? "#fff"
                         : theme === "lite"
-                        ? "#222"
-                        : "#f5f5f5",
+                          ? "#222"
+                          : "#f5f5f5",
                       borderRadius: 10,
                       border: isSelected
                         ? "3px solid #2e7d32"
@@ -3143,7 +3291,7 @@ export default function PuntoDeVentaView({
                         } else {
                           // Si selecciona otra pieza, quitar PIEZAS VARIAS
                           newPiezas = piezasArray.filter(
-                            (p) => p !== "PIEZAS VARIAS"
+                            (p) => p !== "PIEZAS VARIAS",
                           );
 
                           if (isSelected) {
@@ -3169,13 +3317,13 @@ export default function PuntoDeVentaView({
                         background: isSelected
                           ? "linear-gradient(135deg, #ff9800 0%, #f57c00 100%)"
                           : theme === "lite"
-                          ? "#f5f5f5"
-                          : "#424242",
+                            ? "#f5f5f5"
+                            : "#424242",
                         color: isSelected
                           ? "#fff"
                           : theme === "lite"
-                          ? "#222"
-                          : "#f5f5f5",
+                            ? "#222"
+                            : "#f5f5f5",
                         borderRadius: 10,
                         border: isSelected
                           ? "3px solid #f57c00"
@@ -3193,7 +3341,7 @@ export default function PuntoDeVentaView({
                       {pieza}
                     </button>
                   );
-                }
+                },
               )}
             </div>
             <button
@@ -3519,18 +3667,18 @@ export default function PuntoDeVentaView({
                             border: isSelected
                               ? `3px solid ${tipo.color}`
                               : theme === "lite"
-                              ? "2px solid #e2e8f0"
-                              : "2px solid #334155",
+                                ? "2px solid #e2e8f0"
+                                : "2px solid #334155",
                             background: isSelected
                               ? `${tipo.color}15`
                               : theme === "lite"
-                              ? "#ffffff"
-                              : "#0f172a",
+                                ? "#ffffff"
+                                : "#0f172a",
                             color: isSelected
                               ? tipo.color
                               : theme === "lite"
-                              ? "#64748b"
-                              : "#94a3b8",
+                                ? "#64748b"
+                                : "#94a3b8",
                             fontWeight: isSelected ? 700 : 600,
                             fontSize: 14,
                             cursor: "pointer",
@@ -3727,7 +3875,7 @@ export default function PuntoDeVentaView({
                         if (error) {
                           console.error(
                             "Error insertando pedido de envío:",
-                            error
+                            error,
                           );
                           alert("Error al guardar pedido de envío");
                         } else {
@@ -3750,14 +3898,13 @@ export default function PuntoDeVentaView({
                         <div style='font-family:monospace; width:${
                           etiquetaConfig?.etiqueta_ancho || 80
                         }mm; margin:0; padding:${
-                              etiquetaConfig?.etiqueta_padding || 8
-                            }px;'>
+                          etiquetaConfig?.etiqueta_padding || 8
+                        }px;'>
                           <div style='font-size:${
                             etiquetaConfig?.etiqueta_fontsize || 24
                           }px; font-weight:800; color:#000; text-align:center; margin-bottom:10px;'>${
-                              etiquetaConfig?.etiqueta_comanda ||
-                              "COMANDA COCINA"
-                            }</div>
+                            etiquetaConfig?.etiqueta_comanda || "COMANDA COCINA"
+                          }</div>
                           <div style='font-size:28px; font-weight:900; color:#000; text-align:center; margin:16px 0;'>${tipoOrden}</div>
                           <div style='font-size:20px; font-weight:800; color:#000; text-align:center; margin-bottom:12px;'>Cliente: <b>${
                             registro.cliente
@@ -3795,7 +3942,7 @@ export default function PuntoDeVentaView({
                                           ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
                                           : ""
                                       }
-                                    </li>`
+                                    </li>`,
                                 )
                                 .join("")}
                             </ul>
@@ -3805,7 +3952,7 @@ export default function PuntoDeVentaView({
                           
                           ${
                             seleccionados.filter(
-                              (p) => p.tipo === "complemento"
+                              (p) => p.tipo === "complemento",
                             ).length > 0
                               ? `
                             <div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>COMPLEMENTOS</div>
@@ -3823,7 +3970,7 @@ export default function PuntoDeVentaView({
                                       <div style='font-weight:700;'>${
                                         p.nombre
                                       }</div>
-                                    </li>`
+                                    </li>`,
                                 )
                                 .join("")}
                             </ul>
@@ -3850,7 +3997,7 @@ export default function PuntoDeVentaView({
                                       <div style='font-weight:700;'>${
                                         p.nombre
                                       }</div>
-                                    </li>`
+                                    </li>`,
                                 )
                                 .join("")}
                             </ul>
@@ -3866,7 +4013,7 @@ export default function PuntoDeVentaView({
                                 // Asumimos que todos los productos son comida (tipo por defecto)
                                 return sum + (p.precio / 1.15) * p.cantidad;
                               },
-                              0
+                              0,
                             );
                             const isv15Envio = registro.productos.reduce(
                               (sum: number, p: any) => {
@@ -3875,15 +4022,15 @@ export default function PuntoDeVentaView({
                                   (p.precio - p.precio / 1.15) * p.cantidad
                                 );
                               },
-                              0
+                              0,
                             );
 
                             const comprobanteHtml = `
                         <div style='font-family:monospace; width:${
                           reciboConfig?.recibo_ancho || 80
                         }mm; margin:0; padding:${
-                              reciboConfig?.recibo_padding || 8
-                            }px; background:#fff;'>
+                          reciboConfig?.recibo_padding || 8
+                        }px; background:#fff;'>
                           <!-- Logo -->
                           <div style='text-align:center; margin-bottom:12px;'>
                             <img src='${
@@ -3922,7 +4069,7 @@ export default function PuntoDeVentaView({
                           }</div>
                           <div style='font-size:14px; margin-bottom:10px;'>Fecha: ${new Date().toLocaleString(
                             "es-HN",
-                            { timeZone: "America/Tegucigalpa" }
+                            { timeZone: "America/Tegucigalpa" },
                           )}</div>
                           
                           <!-- Tabla de Productos -->
@@ -3943,12 +4090,12 @@ export default function PuntoDeVentaView({
                                   <td style='padding:4px 0;'>${p.cantidad}</td>
                                   <td style='padding:4px 0;'>${p.nombre}</td>
                                   <td style='text-align:right; padding:4px 0;'>L${p.precio.toFixed(
-                                    2
+                                    2,
                                   )}</td>
                                   <td style='text-align:right; padding:4px 0;'>L${(
                                     p.precio * p.cantidad
                                   ).toFixed(2)}</td>
-                                </tr>`
+                                </tr>`,
                                   )
                                   .join("")}
                               </tbody>
@@ -3959,21 +4106,21 @@ export default function PuntoDeVentaView({
                           <div style='font-size:15px; margin-bottom:3px;'>
                             <span style='float:left;'>SUBTOTAL:</span>
                             <span style='float:right; font-weight:700;'>L ${subtotalEnvio.toFixed(
-                              2
+                              2,
                             )}</span>
                             <div style='clear:both;'></div>
                           </div>
                           <div style='font-size:15px; margin-bottom:3px;'>
                             <span style='float:left;'>ISV 15%:</span>
                             <span style='float:right; font-weight:700;'>L ${isv15Envio.toFixed(
-                              2
+                              2,
                             )}</span>
                             <div style='clear:both;'></div>
                           </div>
                           <div style='font-size:15px; margin-bottom:3px;'>
                             <span style='float:left;'>COSTO ENVÍO:</span>
                             <span style='float:right; font-weight:700;'>L ${registro.costo_envio.toFixed(
-                              2
+                              2,
                             )}</span>
                             <div style='clear:both;'></div>
                           </div>
@@ -4034,7 +4181,7 @@ export default function PuntoDeVentaView({
                               const printWindow = window.open(
                                 "",
                                 "",
-                                "height=800,width=400"
+                                "height=800,width=400",
                               );
                               if (printWindow) {
                                 printWindow.document.write(printHtml);
@@ -4050,12 +4197,12 @@ export default function PuntoDeVentaView({
                             } catch (err) {
                               console.error(
                                 "Error imprimiendo pedido de envío:",
-                                err
+                                err,
                               );
                               const printWindow = window.open(
                                 "",
                                 "",
-                                "height=800,width=400"
+                                "height=800,width=400",
                               );
                               if (printWindow) {
                                 printWindow.document.write(printHtml);
@@ -4072,7 +4219,7 @@ export default function PuntoDeVentaView({
                           } catch (err) {
                             console.error(
                               "Error durante impresión de envío:",
-                              err
+                              err,
                             );
                           }
                           // limpiar seleccionados
@@ -4509,12 +4656,12 @@ export default function PuntoDeVentaView({
                                       .eq("id", p.id);
                                     if (error) throw error;
                                     setPedidosList((prev) =>
-                                      prev.filter((x) => x.id !== p.id)
+                                      prev.filter((x) => x.id !== p.id),
                                     );
                                   } catch (err) {
                                     console.error(
                                       "Error eliminando pedido:",
-                                      err
+                                      err,
                                     );
                                     alert("Error eliminando pedido");
                                   } finally {
@@ -4554,7 +4701,7 @@ export default function PuntoDeVentaView({
                                   }
                                   if (
                                     !confirm(
-                                      "Marcar como entregado y registrar cobro?"
+                                      "Marcar como entregado y registrar cobro?",
                                     )
                                   )
                                     return;
@@ -4567,7 +4714,7 @@ export default function PuntoDeVentaView({
                                         precio: pp.precio,
                                         cantidad: pp.cantidad,
                                         tipo: pp.tipo || "comida",
-                                      })
+                                      }),
                                     );
                                     const subTotal = productos.reduce(
                                       (sum: number, item: any) => {
@@ -4585,7 +4732,7 @@ export default function PuntoDeVentaView({
                                           sum + item.precio * item.cantidad
                                         );
                                       },
-                                      0
+                                      0,
                                     );
                                     const isv15 = productos
                                       .filter((it: any) => it.tipo === "comida")
@@ -4594,7 +4741,7 @@ export default function PuntoDeVentaView({
                                           s +
                                           (it.precio - it.precio / 1.15) *
                                             it.cantidad,
-                                        0
+                                        0,
                                       );
                                     const isv18 = productos
                                       .filter((it: any) => it.tipo === "bebida")
@@ -4603,7 +4750,7 @@ export default function PuntoDeVentaView({
                                           s +
                                           (it.precio - it.precio / 1.18) *
                                             it.cantidad,
-                                        0
+                                        0,
                                       );
                                     const venta = {
                                       fecha_hora: formatToHondurasLocal(),
@@ -4648,7 +4795,7 @@ export default function PuntoDeVentaView({
                                       setFacturaActual((prev) =>
                                         prev && prev !== "Límite alcanzado"
                                           ? (parseInt(prev) + 1).toString()
-                                          : prev
+                                          : prev,
                                       );
                                     } catch {}
                                     const { error: errDel } = await supabase
@@ -4657,12 +4804,12 @@ export default function PuntoDeVentaView({
                                       .eq("id", p.id);
                                     if (errDel) throw errDel;
                                     setPedidosList((prev) =>
-                                      prev.filter((x) => x.id !== p.id)
+                                      prev.filter((x) => x.id !== p.id),
                                     );
                                   } catch (err) {
                                     console.error(
                                       "Error procesando entrega y cobro:",
-                                      err
+                                      err,
                                     );
                                     alert("Error procesando entrega y cobro");
                                   } finally {
@@ -5001,7 +5148,7 @@ export default function PuntoDeVentaView({
                     <strong>Fecha:</strong>{" "}
                     {devolucionData.factura.fecha_hora
                       ? new Date(
-                          devolucionData.factura.fecha_hora
+                          devolucionData.factura.fecha_hora,
                         ).toLocaleString("es-HN")
                       : "N/A"}
                   </div>
@@ -5117,9 +5264,8 @@ export default function PuntoDeVentaView({
               onKeyDown={async (e) => {
                 if (e.key === "Enter" && devolucionPassword.trim()) {
                   // Validar contraseña y procesar
-                  const esValida = await validarPasswordCajero(
-                    devolucionPassword
-                  );
+                  const esValida =
+                    await validarPasswordCajero(devolucionPassword);
                   if (esValida) {
                     procesarDevolucion();
                   } else {
@@ -5165,9 +5311,8 @@ export default function PuntoDeVentaView({
               </button>
               <button
                 onClick={async () => {
-                  const esValida = await validarPasswordCajero(
-                    devolucionPassword
-                  );
+                  const esValida =
+                    await validarPasswordCajero(devolucionPassword);
                   if (esValida) {
                     procesarDevolucion();
                   } else {

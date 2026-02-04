@@ -2,12 +2,35 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import UpdateModal from './UpdateModal'
 
 function Root() {
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
-  const [availableVersion, setAvailableVersion] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
+
+  // Función para aplicar la actualización automáticamente
+  const applyUpdate = async () => {
+    console.log('🔄 Aplicando actualización automática...');
+    // try to unregister service workers to ensure fresh files are loaded
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) {
+          try { await r.unregister(); } catch (e) { /* ignore */ }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+    // Force a full navigation bypassing browser cache by adding a cache-buster query param.
+    // This avoids cases where a simple F5 or reload returns a cached index.html.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('_cb', String(Date.now()));
+      window.location.href = url.toString();
+    } catch (e) {
+      // fallback
+      window.location.reload();
+    }
+  };
 
   // comprobar ahora: expuesto a window via evento
   const checkNow = async (): Promise<string | null> => {
@@ -52,8 +75,9 @@ function Root() {
       try {
         const ver = await checkNow();
         if (ver) {
-          setAvailableVersion(ver);
-          setShowModal(true);
+          console.log(`✨ Nueva versión detectada: ${ver}. Actualizando automáticamente...`);
+          // Aplicar la actualización automáticamente sin pedir confirmación
+          await applyUpdate();
         }
       } catch (e) {
         // ignore
@@ -71,8 +95,8 @@ function Root() {
     const onCheck = async () => {
       const ver = await checkNow();
       if (ver) {
-        setAvailableVersion(ver);
-        setShowModal(true);
+        console.log(`✨ Nueva versión detectada manualmente: ${ver}. Actualizando automáticamente...`);
+        await applyUpdate();
         window.dispatchEvent(new CustomEvent('app:check-update-result', { detail: { updated: true, availableVersion: ver } }));
       } else {
         window.dispatchEvent(new CustomEvent('app:check-update-result', { detail: { updated: false } }));
@@ -82,39 +106,9 @@ function Root() {
     return () => window.removeEventListener('app:check-update', onCheck as EventListener);
   }, [currentVersion]);
 
-  const confirmUpdate = async () => {
-    // try to unregister service workers to ensure fresh files are loaded
-    try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        for (const r of regs) {
-          try { await r.unregister(); } catch (e) { /* ignore */ }
-        }
-      }
-    } catch (e) {
-      // ignore
-    }
-    // Force a full navigation bypassing browser cache by adding a cache-buster query param.
-    // This avoids cases where a simple F5 or reload returns a cached index.html.
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('_cb', String(Date.now()));
-      window.location.href = url.toString();
-    } catch (e) {
-      // fallback
-      window.location.reload();
-    }
-  };
-
-  const cancelUpdate = () => {
-    // dismiss until next check
-    setShowModal(false);
-  };
-
   return (
     <StrictMode>
       <App />
-      <UpdateModal open={showModal} version={availableVersion} onConfirm={confirmUpdate} onCancel={cancelUpdate} />
     </StrictMode>
   )
 }
@@ -123,16 +117,15 @@ createRoot(document.getElementById('root')!).render(
   <Root />
 )
 
-// Keep existing SW message listener but do not auto-reload: instead show modal via interval check.
+// Auto-update on service worker messages
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (event) => {
     try {
       const data = event.data;
       if (data && data.type === 'NEW_VERSION_AVAILABLE') {
-        // show a browser confirm as fallback; user may have different UI
-        if (window.confirm('Nueva versión disponible. ¿Desea recargar para actualizar?')) {
-          window.location.reload();
-        }
+        console.log('🔄 Service Worker detectó nueva versión. Recargando automáticamente...');
+        // Recargar automáticamente sin pedir confirmación
+        window.location.reload();
       }
     } catch (e) {
       // ignore
