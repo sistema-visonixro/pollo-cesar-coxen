@@ -9,8 +9,8 @@ Contiene las constantes para todas las imágenes utilizadas en la aplicación:
 ### Constantes disponibles:
 
 - **`BACKGROUND_IMAGE`**: Imagen de fondo principal de la aplicación
-  - Valor actual: `https://i.imgur.com/TsxgzAi.png`
-  - Uso: Fondos de login, splash screens, etc.
+  - Valor actual: `/logo.png` (se usa el logo por defecto)
+  - Uso: Fondos de login, splash screens, etc. Si hay un logo subido en `datos_negocio.logo_url`, los componentes que usan `useDatosNegocio()` lo preferirán en tiempo de ejecución.
 
 - **`LOGO_IMAGE`**: Logo principal de la aplicación
   - Valor actual: `/logo.png`

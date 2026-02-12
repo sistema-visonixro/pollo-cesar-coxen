@@ -3,11 +3,11 @@
  * Todas las referencias a imágenes deben usar estas constantes
  */
 
-// Imagen de fondo principal
-export const BACKGROUND_IMAGE = "https://i.imgur.com/TsxgzAi.png";
-
 // Logo principal de la aplicación
 export const LOGO_IMAGE = "/logo.png";
+
+// Imagen de fondo principal (usar logo por defecto)
+export const BACKGROUND_IMAGE = LOGO_IMAGE;
 
 // Función helper para obtener la URL del fondo como CSS
 export const getBackgroundStyle = () => 

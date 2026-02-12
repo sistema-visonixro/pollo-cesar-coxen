@@ -1,6 +1,7 @@
 body {
   min-height: 100vh;
-  background: url('https://i.imgur.com/TsxgzAi.png') no-repeat center center fixed;
+  /* Usar el logo del proyecto como fondo por defecto; si hay logo subido en datos_negocio, FondoImagen lo usará en tiempo de ejecución */
+  background: url('/logo.png') no-repeat center center fixed;
   background-size: cover;
   font-family: 'Segoe UI', Arial, sans-serif;
 }
