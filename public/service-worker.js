@@ -1,10 +1,8 @@
-const CACHE_NAME = "pdv-cache-v1.4.4";
+const CACHE_NAME = "pdv-cache-v1.6.4";
 const PRECACHE_URLS = [
   "/",
   "/index.html",
   "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
