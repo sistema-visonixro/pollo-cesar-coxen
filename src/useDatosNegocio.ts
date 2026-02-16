@@ -132,7 +132,9 @@ function updateFavicon(logoUrl: string) {
   link.href = logoUrl;
 
   // Actualizar apple-touch-icon si existe
-  let appleLink = document.querySelector("link[rel~='apple-touch-icon']") as HTMLLinkElement;
+  let appleLink = document.querySelector(
+    "link[rel~='apple-touch-icon']",
+  ) as HTMLLinkElement;
   if (!appleLink) {
     appleLink = document.createElement("link");
     appleLink.rel = "apple-touch-icon";

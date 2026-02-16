@@ -1092,6 +1092,9 @@ export async function actualizarCacheProductos(): Promise<{
 
     await guardarProductosCache(productos || []);
 
+    // Pre-cargar imágenes de productos para que el Service Worker las cachee
+    await precargarImagenesProductos(productos || []);
+
     return {
       exitoso: true,
       mensaje: `${productos?.length || 0} productos actualizados`,
@@ -1105,6 +1108,40 @@ export async function actualizarCacheProductos(): Promise<{
       cantidad: 0,
     };
   }
+}
+
+/**
+ * Pre-carga las imágenes de los productos para que el Service Worker las cachee
+ */
+export async function precargarImagenesProductos(
+  productos: any[],
+): Promise<void> {
+  console.log("🖼️ Iniciando pre-carga de imágenes de productos...");
+  let cargadas = 0;
+  let fallidas = 0;
+
+  for (const producto of productos) {
+    if (producto.imagen && producto.imagen.trim() !== "") {
+      try {
+        // Hacer fetch de la imagen para que el Service Worker la cachee
+        const response = await fetch(producto.imagen);
+        if (response.ok) {
+          // Leer el blob para asegurar que se descargue completamente
+          await response.blob();
+          cargadas++;
+        } else {
+          fallidas++;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error pre-cargando imagen ${producto.nombre}:`, error);
+        fallidas++;
+      }
+    }
+  }
+
+  console.log(
+    `✓ Pre-carga de imágenes completada: ${cargadas} exitosas, ${fallidas} fallidas`,
+  );
 }
 
 /**
@@ -1323,10 +1360,7 @@ export async function obtenerDatosNegocioCache(): Promise<DatosNegocioCache | nu
   const database = await initIndexedDB();
 
   return new Promise((resolve, reject) => {
-    const transaction = database.transaction(
-      [DATOS_NEGOCIO_STORE],
-      "readonly",
-    );
+    const transaction = database.transaction([DATOS_NEGOCIO_STORE], "readonly");
     const store = transaction.objectStore(DATOS_NEGOCIO_STORE);
     const request = store.getAll();
 

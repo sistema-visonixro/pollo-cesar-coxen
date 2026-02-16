@@ -12,7 +12,7 @@ import {
   guardarGastoLocal,
   guardarEnvioLocal,
   // obtenerContadorPendientes,
-  // sincronizarTodo,
+  sincronizarTodo,
   eliminarFacturaLocal,
   eliminarPagoLocal,
   eliminarGastoLocal,
@@ -20,6 +20,7 @@ import {
   actualizarCacheProductos,
   obtenerProductosCache,
   guardarProductosCache,
+  precargarImagenesProductos,
   estaConectado,
   guardarAperturaCache,
   obtenerAperturaCache,
@@ -393,6 +394,28 @@ export default function PuntoDeVentaView({
       console.error("Error en migración de localStorage:", error);
     });
 
+    // Sincronización automática en segundo plano cada 60 segundos (solo cuando hay conexión)
+    const syncInterval = setInterval(async () => {
+      if (isOnline && estaConectado()) {
+        try {
+          const resultado = await sincronizarTodo();
+          const total =
+            resultado.facturas.exitosas +
+            resultado.pagos.exitosos +
+            resultado.gastos.exitosos +
+            resultado.envios.exitosos;
+
+          if (total > 0) {
+            console.log(
+              `🔄 Sincronización automática: ${resultado.facturas.exitosas} facturas, ${resultado.pagos.exitosos} pagos, ${resultado.gastos.exitosos} gastos, ${resultado.envios.exitosos} envíos`,
+            );
+          }
+        } catch (error) {
+          console.error("Error en sincronización automática:", error);
+        }
+      }
+    }, 60000); // Cada 60 segundos
+
     // Actualizar contador de pendientes cada 10 segundos
     // const interval = setInterval(async () => {
     //   const count = await obtenerContadorPendientes();
@@ -402,8 +425,19 @@ export default function PuntoDeVentaView({
     // Obtener contador inicial
     // obtenerContadorPendientes().then(setPendientesCount);
 
-    // Listener para Ctrl+0 para actualizar cache de productos
+    // Listener para Ctrl+0 para actualizar cache de productos y Ctrl+Shift+R para bloquear cuando offline
     const handleKeyDown = async (e: KeyboardEvent) => {
+      // Bloquear Ctrl+Shift+R cuando no hay internet (cierre de caja requiere conexión)
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "r") {
+        if (!isOnline || !estaConectado()) {
+          e.preventDefault();
+          alert(
+            "⚠️ No se puede acceder a esta función sin conexión a internet.\n\nEl cierre de caja requiere conexión para sincronizar datos.",
+          );
+          return;
+        }
+      }
+
       if (e.ctrlKey && e.key === "0") {
         e.preventDefault();
         console.log("Actualizando cache de productos...");
@@ -434,6 +468,7 @@ export default function PuntoDeVentaView({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      clearInterval(syncInterval);
       // clearInterval(interval);
       window.removeEventListener("keydown", handleKeyDown);
     };
@@ -543,6 +578,19 @@ export default function PuntoDeVentaView({
       if (!usuarioActual) return;
 
       try {
+        // SIEMPRE obtener el número de factura del cache primero
+        const caiCache = await obtenerCaiCache();
+        let facturaDesdeCache: string | null = null;
+
+        if (
+          caiCache &&
+          caiCache.factura_actual &&
+          caiCache.factura_actual.trim() !== ""
+        ) {
+          facturaDesdeCache = caiCache.factura_actual;
+          console.log("📦 Factura desde IndexedDB:", facturaDesdeCache);
+        }
+
         // Si hay conexión, obtener de Supabase
         if (isOnline) {
           const { data: caiData, error: caiError } = await supabase
@@ -564,7 +612,57 @@ export default function PuntoDeVentaView({
               cai: caiData.cai,
             });
 
-            // Guardar en cache para uso offline
+            const rango_fin = parseInt(caiData.rango_hasta);
+            let facturaDesdeSupabase: string | null = null;
+
+            // Obtener factura actual de Supabase
+            if (
+              caiData.factura_actual &&
+              caiData.factura_actual.trim() !== ""
+            ) {
+              facturaDesdeSupabase = caiData.factura_actual;
+              console.log("☁️ Factura desde Supabase:", facturaDesdeSupabase);
+            }
+
+            // COMPARAR: usar la factura mayor entre cache y Supabase
+            let facturaFinal: string;
+            if (facturaDesdeCache && facturaDesdeSupabase) {
+              const numCache = parseInt(facturaDesdeCache);
+              const numSupabase = parseInt(facturaDesdeSupabase);
+              if (numCache > numSupabase) {
+                facturaFinal = facturaDesdeCache;
+                console.log(
+                  "✅ Usando factura de IndexedDB (mayor):",
+                  facturaFinal,
+                );
+              } else {
+                facturaFinal = facturaDesdeSupabase;
+                console.log(
+                  "✅ Usando factura de Supabase (mayor o igual):",
+                  facturaFinal,
+                );
+              }
+            } else if (facturaDesdeCache) {
+              facturaFinal = facturaDesdeCache;
+              console.log(
+                "✅ Usando factura de IndexedDB (única disponible):",
+                facturaFinal,
+              );
+            } else if (facturaDesdeSupabase) {
+              facturaFinal = facturaDesdeSupabase;
+              console.log(
+                "✅ Usando factura de Supabase (única disponible):",
+                facturaFinal,
+              );
+            } else {
+              facturaFinal = caiData.rango_desde;
+              console.log(
+                "✅ Usando rango_desde (no hay factura_actual):",
+                facturaFinal,
+              );
+            }
+
+            // Guardar en cache con la factura final
             await guardarCaiCache({
               id: caiData.id.toString(),
               cajero_id: caiData.cajero_id,
@@ -572,61 +670,21 @@ export default function PuntoDeVentaView({
               cai: caiData.cai,
               factura_desde: caiData.rango_desde,
               factura_hasta: caiData.rango_hasta,
-              factura_actual: caiData.factura_actual || "",
+              factura_actual: facturaFinal,
               nombre_cajero: usuarioActual.nombre,
             });
 
-            const rango_inicio = parseInt(caiData.rango_desde);
-            const rango_fin = parseInt(caiData.rango_hasta);
-
-            // Si existe factura_actual en el CAI, usarla directamente
-            if (
-              caiData.factura_actual &&
-              caiData.factura_actual.trim() !== ""
-            ) {
-              const facturaActualNum = parseInt(caiData.factura_actual);
-              if (Number.isFinite(facturaActualNum)) {
-                if (facturaActualNum > rango_fin) {
-                  setFacturaActual("Límite alcanzado");
-                } else {
-                  setFacturaActual(facturaActualNum.toString());
-                }
-                return;
-              }
-            }
-
-            // Si no existe factura_actual, calcular desde las facturas (método antiguo)
-            const caja = caiData.caja_asignada;
-            const { data: facturasData, error: facturasError } = await supabase
-              .from("facturas")
-              .select("factura")
-              .eq("cajero", usuarioActual.nombre)
-              .eq("caja", caja);
-            
-            // Si hay error, usar rango_desde como fallback
-            if (facturasError) {
-              console.log("⚠ Error obteniendo facturas, usando rango_desde");
-              setFacturaActual(caiData.rango_desde);
-              return;
-            }
-            
-            let maxFactura = rango_inicio - 1;
-            if (facturasData && facturasData.length > 0) {
-              for (const f of facturasData) {
-                const num = parseInt(f.factura);
-                if (Number.isFinite(num) && num > maxFactura) {
-                  maxFactura = num;
-                }
-              }
-              if (!Number.isFinite(maxFactura)) {
-                setFacturaActual(rango_inicio.toString());
-              } else if (maxFactura + 1 > rango_fin) {
+            // Validar si está dentro del rango
+            const facturaFinalNum = parseInt(facturaFinal);
+            if (Number.isFinite(facturaFinalNum)) {
+              if (facturaFinalNum > rango_fin) {
                 setFacturaActual("Límite alcanzado");
               } else {
-                setFacturaActual((maxFactura + 1).toString());
+                setFacturaActual(facturaFinalNum.toString());
               }
             } else {
-              setFacturaActual(rango_inicio.toString());
+              // Fallback a rango_desde si no se puede parsear
+              setFacturaActual(caiData.rango_desde);
             }
           } else {
             setFacturaActual("");
@@ -634,33 +692,35 @@ export default function PuntoDeVentaView({
         } else {
           // Si no hay conexión, intentar cargar desde cache
           console.log("⚠ Sin conexión. Cargando CAI desde cache...");
-          const caiCache = await obtenerCaiCache();
+          const caiCacheOffline = await obtenerCaiCache();
 
-          if (caiCache) {
-            console.log("✓ CAI encontrado en cache");
+          if (caiCacheOffline) {
+            console.log("✓ CAI recuperado desde cache");
             setCaiInfo({
-              caja_asignada: caiCache.caja_asignada,
-              nombre_cajero: caiCache.nombre_cajero,
-              cai: caiCache.cai,
+              caja_asignada: caiCacheOffline.caja_asignada,
+              nombre_cajero: caiCacheOffline.nombre_cajero,
+              cai: caiCacheOffline.cai,
             });
 
             // Usar factura_actual del cache
             if (
-              caiCache.factura_actual &&
-              caiCache.factura_actual.trim() !== ""
+              caiCacheOffline.factura_actual &&
+              caiCacheOffline.factura_actual.trim() !== ""
             ) {
-              const facturaActualNum = parseInt(caiCache.factura_actual);
-              const rango_fin = parseInt(caiCache.factura_hasta);
+              const facturaActualNum = parseInt(caiCacheOffline.factura_actual);
+              const rango_fin = parseInt(caiCacheOffline.factura_hasta);
               if (Number.isFinite(facturaActualNum)) {
                 if (facturaActualNum > rango_fin) {
                   setFacturaActual("Límite alcanzado");
                 } else {
                   setFacturaActual(facturaActualNum.toString());
                 }
+              } else {
+                setFacturaActual(caiCacheOffline.factura_desde);
               }
             } else {
               // Usar rango desde
-              setFacturaActual(caiCache.factura_desde);
+              setFacturaActual(caiCacheOffline.factura_desde);
             }
           } else {
             console.warn("⚠ No hay CAI en cache");
@@ -672,7 +732,7 @@ export default function PuntoDeVentaView({
         console.log("🔍 DEBUG CAI - Tipo de error:", typeof error);
         console.log("🔍 DEBUG CAI - error.message:", error?.message);
         console.log("🔍 DEBUG CAI - error.details:", error?.details);
-        
+
         // SIEMPRE intentar desde cache cuando hay error
         console.log("🔄 Intentando recuperar CAI desde cache (fallback)...");
         try {
@@ -684,9 +744,7 @@ export default function PuntoDeVentaView({
               nombre_cajero: caiCache.nombre_cajero,
               cai: caiCache.cai,
             });
-            setFacturaActual(
-              caiCache.factura_actual || caiCache.factura_desde,
-            );
+            setFacturaActual(caiCache.factura_actual || caiCache.factura_desde);
           } else {
             console.warn("⚠ No hay CAI en cache para fallback");
           }
@@ -719,13 +777,13 @@ export default function PuntoDeVentaView({
               .select("caja_asignada")
               .eq("cajero_id", usuarioActual.id)
               .single();
-            
+
             // Si hay error de conexión, ir directo a cache
             if (caiError) {
               console.log("⚠ Error obteniendo caja asignada:", caiError);
               throw new Error(caiError.message || "Error de conexión");
             }
-            
+
             cajaAsignada = caiData?.caja_asignada || "";
           }
           if (!cajaAsignada) {
@@ -743,7 +801,7 @@ export default function PuntoDeVentaView({
             .eq("estado", "APERTURA")
             .gte("fecha", start)
             .lte("fecha", end);
-          
+
           // Si hay error de conexión, ir directo a cache
           if (aperturasError) {
             console.log("⚠ Error obteniendo aperturas:", aperturasError);
@@ -782,12 +840,12 @@ export default function PuntoDeVentaView({
             console.log(
               `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
             );
-            
+
             // Convertir a Date objects para comparación correcta
             const fechaCacheDate = new Date(fechaCache);
             const startDate = new Date(start);
             const endDate = new Date(end);
-            
+
             if (fechaCacheDate >= startDate && fechaCacheDate <= endDate) {
               console.log("✓ Apertura del día actual confirmada");
               setAperturaRegistrada(true);
@@ -806,13 +864,15 @@ export default function PuntoDeVentaView({
         console.log("🔍 DEBUG - err.message:", err?.message);
         console.log("🔍 DEBUG - err.details:", err?.details);
         console.log("🔍 DEBUG - isOnline:", isOnline);
-        
+
         // SIEMPRE intentar desde cache cuando hay error
-        console.log("🔄 Intentando recuperar apertura desde cache (fallback)...");
+        console.log(
+          "🔄 Intentando recuperar apertura desde cache (fallback)...",
+        );
         try {
           const { start, end } = getLocalDayRange();
           const aperturaCache = await obtenerAperturaCache();
-          
+
           if (aperturaCache) {
             console.log("✓ Apertura encontrada en cache:", aperturaCache);
             // Verificar que sea del día actual
@@ -820,12 +880,12 @@ export default function PuntoDeVentaView({
             console.log(
               `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
             );
-            
+
             // Convertir a Date objects para comparación correcta
             const fechaCacheDate = new Date(fechaCache);
             const startDate = new Date(start);
             const endDate = new Date(end);
-            
+
             if (fechaCacheDate >= startDate && fechaCacheDate <= endDate) {
               console.log("✓ Apertura del día actual confirmada (fallback)");
               setAperturaRegistrada(true);
@@ -943,6 +1003,11 @@ export default function PuntoDeVentaView({
       // Guardar automáticamente en cache para uso offline
       await guardarProductosCache(data);
       console.log(`✓ ${data.length} productos guardados en cache`);
+
+      // Pre-cargar imágenes en segundo plano (fire-and-forget)
+      precargarImagenesProductos(data).catch((err) =>
+        console.warn("Error pre-cargando imágenes:", err),
+      );
 
       setError("");
       setLoading(false);
@@ -2867,7 +2932,7 @@ export default function PuntoDeVentaView({
               </div>
             </div>
           )}
-          
+
           {aperturaRegistrada === false && !verificandoApertura && (
             <div
               style={{
@@ -2903,16 +2968,19 @@ export default function PuntoDeVentaView({
                     color: "#fff",
                     border: "none",
                     borderRadius: 10,
-                    cursor: (registrandoApertura || !isOnline) ? "not-allowed" : "pointer",
-                    opacity: (registrandoApertura || !isOnline) ? 0.6 : 1,
+                    cursor:
+                      registrandoApertura || !isOnline
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity: registrandoApertura || !isOnline ? 0.6 : 1,
                     boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
                   }}
                 >
                   {registrandoApertura
                     ? "Registrando..."
                     : !isOnline
-                    ? "SIN CONEXIÓN"
-                    : "REGISTRAR APERTURA"}
+                      ? "SIN CONEXIÓN"
+                      : "REGISTRAR APERTURA"}
                 </button>
               </div>
             </div>
