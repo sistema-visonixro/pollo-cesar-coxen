@@ -4395,6 +4395,10 @@ export default function PuntoDeVentaView({
                           precio: s.precio,
                           cantidad: s.cantidad,
                         }));
+                        
+                        // Normalizar tipo de pago a minúsculas para consistencia con tabla pagos
+                        const tipoPagoNormalizado = envioTipoPago.toLowerCase();
+                        
                         const registro = {
                           productos,
                           cajero_id: usuarioActual?.id,
@@ -4406,7 +4410,7 @@ export default function PuntoDeVentaView({
                           direccion: "", // No se captura dirección en este formulario
                           total: Number(total.toFixed(2)),
                           costo_envio: parseFloat(envioCosto || "0"),
-                          tipo_pago: envioTipoPago,
+                          tipo_pago: tipoPagoNormalizado,
                           factura_venta: facturaActual || null,
                         };
 
@@ -4419,7 +4423,7 @@ export default function PuntoDeVentaView({
                           celular: envioCelular,
                           total: Number(total.toFixed(2)),
                           costo_envio: parseFloat(envioCosto || "0"),
-                          tipo_pago: envioTipoPago,
+                          tipo_pago: tipoPagoNormalizado,
                         };
 
                         // PASO 1: Guardar primero en IndexedDB
@@ -5347,12 +5351,6 @@ export default function PuntoDeVentaView({
                               </button>
                               <button
                                 onClick={async () => {
-                                  if (p.__localPending) {
-                                    alert(
-                                      "Este pedido aún está pendiente de sincronización con el servidor.",
-                                    );
-                                    return;
-                                  }
                                   if (facturaActual === "Límite alcanzado") {
                                     alert("Límite de facturas alcanzado");
                                     return;
@@ -5436,9 +5434,10 @@ export default function PuntoDeVentaView({
                                       total: Number(p.total || 0).toFixed(2),
                                     };
                                     
-                                    // Preparar objeto de pago
+                                    // Preparar objeto de pago (normalizar tipo a minúsculas)
+                                    const tipoPago = (p.tipo_pago || "efectivo").toLowerCase();
                                     const pago = {
-                                      tipo: p.tipo_pago || "Efectivo",
+                                      tipo: tipoPago,
                                       monto: Number(p.total || 0),
                                       recibido: Number(p.total || 0),
                                       cambio: 0,
@@ -5505,8 +5504,14 @@ export default function PuntoDeVentaView({
                                     }
 
                                     // PASO 4: Eliminar el pedido de envío
-                                    if (p.id) {
-                                      try {
+                                    try {
+                                      // Si es un pedido local pendiente, eliminarlo de IndexedDB
+                                      if (p.__localPending && p.local_id) {
+                                        await eliminarEnvioLocal(p.local_id);
+                                        console.log(`✓ Pedido local ${p.local_id} eliminado de IndexedDB`);
+                                      }
+                                      // Si es un pedido de Supabase, eliminarlo de allí
+                                      else if (p.id && !String(p.id).startsWith('local-')) {
                                         if (isOnline && estaConectado()) {
                                           const { error: errDel } = await supabase
                                             .from("pedidos_envio")
@@ -5514,11 +5519,13 @@ export default function PuntoDeVentaView({
                                             .eq("id", p.id);
                                           if (errDel) {
                                             console.error("Error eliminando pedido de Supabase:", errDel);
+                                          } else {
+                                            console.log(`✓ Pedido ${p.id} eliminado de Supabase`);
                                           }
                                         }
-                                      } catch (delErr) {
-                                        console.error("Error al eliminar pedido:", delErr);
                                       }
+                                    } catch (delErr) {
+                                      console.error("Error al eliminar pedido:", delErr);
                                     }
 
                                     // PASO 5: Incrementar factura actual
@@ -5534,7 +5541,12 @@ export default function PuntoDeVentaView({
 
                                     // PASO 6: Actualizar lista de pedidos local
                                     setPedidosList((prev) =>
-                                      prev.filter((x) => x.id !== p.id),
+                                      prev.filter((x) => {
+                                        // Comparar por ID correcto (puede ser local-X o ID numérico)
+                                        const currentId = String(x.id || x.local_id || '');
+                                        const targetId = String(p.id || p.local_id || '');
+                                        return currentId !== targetId;
+                                      }),
                                     );
 
                                     // Mostrar mensaje de éxito
