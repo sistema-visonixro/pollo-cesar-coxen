@@ -655,31 +655,29 @@ export default function PuntoDeVentaView({
         }
       } catch (error: any) {
         console.error("Error cargando CAI:", error);
+        console.log("🔍 DEBUG CAI - Tipo de error:", typeof error);
+        console.log("🔍 DEBUG CAI - error.message:", error?.message);
+        console.log("🔍 DEBUG CAI - error.details:", error?.details);
         
-        // Si hay error de fetch, SIEMPRE intentar desde cache
-        const esErrorConexion = error?.message?.includes("Failed to fetch") || 
-                                error?.message?.includes("ERR_INTERNET_DISCONNECTED");
-        
-        if (esErrorConexion || !isOnline) {
-          console.log("🔄 Intentando recuperar CAI desde cache (fallback)...");
-          try {
-            const caiCache = await obtenerCaiCache();
-            if (caiCache) {
-              console.log("✓ CAI recuperado desde cache:", caiCache);
-              setCaiInfo({
-                caja_asignada: caiCache.caja_asignada,
-                nombre_cajero: caiCache.nombre_cajero,
-                cai: caiCache.cai,
-              });
-              setFacturaActual(
-                caiCache.factura_actual || caiCache.factura_desde,
-              );
-            } else {
-              console.warn("⚠ No hay CAI en cache para fallback");
-            }
-          } catch (cacheErr) {
-            console.error("Error cargando CAI desde cache:", cacheErr);
+        // SIEMPRE intentar desde cache cuando hay error
+        console.log("🔄 Intentando recuperar CAI desde cache (fallback)...");
+        try {
+          const caiCache = await obtenerCaiCache();
+          if (caiCache) {
+            console.log("✓ CAI recuperado desde cache:", caiCache);
+            setCaiInfo({
+              caja_asignada: caiCache.caja_asignada,
+              nombre_cajero: caiCache.nombre_cajero,
+              cai: caiCache.cai,
+            });
+            setFacturaActual(
+              caiCache.factura_actual || caiCache.factura_desde,
+            );
+          } else {
+            console.warn("⚠ No hay CAI en cache para fallback");
           }
+        } catch (cacheErr) {
+          console.error("Error cargando CAI desde cache:", cacheErr);
         }
       }
     }
@@ -771,41 +769,37 @@ export default function PuntoDeVentaView({
         }
       } catch (err: any) {
         console.error("Error verificando apertura:", err);
+        console.log("🔍 DEBUG - Tipo de error:", typeof err);
+        console.log("🔍 DEBUG - err.message:", err?.message);
+        console.log("🔍 DEBUG - err.details:", err?.details);
+        console.log("🔍 DEBUG - isOnline:", isOnline);
         
-        // Si hay error de fetch (Failed to fetch o ERR_INTERNET_DISCONNECTED),
-        // SIEMPRE intentar desde cache independientemente de isOnline
-        const esErrorConexion = err?.message?.includes("Failed to fetch") || 
-                                err?.message?.includes("ERR_INTERNET_DISCONNECTED");
-        
-        if (esErrorConexion || !isOnline) {
-          console.log("🔄 Intentando recuperar apertura desde cache (fallback)...");
-          try {
-            const { start, end } = getLocalDayRange();
-            const aperturaCache = await obtenerAperturaCache();
-            
-            if (aperturaCache) {
-              console.log("✓ Apertura encontrada en cache:", aperturaCache);
-              // Verificar que sea del día actual
-              const fechaCache = aperturaCache.fecha;
-              console.log(
-                `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
-              );
-              if (fechaCache >= start && fechaCache <= end) {
-                console.log("✓ Apertura del día actual confirmada (fallback)");
-                setAperturaRegistrada(true);
-              } else {
-                console.log("⚠ Apertura en cache es de otro día");
-                setAperturaRegistrada(false);
-              }
+        // SIEMPRE intentar desde cache cuando hay error
+        console.log("🔄 Intentando recuperar apertura desde cache (fallback)...");
+        try {
+          const { start, end } = getLocalDayRange();
+          const aperturaCache = await obtenerAperturaCache();
+          
+          if (aperturaCache) {
+            console.log("✓ Apertura encontrada en cache:", aperturaCache);
+            // Verificar que sea del día actual
+            const fechaCache = aperturaCache.fecha;
+            console.log(
+              `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
+            );
+            if (fechaCache >= start && fechaCache <= end) {
+              console.log("✓ Apertura del día actual confirmada (fallback)");
+              setAperturaRegistrada(true);
             } else {
-              console.warn("⚠ No hay apertura en cache");
+              console.log("⚠ Apertura en cache es de otro día");
               setAperturaRegistrada(false);
             }
-          } catch (cacheErr) {
-            console.error("Error verificando cache:", cacheErr);
+          } else {
+            console.warn("⚠ No hay apertura en cache");
             setAperturaRegistrada(false);
           }
-        } else {
+        } catch (cacheErr) {
+          console.error("Error verificando cache:", cacheErr);
           setAperturaRegistrada(false);
         }
       } finally {
