@@ -5566,7 +5566,6 @@ export default function PuntoDeVentaView({
                                   }
                                 }}
                                 disabled={
-                                  p.__localPending ||
                                   pedidosProcessingId ===
                                     String(p.id || p.local_id || `row-${index}`)
                                 }
