@@ -14,8 +14,8 @@ import {
   obtenerEnviosPendientes,
   // obtenerContadorPendientes,
   sincronizarTodo,
-  // eliminarFacturaLocal,
-  // eliminarPagoLocal,
+  eliminarFacturaLocal,
+  eliminarPagoLocal,
   eliminarGastoLocal,
   eliminarEnvioLocal,
   actualizarCacheProductos,
@@ -5346,6 +5346,7 @@ export default function PuntoDeVentaView({
                                     String(p.id || p.local_id || `row-${index}`),
                                   );
                                   try {
+                                    // Preparar datos de productos
                                     const productos = (p.productos || []).map(
                                       (pp: any) => ({
                                         id: pp.id,
@@ -5355,6 +5356,8 @@ export default function PuntoDeVentaView({
                                         tipo: pp.tipo || "comida",
                                       }),
                                     );
+                                    
+                                    // Calcular subtotales e impuestos
                                     const subTotal = productos.reduce(
                                       (sum: number, item: any) => {
                                         if (item.tipo === "comida")
@@ -5391,9 +5394,12 @@ export default function PuntoDeVentaView({
                                             it.cantidad,
                                         0,
                                       );
+                                    
+                                    // Preparar objeto de venta
                                     const venta = {
                                       fecha_hora: formatToHondurasLocal(),
                                       cajero: usuarioActual?.nombre || "",
+                                      cajero_id: usuarioActual?.id || null,
                                       caja:
                                         p.caja || caiInfo?.caja_asignada || "",
                                       cai:
@@ -5408,10 +5414,8 @@ export default function PuntoDeVentaView({
                                       isv_18: isv18.toFixed(2),
                                       total: Number(p.total || 0).toFixed(2),
                                     };
-                                    const { error: errFact } = await supabase
-                                      .from("facturas")
-                                      .insert([venta]);
-                                    if (errFact) throw errFact;
+                                    
+                                    // Preparar objeto de pago
                                     const pago = {
                                       tipo: p.tipo_pago || "Efectivo",
                                       monto: Number(p.total || 0),
@@ -5419,6 +5423,9 @@ export default function PuntoDeVentaView({
                                       cambio: 0,
                                       referencia: null,
                                       tarjeta: null,
+                                      banco: null,
+                                      autorizador: null,
+                                      usd_monto: null,
                                       fecha_hora: formatToHondurasLocal(),
                                       factura: facturaActual,
                                       cajero: usuarioActual?.nombre || null,
@@ -5426,31 +5433,101 @@ export default function PuntoDeVentaView({
                                       cliente: p.cliente || null,
                                       factura_venta: facturaActual,
                                     };
-                                    const { error: errPago } = await supabase
-                                      .from("pagos")
-                                      .insert([pago]);
-                                    if (errPago) throw errPago;
+
+                                    // PASO 1: Guardar primero en IndexedDB (siempre)
+                                    console.log("💾 Guardando factura y pago en IndexedDB...");
+                                    const facturaIdLocal = await guardarFacturaLocal(venta);
+                                    const pagosIdsLocal = await guardarPagosLocal([pago]);
+                                    console.log(`✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`);
+                                    console.log(`✓ Pago guardado en IndexedDB (IDs: ${pagosIdsLocal})`);
+
+                                    // PASO 2: Si hay conexión, intentar guardar en Supabase
+                                    let guardadoEnSupabase = false;
+                                    if (isOnline && estaConectado()) {
+                                      try {
+                                        console.log("🌐 Intentando guardar en Supabase...");
+                                        
+                                        // Guardar factura en Supabase
+                                        const { error: errFact } = await supabase
+                                          .from("facturas")
+                                          .insert([venta]);
+                                        
+                                        if (errFact) {
+                                          console.error("Error guardando factura en Supabase:", errFact);
+                                          throw errFact;
+                                        }
+                                        
+                                        // Guardar pago en Supabase
+                                        const { error: errPago } = await supabase
+                                          .from("pagos")
+                                          .insert([pago]);
+                                        
+                                        if (errPago) {
+                                          console.error("Error guardando pago en Supabase:", errPago);
+                                          throw errPago;
+                                        }
+                                        
+                                        console.log("✓ Factura y pago guardados en Supabase exitosamente");
+                                        guardadoEnSupabase = true;
+
+                                        // PASO 3: Si se guardó en Supabase exitosamente, eliminar de IndexedDB
+                                        await eliminarFacturaLocal(facturaIdLocal);
+                                        await eliminarPagoLocal(pagosIdsLocal[0]);
+                                        console.log("✓ Factura y pago eliminados de IndexedDB (sincronizados)");
+                                      } catch (supabaseErr) {
+                                        console.error("Error al guardar en Supabase:", supabaseErr);
+                                        console.log("⚠ Fallo en Supabase. Datos mantenidos en IndexedDB para sincronización posterior");
+                                        guardadoEnSupabase = false;
+                                      }
+                                    } else {
+                                      console.log("⚠ Sin conexión. Datos guardados en IndexedDB para sincronización posterior");
+                                    }
+
+                                    // PASO 4: Eliminar el pedido de envío
+                                    if (p.id) {
+                                      try {
+                                        if (isOnline && estaConectado()) {
+                                          const { error: errDel } = await supabase
+                                            .from("pedidos_envio")
+                                            .delete()
+                                            .eq("id", p.id);
+                                          if (errDel) {
+                                            console.error("Error eliminando pedido de Supabase:", errDel);
+                                          }
+                                        }
+                                      } catch (delErr) {
+                                        console.error("Error al eliminar pedido:", delErr);
+                                      }
+                                    }
+
+                                    // PASO 5: Incrementar factura actual
                                     try {
                                       setFacturaActual((prev) =>
                                         prev && prev !== "Límite alcanzado"
                                           ? (parseInt(prev) + 1).toString()
                                           : prev,
                                       );
-                                    } catch {}
-                                    const { error: errDel } = await supabase
-                                      .from("pedidos_envio")
-                                      .delete()
-                                      .eq("id", p.id);
-                                    if (errDel) throw errDel;
+                                    } catch (err) {
+                                      console.error("Error incrementando factura:", err);
+                                    }
+
+                                    // PASO 6: Actualizar lista de pedidos local
                                     setPedidosList((prev) =>
                                       prev.filter((x) => x.id !== p.id),
                                     );
+
+                                    // Mostrar mensaje de éxito
+                                    const mensaje = guardadoEnSupabase 
+                                      ? "✓ Pedido procesado y guardado exitosamente"
+                                      : "✓ Pedido procesado. Se sincronizará cuando haya conexión";
+                                    alert(mensaje);
+                                    
                                   } catch (err) {
                                     console.error(
                                       "Error procesando entrega y cobro:",
                                       err,
                                     );
-                                    alert("Error procesando entrega y cobro");
+                                    alert("Error procesando entrega y cobro. Verifique los datos guardados.");
                                   } finally {
                                     setPedidosProcessingId(null);
                                   }
