@@ -782,7 +782,13 @@ export default function PuntoDeVentaView({
             console.log(
               `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
             );
-            if (fechaCache >= start && fechaCache <= end) {
+            
+            // Convertir a Date objects para comparación correcta
+            const fechaCacheDate = new Date(fechaCache);
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            
+            if (fechaCacheDate >= startDate && fechaCacheDate <= endDate) {
               console.log("✓ Apertura del día actual confirmada");
               setAperturaRegistrada(true);
             } else {
@@ -814,7 +820,13 @@ export default function PuntoDeVentaView({
             console.log(
               `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
             );
-            if (fechaCache >= start && fechaCache <= end) {
+            
+            // Convertir a Date objects para comparación correcta
+            const fechaCacheDate = new Date(fechaCache);
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            
+            if (fechaCacheDate >= startDate && fechaCacheDate <= endDate) {
               console.log("✓ Apertura del día actual confirmada (fallback)");
               setAperturaRegistrada(true);
             } else {
