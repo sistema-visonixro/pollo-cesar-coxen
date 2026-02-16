@@ -545,11 +545,17 @@ export default function PuntoDeVentaView({
       try {
         // Si hay conexión, obtener de Supabase
         if (isOnline) {
-          const { data: caiData } = await supabase
+          const { data: caiData, error: caiError } = await supabase
             .from("cai_facturas")
             .select("*")
             .eq("cajero_id", usuarioActual.id)
             .single();
+
+          // Si hay error de conexión, ir directo a cache
+          if (caiError) {
+            console.log("⚠ Error obteniendo CAI de Supabase:", caiError);
+            throw new Error(caiError.message || "Error de conexión");
+          }
 
           if (caiData) {
             setCaiInfo({
@@ -591,11 +597,19 @@ export default function PuntoDeVentaView({
 
             // Si no existe factura_actual, calcular desde las facturas (método antiguo)
             const caja = caiData.caja_asignada;
-            const { data: facturasData } = await supabase
+            const { data: facturasData, error: facturasError } = await supabase
               .from("facturas")
               .select("factura")
               .eq("cajero", usuarioActual.nombre)
               .eq("caja", caja);
+            
+            // Si hay error, usar rango_desde como fallback
+            if (facturasError) {
+              console.log("⚠ Error obteniendo facturas, usando rango_desde");
+              setFacturaActual(caiData.rango_desde);
+              return;
+            }
+            
             let maxFactura = rango_inicio - 1;
             if (facturasData && facturasData.length > 0) {
               for (const f of facturasData) {
@@ -700,11 +714,18 @@ export default function PuntoDeVentaView({
           // Obtener caja asignada
           let cajaAsignada = caiInfo?.caja_asignada;
           if (!cajaAsignada) {
-            const { data: caiData } = await supabase
+            const { data: caiData, error: caiError } = await supabase
               .from("cai_facturas")
               .select("caja_asignada")
               .eq("cajero_id", usuarioActual.id)
               .single();
+            
+            // Si hay error de conexión, ir directo a cache
+            if (caiError) {
+              console.log("⚠ Error obteniendo caja asignada:", caiError);
+              throw new Error(caiError.message || "Error de conexión");
+            }
+            
             cajaAsignada = caiData?.caja_asignada || "";
           }
           if (!cajaAsignada) {
@@ -714,7 +735,7 @@ export default function PuntoDeVentaView({
           }
 
           // Verificar si existe una apertura ACTIVA (estado='APERTURA') en el día
-          const { data: aperturasHoy } = await supabase
+          const { data: aperturasHoy, error: aperturasError } = await supabase
             .from("cierres")
             .select("id, estado, cajero_id, caja, fecha")
             .eq("cajero_id", usuarioActual.id)
@@ -722,6 +743,12 @@ export default function PuntoDeVentaView({
             .eq("estado", "APERTURA")
             .gte("fecha", start)
             .lte("fecha", end);
+          
+          // Si hay error de conexión, ir directo a cache
+          if (aperturasError) {
+            console.log("⚠ Error obteniendo aperturas:", aperturasError);
+            throw new Error(aperturasError.message || "Error de conexión");
+          }
 
           if (aperturasHoy && aperturasHoy.length > 0) {
             const apertura = aperturasHoy[0];
