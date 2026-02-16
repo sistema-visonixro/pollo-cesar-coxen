@@ -7,11 +7,14 @@ import { supabase } from "../supabaseClient";
 
 // Nombre de la base de datos
 const DB_NAME = "PuntoVentaOfflineDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incrementado para nuevas stores
 
 // Nombres de las tablas (stores)
 const FACTURAS_STORE = "facturas_pendientes";
 const PAGOS_STORE = "pagos_pendientes";
+const GASTOS_STORE = "gastos_pendientes";
+const ENVIOS_STORE = "envios_pendientes";
+const PRODUCTOS_STORE = "productos_cache"; // Cache de productos
 
 // Tipos
 export interface FacturaPendiente {
@@ -51,6 +54,50 @@ export interface PagoPendiente {
   cambio: number;
   timestamp: number;
   intentos: number;
+}
+
+export interface GastoPendiente {
+  id?: number;
+  tipo: string;
+  monto: number;
+  descripcion: string;
+  cajero: string;
+  cajero_id: string | null;
+  caja: string;
+  fecha_hora: string;
+  timestamp: number;
+  intentos: number;
+}
+
+export interface EnvioPendiente {
+  id?: number;
+  cliente: string;
+  telefono: string;
+  direccion: string;
+  productos: any[];
+  total: number;
+  costo_envio: number;
+  tipo_pago: string;
+  cajero: string;
+  cajero_id: string | null;
+  caja: string;
+  factura_venta: string | null;
+  fecha_hora: string;
+  timestamp: number;
+  intentos: number;
+}
+
+export interface ProductoCache {
+  id: string;
+  nombre: string;
+  precio: number;
+  tipo: string;
+  complementos?: string;
+  piezas?: string;
+  subcategoria?: string;
+  imagen_url?: string;
+  activo: boolean;
+  timestamp: number;
 }
 
 // Variable global para la conexión DB
@@ -101,6 +148,36 @@ export async function initIndexedDB(): Promise<IDBDatabase> {
           unique: false,
         });
         console.log("Store de pagos creado");
+      }
+
+      // Crear store para gastos pendientes
+      if (!database.objectStoreNames.contains(GASTOS_STORE)) {
+        const gastosStore = database.createObjectStore(GASTOS_STORE, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        gastosStore.createIndex("timestamp", "timestamp", { unique: false });
+        console.log("Store de gastos creado");
+      }
+
+      // Crear store para envíos pendientes
+      if (!database.objectStoreNames.contains(ENVIOS_STORE)) {
+        const enviosStore = database.createObjectStore(ENVIOS_STORE, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+        enviosStore.createIndex("timestamp", "timestamp", { unique: false });
+        console.log("Store de envíos creado");
+      }
+
+      // Crear store para cache de productos
+      if (!database.objectStoreNames.contains(PRODUCTOS_STORE)) {
+        const productosStore = database.createObjectStore(PRODUCTOS_STORE, {
+          keyPath: "id",
+        });
+        productosStore.createIndex("tipo", "tipo", { unique: false });
+        productosStore.createIndex("activo", "activo", { unique: false });
+        console.log("Store de productos cache creado");
       }
     };
   });
@@ -434,22 +511,330 @@ export async function sincronizarPagos(): Promise<{
 }
 
 /**
- * Sincroniza todos los datos pendientes (facturas y pagos)
+ * Guarda un gasto en IndexedDB
+ */
+export async function guardarGastoLocal(
+  gasto: Omit<GastoPendiente, "id" | "timestamp" | "intentos">
+): Promise<number> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([GASTOS_STORE], "readwrite");
+    const store = transaction.objectStore(GASTOS_STORE);
+
+    const gastoConMetadata: Omit<GastoPendiente, "id"> = {
+      ...gasto,
+      timestamp: Date.now(),
+      intentos: 0,
+    };
+
+    const request = store.add(gastoConMetadata);
+
+    request.onsuccess = () => {
+      console.log("Gasto guardado en IndexedDB:", request.result);
+      resolve(request.result as number);
+    };
+
+    request.onerror = () => {
+      console.error("Error guardando gasto en IndexedDB:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Obtiene todos los gastos pendientes
+ */
+export async function obtenerGastosPendientes(): Promise<GastoPendiente[]> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([GASTOS_STORE], "readonly");
+    const store = transaction.objectStore(GASTOS_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result as GastoPendiente[]);
+    };
+
+    request.onerror = () => {
+      console.error("Error obteniendo gastos pendientes:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Elimina un gasto de IndexedDB
+ */
+export async function eliminarGastoLocal(id: number): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([GASTOS_STORE], "readwrite");
+    const store = transaction.objectStore(GASTOS_STORE);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      console.log(`Gasto ${id} eliminado de IndexedDB`);
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error("Error eliminando gasto de IndexedDB:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Incrementa el contador de intentos de un gasto
+ */
+async function incrementarIntentosGasto(id: number): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([GASTOS_STORE], "readwrite");
+    const store = transaction.objectStore(GASTOS_STORE);
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const gasto = getRequest.result as GastoPendiente;
+      if (gasto) {
+        gasto.intentos = (gasto.intentos || 0) + 1;
+        const updateRequest = store.put(gasto);
+
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+/**
+ * Sincroniza los gastos pendientes con Supabase
+ */
+export async function sincronizarGastos(): Promise<{
+  exitosos: number;
+  fallidos: number;
+}> {
+  const gastosPendientes = await obtenerGastosPendientes();
+
+  if (gastosPendientes.length === 0) {
+    return { exitosos: 0, fallidos: 0 };
+  }
+
+  console.log(`Sincronizando ${gastosPendientes.length} gastos pendientes...`);
+
+  let exitosos = 0;
+  let fallidos = 0;
+
+  for (const gasto of gastosPendientes) {
+    try {
+      const { id, timestamp, intentos, ...gastoData } = gasto;
+
+      const { error } = await supabase.from("gastos").insert([gastoData]);
+
+      if (error) {
+        console.error(`Error sincronizando gasto ${id}:`, error);
+        await incrementarIntentosGasto(gasto.id!);
+        fallidos++;
+
+        if (intentos >= 5) {
+          console.error(`Gasto ${id} ha fallado ${intentos} veces`);
+        }
+      } else {
+        console.log(`Gasto ${id} sincronizado exitosamente`);
+        await eliminarGastoLocal(gasto.id!);
+        exitosos++;
+      }
+    } catch (error) {
+      console.error(`Error sincronizando gasto ${gasto.id}:`, error);
+      await incrementarIntentosGasto(gasto.id!);
+      fallidos++;
+    }
+  }
+
+  return { exitosos, fallidos };
+}
+
+/**
+ * Guarda un envío en IndexedDB
+ */
+export async function guardarEnvioLocal(
+  envio: Omit<EnvioPendiente, "id" | "timestamp" | "intentos">
+): Promise<number> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([ENVIOS_STORE], "readwrite");
+    const store = transaction.objectStore(ENVIOS_STORE);
+
+    const envioConMetadata: Omit<EnvioPendiente, "id"> = {
+      ...envio,
+      timestamp: Date.now(),
+      intentos: 0,
+    };
+
+    const request = store.add(envioConMetadata);
+
+    request.onsuccess = () => {
+      console.log("Envío guardado en IndexedDB:", request.result);
+      resolve(request.result as number);
+    };
+
+    request.onerror = () => {
+      console.error("Error guardando envío en IndexedDB:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Obtiene todos los envíos pendientes
+ */
+export async function obtenerEnviosPendientes(): Promise<EnvioPendiente[]> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([ENVIOS_STORE], "readonly");
+    const store = transaction.objectStore(ENVIOS_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result as EnvioPendiente[]);
+    };
+
+    request.onerror = () => {
+      console.error("Error obteniendo envíos pendientes:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Elimina un envío de IndexedDB
+ */
+export async function eliminarEnvioLocal(id: number): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([ENVIOS_STORE], "readwrite");
+    const store = transaction.objectStore(ENVIOS_STORE);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      console.log(`Envío ${id} eliminado de IndexedDB`);
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error("Error eliminando envío de IndexedDB:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Incrementa el contador de intentos de un envío
+ */
+async function incrementarIntentosEnvio(id: number): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([ENVIOS_STORE], "readwrite");
+    const store = transaction.objectStore(ENVIOS_STORE);
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const envio = getRequest.result as EnvioPendiente;
+      if (envio) {
+        envio.intentos = (envio.intentos || 0) + 1;
+        const updateRequest = store.put(envio);
+
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      } else {
+        resolve();
+      }
+    };
+
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+/**
+ * Sincroniza los envíos pendientes con Supabase
+ */
+export async function sincronizarEnvios(): Promise<{
+  exitosos: number;
+  fallidos: number;
+}> {
+  const enviosPendientes = await obtenerEnviosPendientes();
+
+  if (enviosPendientes.length === 0) {
+    return { exitosos: 0, fallidos: 0 };
+  }
+
+  console.log(`Sincronizando ${enviosPendientes.length} envíos pendientes...`);
+
+  let exitosos = 0;
+  let fallidos = 0;
+
+  for (const envio of enviosPendientes) {
+    try {
+      const { id, timestamp, intentos, ...envioData } = envio;
+
+      const { error } = await supabase.from("pedidos_envio").insert([envioData]);
+
+      if (error) {
+        console.error(`Error sincronizando envío ${id}:`, error);
+        await incrementarIntentosEnvio(envio.id!);
+        fallidos++;
+
+        if (intentos >= 5) {
+          console.error(`Envío ${id} ha fallado ${intentos} veces`);
+        }
+      } else {
+        console.log(`Envío ${id} sincronizado exitosamente`);
+        await eliminarEnvioLocal(envio.id!);
+        exitosos++;
+      }
+    } catch (error) {
+      console.error(`Error sincronizando envío ${envio.id}:`, error);
+      await incrementarIntentosEnvio(envio.id!);
+      fallidos++;
+    }
+  }
+
+  return { exitosos, fallidos };
+}
+
+/**
+ * Sincroniza todos los datos pendientes (facturas, pagos, gastos y envíos)
  */
 export async function sincronizarTodo(): Promise<{
   facturas: { exitosas: number; fallidas: number };
   pagos: { exitosos: number; fallidos: number };
+  gastos: { exitosos: number; fallidos: number };
+  envios: { exitosos: number; fallidos: number };
 }> {
   console.log("Iniciando sincronización completa...");
 
   const facturas = await sincronizarFacturas();
   const pagos = await sincronizarPagos();
+  const gastos = await sincronizarGastos();
+  const envios = await sincronizarEnvios();
 
   console.log(
-    `Sincronización completa: ${facturas.exitosas} facturas y ${pagos.exitosos} pagos sincronizados`
+    `Sincronización completa: ${facturas.exitosas} facturas, ${pagos.exitosos} pagos, ${gastos.exitosos} gastos y ${envios.exitosos} envíos sincronizados`
   );
 
-  return { facturas, pagos };
+  return { facturas, pagos, gastos, envios };
 }
 
 /**
@@ -458,13 +843,19 @@ export async function sincronizarTodo(): Promise<{
 export async function obtenerContadorPendientes(): Promise<{
   facturas: number;
   pagos: number;
+  gastos: number;
+  envios: number;
 }> {
   const facturas = await obtenerFacturasPendientes();
   const pagos = await obtenerPagosPendientes();
+  const gastos = await obtenerGastosPendientes();
+  const envios = await obtenerEnviosPendientes();
 
   return {
     facturas: facturas.length,
     pagos: pagos.length,
+    gastos: gastos.length,
+    envios: envios.length,
   };
 }
 
@@ -476,7 +867,8 @@ export function configurarSincronizacionAutomatica(): void {
   setInterval(async () => {
     if (navigator.onLine) {
       const pendientes = await obtenerContadorPendientes();
-      if (pendientes.facturas > 0 || pendientes.pagos > 0) {
+      const total = pendientes.facturas + pendientes.pagos + pendientes.gastos + pendientes.envios;
+      if (total > 0) {
         console.log("Sincronización automática iniciada...");
         await sincronizarTodo();
       }
@@ -489,11 +881,14 @@ export function configurarSincronizacionAutomatica(): void {
     const resultado = await sincronizarTodo();
     
     const totalSincronizados =
-      resultado.facturas.exitosas + resultado.pagos.exitosos;
+      resultado.facturas.exitosas + 
+      resultado.pagos.exitosos + 
+      resultado.gastos.exitosos + 
+      resultado.envios.exitosos;
     
     if (totalSincronizados > 0) {
       console.log(
-        `✓ ${resultado.facturas.exitosas} facturas y ${resultado.pagos.exitosos} pagos sincronizados exitosamente`
+        `✓ ${resultado.facturas.exitosas} facturas, ${resultado.pagos.exitosos} pagos, ${resultado.gastos.exitosos} gastos y ${resultado.envios.exitosos} envíos sincronizados exitosamente`
       );
     }
   });
@@ -507,6 +902,149 @@ export function configurarSincronizacionAutomatica(): void {
 }
 
 /**
+ * Guarda productos en cache para uso offline
+ */
+export async function guardarProductosCache(productos: any[]): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([PRODUCTOS_STORE], "readwrite");
+    const store = transaction.objectStore(PRODUCTOS_STORE);
+
+    // Limpiar cache anterior
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      let completados = 0;
+      const total = productos.length;
+
+      if (total === 0) {
+        resolve();
+        return;
+      }
+
+      productos.forEach((producto) => {
+        const productoCache: ProductoCache = {
+          ...producto,
+          timestamp: Date.now(),
+        };
+
+        const addRequest = store.add(productoCache);
+
+        addRequest.onsuccess = () => {
+          completados++;
+          if (completados === total) {
+            console.log(`${total} productos guardados en cache`);
+            resolve();
+          }
+        };
+
+        addRequest.onerror = () => {
+          console.error("Error guardando producto en cache:", addRequest.error);
+          reject(addRequest.error);
+        };
+      });
+    };
+
+    clearRequest.onerror = () => {
+      console.error("Error limpiando cache de productos:", clearRequest.error);
+      reject(clearRequest.error);
+    };
+  });
+}
+
+/**
+ * Obtiene productos desde el cache
+ */
+export async function obtenerProductosCache(): Promise<ProductoCache[]> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([PRODUCTOS_STORE], "readonly");
+    const store = transaction.objectStore(PRODUCTOS_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result as ProductoCache[]);
+    };
+
+    request.onerror = () => {
+      console.error("Error obteniendo productos desde cache:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Verifica si hay productos en cache
+ */
+export async function hayProductosEnCache(): Promise<boolean> {
+  try {
+    const productos = await obtenerProductosCache();
+    return productos.length > 0;
+  } catch (error) {
+    console.error("Error verificando cache de productos:", error);
+    return false;
+  }
+}
+
+/**
+ * Verifica si la aplicación está conectada a internet
+ */
+export function estaConectado(): boolean {
+  return navigator.onLine;
+}
+
+/**
+ * Actualiza el cache de productos desde Supabase
+ */
+export async function actualizarCacheProductos(): Promise<{
+  exitoso: boolean;
+  mensaje: string;
+  cantidad: number;
+}> {
+  if (!estaConectado()) {
+    return {
+      exitoso: false,
+      mensaje: "No hay conexión a internet",
+      cantidad: 0,
+    };
+  }
+
+  try {
+    const { data: productos, error } = await supabase
+      .from("productos")
+      .select("*")
+      .eq("activo", true)
+      .order("nombre");
+
+    if (error) {
+      console.error("Error cargando productos desde Supabase:", error);
+      return {
+        exitoso: false,
+        mensaje: "Error al cargar productos",
+        cantidad: 0,
+      };
+    }
+
+    await guardarProductosCache(productos || []);
+
+    return {
+      exitoso: true,
+      mensaje: `${productos?.length || 0} productos actualizados`,
+      cantidad: productos?.length || 0,
+    };
+  } catch (error) {
+    console.error("Error actualizando cache de productos:", error);
+    return {
+      exitoso: false,
+      mensaje: "Error al actualizar cache",
+      cantidad: 0,
+    };
+  }
+}
+
+/**
  * Inicializa el sistema completo de sincronización offline
  */
 export async function inicializarSistemaOffline(): Promise<void> {
@@ -517,11 +1055,32 @@ export async function inicializarSistemaOffline(): Promise<void> {
     // Intentar sincronizar datos pendientes al iniciar
     if (navigator.onLine) {
       const pendientes = await obtenerContadorPendientes();
-      if (pendientes.facturas > 0 || pendientes.pagos > 0) {
+      const total = pendientes.facturas + pendientes.pagos + pendientes.gastos + pendientes.envios;
+      
+      if (total > 0) {
         console.log(
-          `Hay ${pendientes.facturas} facturas y ${pendientes.pagos} pagos pendientes de sincronización`
+          `Hay ${pendientes.facturas} facturas, ${pendientes.pagos} pagos, ${pendientes.gastos} gastos y ${pendientes.envios} envíos pendientes de sincronización`
         );
         await sincronizarTodo();
+      }
+
+      // Cargar productos en cache si no hay ninguno o actualizar
+      const hayCache = await hayProductosEnCache();
+      if (!hayCache) {
+        console.log("Cargando productos en cache por primera vez...");
+        const resultado = await actualizarCacheProductos();
+        if (resultado.exitoso) {
+          console.log(`✓ ${resultado.cantidad} productos cargados en cache`);
+        }
+      }
+    } else {
+      console.warn("⚠ Sin conexión. Verificando cache de productos...");
+      const hayCache = await hayProductosEnCache();
+      if (!hayCache) {
+        console.error("❌ No hay productos en cache y no hay conexión a internet");
+      } else {
+        const productos = await obtenerProductosCache();
+        console.log(`✓ ${productos.length} productos disponibles en cache`);
       }
     }
     

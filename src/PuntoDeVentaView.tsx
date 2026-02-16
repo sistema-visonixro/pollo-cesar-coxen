@@ -9,12 +9,20 @@ import {
   inicializarSistemaOffline,
   guardarFacturaLocal,
   guardarPagosLocal,
+  guardarGastoLocal,
+  guardarEnvioLocal,
   obtenerContadorPendientes,
   sincronizarTodo,
   eliminarFacturaLocal,
   eliminarPagoLocal,
+  eliminarGastoLocal,
+  eliminarEnvioLocal,
+  actualizarCacheProductos,
+  obtenerProductosCache,
+  estaConectado,
 } from "./utils/offlineSync";
 import { migrarPagosDesdeLocalStorage } from "./utils/migrarLocalStorage";
+import { useConexion } from "./utils/useConexion";
 
 interface Producto {
   id: string;
@@ -295,10 +303,12 @@ export default function PuntoDeVentaView({
   const [showCerrarSesionModal, setShowCerrarSesionModal] = useState(false);
 
   // Estado para sincronización offline
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { conectado: isOnline } = useConexion();
   const [pendientesCount, setPendientesCount] = useState({
     facturas: 0,
     pagos: 0,
+    gastos: 0,
+    envios: 0,
   });
   const [sincronizando, setSincronizando] = useState(false);
 
@@ -383,27 +393,41 @@ export default function PuntoDeVentaView({
       setPendientesCount(count);
     }, 10000);
 
-    // Listener para cambios en el estado de conexión
-    const handleOnline = () => {
-      setIsOnline(true);
-      console.log("✓ Conexión restaurada");
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      console.log("⚠ Sin conexión a internet");
-    };
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
     // Obtener contador inicial
     obtenerContadorPendientes().then(setPendientesCount);
 
+    // Listener para Ctrl+0 para actualizar cache de productos
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '0') {
+        e.preventDefault();
+        console.log("Actualizando cache de productos...");
+        
+        if (!estaConectado()) {
+          alert("⚠ No hay conexión a internet. No se puede actualizar el cache de productos.");
+          return;
+        }
+
+        try {
+          const resultado = await actualizarCacheProductos();
+          if (resultado.exitoso) {
+            alert(`✓ Cache actualizado: ${resultado.cantidad} productos`);
+            // Recargar productos en la interfaz
+            await cargarProductos();
+          } else {
+            alert(`❌ Error al actualizar cache: ${resultado.mensaje}`);
+          }
+        } catch (error) {
+          console.error("Error actualizando cache:", error);
+          alert("❌ Error al actualizar cache de productos");
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
     return () => {
       clearInterval(interval);
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
@@ -417,11 +441,19 @@ export default function PuntoDeVentaView({
     setSincronizando(true);
     try {
       const resultado = await sincronizarTodo();
-      const total = resultado.facturas.exitosas + resultado.pagos.exitosos;
+      const total = 
+        resultado.facturas.exitosas + 
+        resultado.pagos.exitosos + 
+        resultado.gastos.exitosos + 
+        resultado.envios.exitosos;
 
       if (total > 0) {
         alert(
-          `✓ Sincronización exitosa:\n${resultado.facturas.exitosas} facturas\n${resultado.pagos.exitosos} pagos`,
+          `✓ Sincronización exitosa:\n` +
+          `${resultado.facturas.exitosas} facturas\n` +
+          `${resultado.pagos.exitosos} pagos\n` +
+          `${resultado.gastos.exitosos} gastos\n` +
+          `${resultado.envios.exitosos} envíos`
         );
       } else {
         alert("No hay registros pendientes por sincronizar");
@@ -674,20 +706,37 @@ export default function PuntoDeVentaView({
 
   // Los modales se deben renderizar dentro del return principal
 
+  // Función para cargar productos (desde Supabase o cache)
+  const cargarProductos = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.from("productos").select("*");
+      if (error) throw error;
+      setProductos(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("Error al cargar productos desde Supabase:", err);
+      // Intentar cargar desde cache si falla
+      try {
+        const productosCache = await obtenerProductosCache();
+        if (productosCache.length > 0) {
+          console.log(`✓ ${productosCache.length} productos cargados desde cache`);
+          setProductos(productosCache as any);
+          setError("");
+        } else {
+          setError("Error al cargar productos");
+        }
+      } catch (cacheErr) {
+        console.error("Error al cargar productos desde cache:", cacheErr);
+        setError("Error al cargar productos");
+      }
+      setLoading(false);
+    }
+  };
+
   // Fetch products from Supabase
   useEffect(() => {
-    const fetchProductos = async () => {
-      try {
-        const { data, error } = await supabase.from("productos").select("*");
-        if (error) throw error;
-        setProductos(data);
-        setLoading(false);
-      } catch (err) {
-        setError("Error al cargar productos");
-        setLoading(false);
-      }
-    };
-    fetchProductos();
+    cargarProductos();
   }, []);
 
   // Bloquear scroll global al montar
@@ -786,27 +835,54 @@ export default function PuntoDeVentaView({
       // Obtener timestamp actual en formato ISO para fecha_hora
       const fechaHora = formatToHondurasLocal(new Date());
 
-      const { error } = await supabase.from("gastos").insert([
-        {
-          fecha,
-          fecha_hora: fechaHora,
-          monto: montoNum,
-          motivo: motivoCompleto,
-          cajero_id: usuarioActual?.id,
-          caja: cajaAsignada,
-        },
-      ]);
-      if (error) {
-        console.error("Error guardando gasto:", error);
-        alert("Error al guardar gasto. Revisa la consola.");
-      } else {
-        // éxito: cerrar y resetear modal de formulario y mostrar modal de éxito
-        cerrarRegistrarGasto();
-        setGastoSuccessMessage("Gasto registrado correctamente");
-        setShowGastoSuccess(true);
-        // opcional: navegar a la vista de gastos si se desea
-        // if (setView) setView("gastos");
+      const gastoData = {
+        tipo: motivoCompleto, // Guardar en 'tipo' para compatibilidad
+        monto: montoNum,
+        descripcion: motivoCompleto, // También en descripción
+        cajero: usuarioActual?.nombre || "",
+        cajero_id: usuarioActual?.id || null,
+        caja: cajaAsignada || "",
+        fecha_hora: fechaHora,
+      };
+
+      // PASO 1: Guardar primero en IndexedDB
+      const gastoIdLocal = await guardarGastoLocal(gastoData);
+      console.log(`✓ Gasto guardado en IndexedDB (ID: ${gastoIdLocal})`);
+
+      // PASO 2: Intentar guardar en Supabase
+      try {
+        const { error } = await supabase.from("gastos").insert([
+          {
+            fecha,
+            fecha_hora: fechaHora,
+            monto: montoNum,
+            motivo: motivoCompleto,
+            cajero_id: usuarioActual?.id,
+            caja: cajaAsignada,
+          },
+        ]);
+
+        if (error) {
+          console.error("Error guardando gasto en Supabase:", error);
+          console.log("⚠ Gasto guardado localmente, se sincronizará después");
+        } else {
+          // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
+          await eliminarGastoLocal(gastoIdLocal);
+          console.log("✓ Gasto sincronizado y eliminado de IndexedDB");
+        }
+      } catch (supabaseErr) {
+        console.error("Error de conexión con Supabase:", supabaseErr);
+        console.log("⚠ Gasto guardado localmente, se sincronizará cuando haya conexión");
       }
+
+      // Actualizar contador de pendientes
+      const count = await obtenerContadorPendientes();
+      setPendientesCount(count);
+
+      // éxito: cerrar y resetear modal de formulario y mostrar modal de éxito
+      cerrarRegistrarGasto();
+      setGastoSuccessMessage("Gasto registrado correctamente");
+      setShowGastoSuccess(true);
     } catch (err) {
       console.error("Error guardando gasto:", err);
       alert("Error al guardar gasto. Revisa la consola.");
@@ -1241,14 +1317,25 @@ export default function PuntoDeVentaView({
               fontSize: 12,
               padding: "6px 12px",
               borderRadius: 6,
-              background: "#1976d2",
+              background: isOnline ? "#1976d2" : "#9e9e9e",
               color: "#fff",
               fontWeight: 600,
               border: "none",
-              cursor: "pointer",
+              cursor: isOnline ? "pointer" : "not-allowed",
+              opacity: isOnline ? 1 : 0.6,
             }}
-            onClick={() => fetchResumenCaja()}
-            title="Ver resumen de caja del día"
+            onClick={() => {
+              if (!isOnline) {
+                setShowNoConnectionModal(true);
+                return;
+              }
+              fetchResumenCaja();
+            }}
+            title={
+              isOnline
+                ? "Ver resumen de caja del día"
+                : "Requiere conexión a internet"
+            }
           >
             📊 Resumen
           </button>
@@ -1400,18 +1487,29 @@ export default function PuntoDeVentaView({
               />
               <button
                 style={{
-                  background: "#fbc02d",
-                  color: "#333",
+                  background: isOnline ? "#fbc02d" : "#9e9e9e",
+                  color: isOnline ? "#333" : "#666",
                   border: "none",
                   borderRadius: 6,
                   padding: "6px 12px",
                   fontWeight: 700,
                   fontSize: 12,
-                  cursor: "pointer",
-                  boxShadow: "0 2px 8px #fbc02d44",
+                  cursor: isOnline ? "pointer" : "not-allowed",
+                  boxShadow: isOnline ? "0 2px 8px #fbc02d44" : "none",
+                  opacity: isOnline ? 1 : 0.6,
                 }}
-                onClick={() => setShowCierre(true)}
-                title="Registrar cierre de caja"
+                onClick={() => {
+                  if (!isOnline) {
+                    setShowNoConnectionModal(true);
+                    return;
+                  }
+                  setShowCierre(true);
+                }}
+                title={
+                  isOnline
+                    ? "Registrar cierre de caja"
+                    : "Requiere conexión a internet"
+                }
               >
                 🚪 Cierre de Caja
               </button>
@@ -3872,29 +3970,51 @@ export default function PuntoDeVentaView({
                         const registro = {
                           productos,
                           cajero_id: usuarioActual?.id,
-                          caja: cajaAsignada,
-                          fecha: formatToHondurasLocal(),
+                          cajero: usuarioActual?.nombre || "",
+                          caja: cajaAsignada || "",
+                          fecha_hora: formatToHondurasLocal(),
                           cliente: envioCliente,
-                          celular: envioCelular,
+                          telefono: envioCelular,
+                          direccion: "", // No se captura dirección en este formulario
                           total: Number(total.toFixed(2)),
                           costo_envio: parseFloat(envioCosto || "0"),
                           tipo_pago: envioTipoPago,
+                          factura_venta: facturaActual || null,
                         };
-                        const { error } = await supabase
-                          .from("pedidos_envio")
-                          .insert([registro]);
-                        if (error) {
-                          console.error(
-                            "Error insertando pedido de envío:",
-                            error,
-                          );
-                          alert("Error al guardar pedido de envío");
-                        } else {
-                          setLastEnvioSaved(registro);
-                          setShowEnvioModal(false);
-                          // Imprimir usando la misma plantilla que recibo/comanda (intentar QZ Tray primero)
-                          try {
-                            const { data: etiquetaConfig } = await supabase
+
+                        // PASO 1: Guardar primero en IndexedDB
+                        const envioIdLocal = await guardarEnvioLocal(registro);
+                        console.log(`✓ Envío guardado en IndexedDB (ID: ${envioIdLocal})`);
+
+                        // PASO 2: Intentar guardar en Supabase
+                        try {
+                          const { error } = await supabase
+                            .from("pedidos_envio")
+                            .insert([registro]);
+
+                          if (error) {
+                            console.error("Error insertando pedido de envío en Supabase:", error);
+                            console.log("⚠ Envío guardado localmente, se sincronizará después");
+                          } else {
+                            // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
+                            await eliminarEnvioLocal(envioIdLocal);
+                            console.log("✓ Envío sincronizado y eliminado de IndexedDB");
+                          }
+                        } catch (supabaseErr) {
+                          console.error("Error de conexión con Supabase:", supabaseErr);
+                          console.log("⚠ Envío guardado localmente, se sincronizará cuando haya conexión");
+                        }
+
+                        // Actualizar contador de pendientes
+                        const count = await obtenerContadorPendientes();
+                        setPendientesCount(count);
+
+                        setLastEnvioSaved(registro);
+                        setShowEnvioModal(false);
+
+                        // Imprimir usando la misma plantilla que recibo/comanda (intentar QZ Tray primero)
+                        try {
+                          const { data: etiquetaConfig } = await supabase
                               .from("etiquetas_config")
                               .select("*")
                               .eq("nombre", "default")
@@ -3917,6 +4037,7 @@ export default function PuntoDeVentaView({
                             etiquetaConfig?.etiqueta_comanda || "COMANDA COCINA"
                           }</div>
                           <div style='font-size:28px; font-weight:900; color:#000; text-align:center; margin:16px 0;'>${tipoOrden}</div>
+                          <div style='font-size:20px; font-weight:800; color:#d32f2f; text-align:center; margin:8px 0;'>PEDIDO POR TELÉFONO</div>
                           <div style='font-size:20px; font-weight:800; color:#000; text-align:center; margin-bottom:12px;'>Cliente: <b>${
                             registro.cliente
                           }</b></div>
@@ -4076,7 +4197,7 @@ export default function PuntoDeVentaView({
                             facturaActual || ""
                           }</div>
                           <div style='font-size:14px; margin-bottom:3px;'>Celular: ${
-                            registro.celular || "N/A"
+                            registro.telefono || "N/A"
                           }</div>
                           <div style='font-size:14px; margin-bottom:10px;'>Fecha: ${new Date().toLocaleString(
                             "es-HN",
@@ -4227,15 +4348,14 @@ export default function PuntoDeVentaView({
                                 };
                               }
                             }
-                          } catch (err) {
-                            console.error(
-                              "Error durante impresión de envío:",
-                              err,
-                            );
-                          }
-                          // limpiar seleccionados
-                          limpiarSeleccion();
+                        } catch (err) {
+                          console.error(
+                            "Error durante impresión de envío:",
+                            err,
+                          );
                         }
+                        // limpiar seleccionados
+                        limpiarSeleccion();
                       } catch (e) {
                         console.error(e);
                         alert("Error al guardar pedido de envío");
@@ -4387,7 +4507,7 @@ export default function PuntoDeVentaView({
             left: 0,
             width: "100vw",
             height: "100vh",
-            background: "rgba(0,0,0,0.25)",
+            background: "rgba(0,0,0,0.5)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -4398,35 +4518,81 @@ export default function PuntoDeVentaView({
           <div
             style={{
               background: theme === "lite" ? "#fff" : "#232526",
+              color: theme === "lite" ? "#333" : "#fff",
               borderRadius: 12,
-              padding: 24,
-              minWidth: 320,
-              boxShadow: "0 8px 32px #0003",
+              padding: 32,
+              minWidth: 400,
+              maxWidth: 500,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.3)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ marginTop: 0, color: "#d32f2f" }}>Sin conexión</h3>
-            <p>No hay conexión. Revisa tu red e intenta de nuevo.</p>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
+              <h3 style={{ 
+                marginTop: 0, 
+                marginBottom: 12,
+                color: "#f57c00",
+                fontSize: 22,
+                fontWeight: 700
+              }}>
+                Sin Conexión a Internet
+              </h3>
+            </div>
+            <p style={{ 
+              fontSize: 16, 
+              lineHeight: 1.6,
+              marginBottom: 16,
+              textAlign: "center"
+            }}>
+              <strong>El Resumen de Caja</strong> y el <strong>Cierre de Caja</strong> requieren conexión a internet para acceder a los datos del servidor.
+            </p>
+            <div style={{
+              background: theme === "lite" ? "#f5f5f5" : "#1a1a1a",
+              padding: 16,
+              borderRadius: 8,
+              marginBottom: 20,
+              fontSize: 14,
+              lineHeight: 1.5
+            }}>
+              <strong>Operaciones disponibles sin conexión:</strong>
+              <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                <li>Facturación de productos ✓</li>
+                <li>Registro de gastos ✓</li>
+                <li>Pedidos por teléfono ✓</li>
+                <li>Impresión de recibos y comandas ✓</li>
+              </ul>
+            </div>
+            <p style={{ 
+              fontSize: 14, 
+              textAlign: "center",
+              color: theme === "lite" ? "#666" : "#aaa",
+              marginBottom: 20
+            }}>
+              Verifica tu conexión a internet e intenta nuevamente.
+            </p>
             <div
               style={{
                 display: "flex",
                 justifyContent: "center",
-                marginTop: 12,
+                gap: 12,
               }}
             >
               <button
                 onClick={() => setShowNoConnectionModal(false)}
                 style={{
-                  padding: "8px 18px",
+                  padding: "12px 32px",
                   borderRadius: 8,
                   border: "none",
                   background: "#1976d2",
                   color: "#fff",
                   fontWeight: 700,
+                  fontSize: 15,
                   cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(25,118,210,0.3)",
                 }}
               >
-                Cerrar
+                Entendido
               </button>
             </div>
           </div>
@@ -5522,7 +5688,10 @@ export default function PuntoDeVentaView({
         </div>
 
         {/* Indicador de registros pendientes */}
-        {(pendientesCount.facturas > 0 || pendientesCount.pagos > 0) && (
+        {(pendientesCount.facturas > 0 || 
+          pendientesCount.pagos > 0 || 
+          pendientesCount.gastos > 0 || 
+          pendientesCount.envios > 0) && (
           <div
             style={{
               display: "flex",
@@ -5536,6 +5705,7 @@ export default function PuntoDeVentaView({
               color: "#fff",
               boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
               cursor: "pointer",
+              maxWidth: 200,
             }}
             onClick={sincronizarManualmente}
             title="Click para sincronizar manualmente"
@@ -5546,6 +5716,12 @@ export default function PuntoDeVentaView({
             )}
             {pendientesCount.pagos > 0 && (
               <div>💳 {pendientesCount.pagos} pago(s)</div>
+            )}
+            {pendientesCount.gastos > 0 && (
+              <div>💰 {pendientesCount.gastos} gasto(s)</div>
+            )}
+            {pendientesCount.envios > 0 && (
+              <div>📦 {pendientesCount.envios} envío(s)</div>
             )}
             {sincronizando && <div>🔄 Sincronizando...</div>}
           </div>
