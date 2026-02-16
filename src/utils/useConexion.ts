@@ -2,11 +2,12 @@
  * Hook personalizado para detectar el estado de conexión a internet
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export function useConexion() {
   const [conectado, setConectado] = useState<boolean>(navigator.onLine);
-  const [intentandoReconectar, setIntentandoReconectar] = useState<boolean>(false);
+  const [intentandoReconectar, setIntentandoReconectar] =
+    useState<boolean>(false);
 
   useEffect(() => {
     function manejarOnline() {
@@ -19,7 +20,7 @@ export function useConexion() {
       console.warn("⚠ Conexión perdida");
       setConectado(false);
       setIntentandoReconectar(true);
-      
+
       // Intentar verificar conexión cada 5 segundos
       const intervalo = setInterval(() => {
         if (navigator.onLine) {
@@ -29,15 +30,15 @@ export function useConexion() {
       }, 5000);
     }
 
-    window.addEventListener('online', manejarOnline);
-    window.addEventListener('offline', manejarOffline);
+    window.addEventListener("online", manejarOnline);
+    window.addEventListener("offline", manejarOffline);
 
     // Verificar estado inicial
     setConectado(navigator.onLine);
 
     return () => {
-      window.removeEventListener('online', manejarOnline);
-      window.removeEventListener('offline', manejarOffline);
+      window.removeEventListener("online", manejarOnline);
+      window.removeEventListener("offline", manejarOffline);
     };
   }, []);
 
@@ -54,16 +55,18 @@ export function verificarConexion(): boolean {
 /**
  * Intenta hacer un ping a Supabase para verificar conexión real
  */
-export async function verificarConexionReal(supabaseUrl: string): Promise<boolean> {
+export async function verificarConexionReal(
+  supabaseUrl: string,
+): Promise<boolean> {
   if (!navigator.onLine) {
     return false;
   }
 
   try {
     await fetch(supabaseUrl, {
-      method: 'HEAD',
-      mode: 'no-cors',
-      cache: 'no-cache',
+      method: "HEAD",
+      mode: "no-cors",
+      cache: "no-cache",
     });
     return true;
   } catch (error) {

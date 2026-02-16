@@ -7,7 +7,7 @@ import { supabase } from "../supabaseClient";
 
 // Nombre de la base de datos
 const DB_NAME = "PuntoVentaOfflineDB";
-const DB_VERSION = 2; // Incrementado para nuevas stores
+const DB_VERSION = 3; // Incrementado para nuevas stores
 
 // Nombres de las tablas (stores)
 const FACTURAS_STORE = "facturas_pendientes";
@@ -15,6 +15,8 @@ const PAGOS_STORE = "pagos_pendientes";
 const GASTOS_STORE = "gastos_pendientes";
 const ENVIOS_STORE = "envios_pendientes";
 const PRODUCTOS_STORE = "productos_cache"; // Cache de productos
+const APERTURA_STORE = "apertura_cache"; // Cache de apertura de caja
+const CAI_STORE = "cai_cache"; // Cache de información CAI
 
 // Tipos
 export interface FacturaPendiente {
@@ -100,6 +102,27 @@ export interface ProductoCache {
   timestamp: number;
 }
 
+export interface AperturaCache {
+  id: string;
+  cajero_id: string;
+  caja: string;
+  fecha: string;
+  estado: string;
+  timestamp: number;
+}
+
+export interface CaiCache {
+  id: string;
+  cajero_id: string;
+  caja_asignada: string;
+  cai: string;
+  factura_desde: string;
+  factura_hasta: string;
+  factura_actual: string;
+  nombre_cajero: string;
+  timestamp: number;
+}
+
 // Variable global para la conexión DB
 let db: IDBDatabase | null = null;
 
@@ -179,6 +202,25 @@ export async function initIndexedDB(): Promise<IDBDatabase> {
         productosStore.createIndex("activo", "activo", { unique: false });
         console.log("Store de productos cache creado");
       }
+
+      // Crear store para cache de apertura de caja
+      if (!database.objectStoreNames.contains(APERTURA_STORE)) {
+        const aperturaStore = database.createObjectStore(APERTURA_STORE, {
+          keyPath: "id",
+        });
+        aperturaStore.createIndex("cajero_id", "cajero_id", { unique: false });
+        aperturaStore.createIndex("fecha", "fecha", { unique: false });
+        console.log("Store de apertura cache creado");
+      }
+
+      // Crear store para cache de CAI
+      if (!database.objectStoreNames.contains(CAI_STORE)) {
+        const caiStore = database.createObjectStore(CAI_STORE, {
+          keyPath: "id",
+        });
+        caiStore.createIndex("cajero_id", "cajero_id", { unique: false });
+        console.log("Store de CAI cache creado");
+      }
     };
   });
 }
@@ -187,7 +229,7 @@ export async function initIndexedDB(): Promise<IDBDatabase> {
  * Guarda una factura en IndexedDB
  */
 export async function guardarFacturaLocal(
-  factura: Omit<FacturaPendiente, "id" | "timestamp" | "intentos">
+  factura: Omit<FacturaPendiente, "id" | "timestamp" | "intentos">,
 ): Promise<number> {
   const database = await initIndexedDB();
 
@@ -219,7 +261,7 @@ export async function guardarFacturaLocal(
  * Guarda pagos en IndexedDB
  */
 export async function guardarPagosLocal(
-  pagos: Omit<PagoPendiente, "id" | "timestamp" | "intentos">[]
+  pagos: Omit<PagoPendiente, "id" | "timestamp" | "intentos">[],
 ): Promise<number[]> {
   const database = await initIndexedDB();
   const ids: number[] = [];
@@ -260,9 +302,7 @@ export async function guardarPagosLocal(
 /**
  * Obtiene todas las facturas pendientes de sincronización
  */
-export async function obtenerFacturasPendientes(): Promise<
-  FacturaPendiente[]
-> {
+export async function obtenerFacturasPendientes(): Promise<FacturaPendiente[]> {
   const database = await initIndexedDB();
 
   return new Promise((resolve, reject) => {
@@ -275,10 +315,7 @@ export async function obtenerFacturasPendientes(): Promise<
     };
 
     request.onerror = () => {
-      console.error(
-        "Error obteniendo facturas pendientes:",
-        request.error
-      );
+      console.error("Error obteniendo facturas pendientes:", request.error);
       reject(request.error);
     };
   });
@@ -422,7 +459,7 @@ export async function sincronizarFacturas(): Promise<{
   }
 
   console.log(
-    `Sincronizando ${facturasPendientes.length} facturas pendientes...`
+    `Sincronizando ${facturasPendientes.length} facturas pendientes...`,
   );
 
   let exitosas = 0;
@@ -439,11 +476,11 @@ export async function sincronizarFacturas(): Promise<{
         console.error(`Error sincronizando factura ${factura.factura}:`, error);
         await incrementarIntentosFactura(factura.id!);
         fallidas++;
-        
+
         // Si ha fallado más de 5 veces, notificar
         if (intentos >= 5) {
           console.error(
-            `Factura ${factura.factura} ha fallado ${intentos} veces`
+            `Factura ${factura.factura} ha fallado ${intentos} veces`,
           );
         }
       } else {
@@ -514,7 +551,7 @@ export async function sincronizarPagos(): Promise<{
  * Guarda un gasto en IndexedDB
  */
 export async function guardarGastoLocal(
-  gasto: Omit<GastoPendiente, "id" | "timestamp" | "intentos">
+  gasto: Omit<GastoPendiente, "id" | "timestamp" | "intentos">,
 ): Promise<number> {
   const database = await initIndexedDB();
 
@@ -666,7 +703,7 @@ export async function sincronizarGastos(): Promise<{
  * Guarda un envío en IndexedDB
  */
 export async function guardarEnvioLocal(
-  envio: Omit<EnvioPendiente, "id" | "timestamp" | "intentos">
+  envio: Omit<EnvioPendiente, "id" | "timestamp" | "intentos">,
 ): Promise<number> {
   const database = await initIndexedDB();
 
@@ -789,7 +826,9 @@ export async function sincronizarEnvios(): Promise<{
     try {
       const { id, timestamp, intentos, ...envioData } = envio;
 
-      const { error } = await supabase.from("pedidos_envio").insert([envioData]);
+      const { error } = await supabase
+        .from("pedidos_envio")
+        .insert([envioData]);
 
       if (error) {
         console.error(`Error sincronizando envío ${id}:`, error);
@@ -831,7 +870,7 @@ export async function sincronizarTodo(): Promise<{
   const envios = await sincronizarEnvios();
 
   console.log(
-    `Sincronización completa: ${facturas.exitosas} facturas, ${pagos.exitosos} pagos, ${gastos.exitosos} gastos y ${envios.exitosos} envíos sincronizados`
+    `Sincronización completa: ${facturas.exitosas} facturas, ${pagos.exitosos} pagos, ${gastos.exitosos} gastos y ${envios.exitosos} envíos sincronizados`,
   );
 
   return { facturas, pagos, gastos, envios };
@@ -867,7 +906,11 @@ export function configurarSincronizacionAutomatica(): void {
   setInterval(async () => {
     if (navigator.onLine) {
       const pendientes = await obtenerContadorPendientes();
-      const total = pendientes.facturas + pendientes.pagos + pendientes.gastos + pendientes.envios;
+      const total =
+        pendientes.facturas +
+        pendientes.pagos +
+        pendientes.gastos +
+        pendientes.envios;
       if (total > 0) {
         console.log("Sincronización automática iniciada...");
         await sincronizarTodo();
@@ -879,16 +922,16 @@ export function configurarSincronizacionAutomatica(): void {
   window.addEventListener("online", async () => {
     console.log("Conexión restaurada. Sincronizando datos pendientes...");
     const resultado = await sincronizarTodo();
-    
+
     const totalSincronizados =
-      resultado.facturas.exitosas + 
-      resultado.pagos.exitosos + 
-      resultado.gastos.exitosos + 
+      resultado.facturas.exitosas +
+      resultado.pagos.exitosos +
+      resultado.gastos.exitosos +
       resultado.envios.exitosos;
-    
+
     if (totalSincronizados > 0) {
       console.log(
-        `✓ ${resultado.facturas.exitosas} facturas, ${resultado.pagos.exitosos} pagos, ${resultado.gastos.exitosos} gastos y ${resultado.envios.exitosos} envíos sincronizados exitosamente`
+        `✓ ${resultado.facturas.exitosas} facturas, ${resultado.pagos.exitosos} pagos, ${resultado.gastos.exitosos} gastos y ${resultado.envios.exitosos} envíos sincronizados exitosamente`,
       );
     }
   });
@@ -896,7 +939,7 @@ export function configurarSincronizacionAutomatica(): void {
   // Notificar cuando se pierde la conexión
   window.addEventListener("offline", () => {
     console.warn(
-      "⚠ Conexión perdida. Los datos se guardarán localmente y se sincronizarán cuando se restaure la conexión."
+      "⚠ Conexión perdida. Los datos se guardarán localmente y se sincronizarán cuando se restaure la conexión.",
     );
   });
 }
@@ -1045,21 +1088,184 @@ export async function actualizarCacheProductos(): Promise<{
 }
 
 /**
+ * Guarda información de apertura de caja en cache
+ */
+export async function guardarAperturaCache(
+  apertura: Omit<AperturaCache, "timestamp">,
+): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([APERTURA_STORE], "readwrite");
+    const store = transaction.objectStore(APERTURA_STORE);
+
+    // Limpiar cache anterior del mismo cajero y fecha
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      const aperturaConTimestamp: AperturaCache = {
+        ...apertura,
+        timestamp: Date.now(),
+      };
+
+      const addRequest = store.add(aperturaConTimestamp);
+
+      addRequest.onsuccess = () => {
+        console.log("Apertura guardada en cache");
+        resolve();
+      };
+
+      addRequest.onerror = () => {
+        console.error("Error guardando apertura en cache:", addRequest.error);
+        reject(addRequest.error);
+      };
+    };
+
+    clearRequest.onerror = () => {
+      console.error("Error limpiando cache de apertura:", clearRequest.error);
+      reject(clearRequest.error);
+    };
+  });
+}
+
+/**
+ * Obtiene información de apertura desde el cache
+ */
+export async function obtenerAperturaCache(): Promise<AperturaCache | null> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([APERTURA_STORE], "readonly");
+    const store = transaction.objectStore(APERTURA_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const aperturas = request.result as AperturaCache[];
+      if (aperturas.length > 0) {
+        resolve(aperturas[0]); // Devolver la primera (debería ser única)
+      } else {
+        resolve(null);
+      }
+    };
+
+    request.onerror = () => {
+      console.error("Error obteniendo apertura desde cache:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Limpia el cache de apertura
+ */
+export async function limpiarAperturaCache(): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([APERTURA_STORE], "readwrite");
+    const store = transaction.objectStore(APERTURA_STORE);
+    const request = store.clear();
+
+    request.onsuccess = () => {
+      console.log("Cache de apertura limpiado");
+      resolve();
+    };
+
+    request.onerror = () => {
+      console.error("Error limpiando cache de apertura:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Guarda información CAI en cache
+ */
+export async function guardarCaiCache(
+  cai: Omit<CaiCache, "timestamp">,
+): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([CAI_STORE], "readwrite");
+    const store = transaction.objectStore(CAI_STORE);
+
+    // Limpiar cache anterior
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      const caiConTimestamp: CaiCache = {
+        ...cai,
+        timestamp: Date.now(),
+      };
+
+      const addRequest = store.add(caiConTimestamp);
+
+      addRequest.onsuccess = () => {
+        console.log("CAI guardado en cache");
+        resolve();
+      };
+
+      addRequest.onerror = () => {
+        console.error("Error guardando CAI en cache:", addRequest.error);
+        reject(addRequest.error);
+      };
+    };
+
+    clearRequest.onerror = () => {
+      console.error("Error limpiando cache de CAI:", clearRequest.error);
+      reject(clearRequest.error);
+    };
+  });
+}
+
+/**
+ * Obtiene información CAI desde el cache
+ */
+export async function obtenerCaiCache(): Promise<CaiCache | null> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([CAI_STORE], "readonly");
+    const store = transaction.objectStore(CAI_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const cais = request.result as CaiCache[];
+      if (cais.length > 0) {
+        resolve(cais[0]);
+      } else {
+        resolve(null);
+      }
+    };
+
+    request.onerror = () => {
+      console.error("Error obteniendo CAI desde cache:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
  * Inicializa el sistema completo de sincronización offline
  */
 export async function inicializarSistemaOffline(): Promise<void> {
   try {
     await initIndexedDB();
     configurarSincronizacionAutomatica();
-    
+
     // Intentar sincronizar datos pendientes al iniciar
     if (navigator.onLine) {
       const pendientes = await obtenerContadorPendientes();
-      const total = pendientes.facturas + pendientes.pagos + pendientes.gastos + pendientes.envios;
-      
+      const total =
+        pendientes.facturas +
+        pendientes.pagos +
+        pendientes.gastos +
+        pendientes.envios;
+
       if (total > 0) {
         console.log(
-          `Hay ${pendientes.facturas} facturas, ${pendientes.pagos} pagos, ${pendientes.gastos} gastos y ${pendientes.envios} envíos pendientes de sincronización`
+          `Hay ${pendientes.facturas} facturas, ${pendientes.pagos} pagos, ${pendientes.gastos} gastos y ${pendientes.envios} envíos pendientes de sincronización`,
         );
         await sincronizarTodo();
       }
@@ -1077,13 +1283,15 @@ export async function inicializarSistemaOffline(): Promise<void> {
       console.warn("⚠ Sin conexión. Verificando cache de productos...");
       const hayCache = await hayProductosEnCache();
       if (!hayCache) {
-        console.error("❌ No hay productos en cache y no hay conexión a internet");
+        console.error(
+          "❌ No hay productos en cache y no hay conexión a internet",
+        );
       } else {
         const productos = await obtenerProductosCache();
         console.log(`✓ ${productos.length} productos disponibles en cache`);
       }
     }
-    
+
     console.log("✓ Sistema de sincronización offline inicializado");
   } catch (error) {
     console.error("Error inicializando sistema offline:", error);

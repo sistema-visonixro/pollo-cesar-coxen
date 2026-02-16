@@ -13,6 +13,7 @@ Sistema completo de funcionalidad offline para el punto de venta, permitiendo op
 **Base de datos:** `PuntoVentaOfflineDB` (Versión 2)
 
 **Stores (Tablas):**
+
 - ✅ `facturas_pendientes` - Facturas no sincronizadas
 - ✅ `pagos_pendientes` - Pagos no sincronizados
 - ✅ `gastos_pendientes` - Gastos no sincronizados
@@ -20,6 +21,7 @@ Sistema completo de funcionalidad offline para el punto de venta, permitiendo op
 - ✅ `productos_cache` - Cache de productos para uso offline
 
 Cada registro incluye:
+
 - `timestamp`: Marca de tiempo de creación
 - `intentos`: Contador de intentos de sincronización
 - Todos los campos necesarios para la operación
@@ -67,6 +69,7 @@ Cada registro incluye:
 ### Estrategia de Sincronización
 
 1. **Guardado Doble:**
+
    ```
    Operación → IndexedDB (inmediato) → Supabase (si hay conexión)
    ```
@@ -96,12 +99,14 @@ Cada registro incluye:
 ## 🎨 Indicadores Visuales
 
 ### Estado de Conexión (esquina superior derecha)
+
 ```
 🟢 Conectado        - Fondo verde, texto "Conectado"
 🔴 Sin conexión     - Fondo rojo pulsante, texto "Sin conexión"
 ```
 
 ### Registros Pendientes (esquina superior derecha)
+
 ```
 ⚠ Pendientes de sync:
 📋 X factura(s)
@@ -118,9 +123,11 @@ Cada registro incluye:
 ## ⌨️ Atajos de Teclado
 
 ### Ctrl + 0
+
 **Función:** Actualizar cache de productos
 
 **Proceso:**
+
 1. Presionar `Ctrl + 0`
 2. El sistema descarga todos los productos desde Supabase
 3. Guarda en cache local (IndexedDB)
@@ -141,7 +148,7 @@ Cuando intentas acceder a **Resumen de Caja** o **Cierre de Caja** sin conexión
 ```
 ⚠️ Sin Conexión a Internet
 
-El Resumen de Caja y el Cierre de Caja requieren conexión a 
+El Resumen de Caja y el Cierre de Caja requieren conexión a
 internet para acceder a los datos del servidor.
 
 Operaciones disponibles sin conexión:
@@ -156,11 +163,13 @@ Verifica tu conexión a internet e intenta nuevamente.
 ### Estados Visuales de Botones
 
 **Con conexión:**
+
 - Botones con colores normales
 - Cursor: pointer
 - Completamente funcionales
 
 **Sin conexión:**
+
 - Botones en gris (#9e9e9e)
 - Cursor: not-allowed
 - Opacidad reducida (60%)
@@ -171,6 +180,7 @@ Verifica tu conexión a internet e intenta nuevamente.
 ## 📊 Flujo de Datos Completo
 
 ### Facturación
+
 ```
 1. Usuario selecciona productos
 2. Click en "Guardar" o "Imprimir"
@@ -184,6 +194,7 @@ Verifica tu conexión a internet e intenta nuevamente.
 ```
 
 ### Gastos
+
 ```
 1. Usuario ingresa datos del gasto
 2. Click en "Guardar"
@@ -195,6 +206,7 @@ Verifica tu conexión a internet e intenta nuevamente.
 ```
 
 ### Pedidos por Teléfono
+
 ```
 1. Usuario completa formulario de envío
 2. Click en "Guardar Pedido"
@@ -207,6 +219,7 @@ Verifica tu conexión a internet e intenta nuevamente.
 ```
 
 ### Sincronización Automática (cada 30 seg)
+
 ```
 1. Verificar si hay conexión (navigator.onLine)
 2. Si hay conexión:
@@ -265,24 +278,24 @@ El sistema registra información detallada en la consola:
 
 ```javascript
 // Inicialización
-"✓ Sistema de sincronización offline inicializado"
-"✓ 156 productos cargados en cache"
+"✓ Sistema de sincronización offline inicializado";
+"✓ 156 productos cargados en cache";
 
 // Guardado
-"✓ Factura guardada en IndexedDB (ID: 42)"
-"✓ Gasto guardado en IndexedDB (ID: 7)"
+"✓ Factura guardada en IndexedDB (ID: 42)";
+"✓ Gasto guardado en IndexedDB (ID: 7)";
 
 // Sincronización
-"✓ Factura sincronizada y eliminada de IndexedDB"
-"⚠ Factura guardada localmente, se sincronizará después"
-"Sincronizando 3 facturas pendientes..."
+"✓ Factura sincronizada y eliminada de IndexedDB";
+"⚠ Factura guardada localmente, se sincronizará después";
+"Sincronizando 3 facturas pendientes...";
 
 // Conexión
-"✓ Conexión restaurada"
-"⚠ Sin conexión a internet"
+"✓ Conexión restaurada";
+"⚠ Sin conexión a internet";
 
 // Actualizaciones
-"✓ Cache actualizado: 156 productos"
+"✓ Cache actualizado: 156 productos";
 ```
 
 ### Verificación Manual
@@ -311,18 +324,21 @@ await sincronizarTodo();
 ## ⚙️ Configuración Técnica
 
 ### IndexedDB
+
 - **Nombre:** `PuntoVentaOfflineDB`
 - **Versión:** 2
 - **Ubicación:** Almacenamiento local del navegador
 - **Límite:** Depende del navegador (~50MB Chrome, ~100MB Firefox)
 
 ### Sincronización
+
 - **Intervalo automático:** 30 segundos
 - **Timeout por operación:** Sin límite
 - **Reintentos máximos:** Infinito (con contador)
 - **Estrategia:** Optimista (guardar local primero)
 
 ### Detección de Conexión
+
 - **API:** `navigator.onLine`
 - **Eventos:** `online`, `offline`
 - **Verificación:** Cada cambio de estado de red
@@ -355,6 +371,7 @@ await sincronizarTodo();
 ### Pruebas Recomendadas
 
 1. **Facturación Offline**
+
    ```
    1. Desconectar internet
    2. Facturar un producto
@@ -364,6 +381,7 @@ await sincronizarTodo();
    ```
 
 2. **Bloqueo de Operaciones**
+
    ```
    1. Desconectar internet
    2. Click en "Resumen"
@@ -373,6 +391,7 @@ await sincronizarTodo();
    ```
 
 3. **Sincronización Automática**
+
    ```
    1. Desconectar internet
    2. Hacer 3 facturas
@@ -383,6 +402,7 @@ await sincronizarTodo();
    ```
 
 4. **Actualización de Productos**
+
    ```
    1. Asegurar conexión
    2. Presionar Ctrl+0
@@ -405,6 +425,7 @@ await sincronizarTodo();
 ### Problema: No sincroniza automáticamente
 
 **Solución:**
+
 1. Verificar conexión a internet
 2. Abrir consola del navegador (F12)
 3. Buscar errores
@@ -413,6 +434,7 @@ await sincronizarTodo();
 ### Problema: Productos no aparecen
 
 **Solución:**
+
 1. Verificar conexión
 2. Presionar Ctrl+0 para actualizar cache
 3. Si sigue sin aparecer, revisar consola
@@ -420,6 +442,7 @@ await sincronizarTodo();
 ### Problema: Indicador pendientes no desaparece
 
 **Solución:**
+
 1. Verificar que hay conexión real (no solo icono)
 2. Click manual en el indicador
 3. Revisar consola para ver errores de Supabase
@@ -427,6 +450,7 @@ await sincronizarTodo();
 ### Problema: Modal de "sin conexión" aparece con conexión
 
 **Solución:**
+
 1. Recargar la página (F5)
 2. Verificar conexión real (abrir google.com en otra pestaña)
 3. Verificar configuración de firewall/proxy

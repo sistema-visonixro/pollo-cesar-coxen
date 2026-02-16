@@ -20,6 +20,11 @@ import {
   actualizarCacheProductos,
   obtenerProductosCache,
   estaConectado,
+  guardarAperturaCache,
+  obtenerAperturaCache,
+  limpiarAperturaCache,
+  guardarCaiCache,
+  obtenerCaiCache,
 } from "./utils/offlineSync";
 import { migrarPagosDesdeLocalStorage } from "./utils/migrarLocalStorage";
 import { useConexion } from "./utils/useConexion";
@@ -398,12 +403,14 @@ export default function PuntoDeVentaView({
 
     // Listener para Ctrl+0 para actualizar cache de productos
     const handleKeyDown = async (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === '0') {
+      if (e.ctrlKey && e.key === "0") {
         e.preventDefault();
         console.log("Actualizando cache de productos...");
-        
+
         if (!estaConectado()) {
-          alert("⚠ No hay conexión a internet. No se puede actualizar el cache de productos.");
+          alert(
+            "⚠ No hay conexión a internet. No se puede actualizar el cache de productos.",
+          );
           return;
         }
 
@@ -423,11 +430,11 @@ export default function PuntoDeVentaView({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
@@ -441,19 +448,19 @@ export default function PuntoDeVentaView({
     setSincronizando(true);
     try {
       const resultado = await sincronizarTodo();
-      const total = 
-        resultado.facturas.exitosas + 
-        resultado.pagos.exitosos + 
-        resultado.gastos.exitosos + 
+      const total =
+        resultado.facturas.exitosas +
+        resultado.pagos.exitosos +
+        resultado.gastos.exitosos +
         resultado.envios.exitosos;
 
       if (total > 0) {
         alert(
           `✓ Sincronización exitosa:\n` +
-          `${resultado.facturas.exitosas} facturas\n` +
-          `${resultado.pagos.exitosos} pagos\n` +
-          `${resultado.gastos.exitosos} gastos\n` +
-          `${resultado.envios.exitosos} envíos`
+            `${resultado.facturas.exitosas} facturas\n` +
+            `${resultado.pagos.exitosos} pagos\n` +
+            `${resultado.gastos.exitosos} gastos\n` +
+            `${resultado.envios.exitosos} envíos`,
         );
       } else {
         alert("No hay registros pendientes por sincronizar");
@@ -533,64 +540,142 @@ export default function PuntoDeVentaView({
   useEffect(() => {
     async function fetchCaiYFactura() {
       if (!usuarioActual) return;
-      const { data: caiData } = await supabase
-        .from("cai_facturas")
-        .select("*")
-        .eq("cajero_id", usuarioActual.id)
-        .single();
-      if (caiData) {
-        setCaiInfo({
-          caja_asignada: caiData.caja_asignada,
-          nombre_cajero: usuarioActual.nombre,
-          cai: caiData.cai,
-        });
-        const rango_inicio = parseInt(caiData.rango_desde);
-        const rango_fin = parseInt(caiData.rango_hasta);
 
-        // Si existe factura_actual en el CAI, usarla directamente
-        if (caiData.factura_actual && caiData.factura_actual.trim() !== "") {
-          const facturaActualNum = parseInt(caiData.factura_actual);
-          if (Number.isFinite(facturaActualNum)) {
-            if (facturaActualNum > rango_fin) {
-              setFacturaActual("Límite alcanzado");
+      try {
+        // Si hay conexión, obtener de Supabase
+        if (isOnline) {
+          const { data: caiData } = await supabase
+            .from("cai_facturas")
+            .select("*")
+            .eq("cajero_id", usuarioActual.id)
+            .single();
+
+          if (caiData) {
+            setCaiInfo({
+              caja_asignada: caiData.caja_asignada,
+              nombre_cajero: usuarioActual.nombre,
+              cai: caiData.cai,
+            });
+
+            // Guardar en cache para uso offline
+            await guardarCaiCache({
+              id: caiData.id.toString(),
+              cajero_id: caiData.cajero_id,
+              caja_asignada: caiData.caja_asignada,
+              cai: caiData.cai,
+              factura_desde: caiData.rango_desde,
+              factura_hasta: caiData.rango_hasta,
+              factura_actual: caiData.factura_actual || "",
+              nombre_cajero: usuarioActual.nombre,
+            });
+
+            const rango_inicio = parseInt(caiData.rango_desde);
+            const rango_fin = parseInt(caiData.rango_hasta);
+
+            // Si existe factura_actual en el CAI, usarla directamente
+            if (
+              caiData.factura_actual &&
+              caiData.factura_actual.trim() !== ""
+            ) {
+              const facturaActualNum = parseInt(caiData.factura_actual);
+              if (Number.isFinite(facturaActualNum)) {
+                if (facturaActualNum > rango_fin) {
+                  setFacturaActual("Límite alcanzado");
+                } else {
+                  setFacturaActual(facturaActualNum.toString());
+                }
+                return;
+              }
+            }
+
+            // Si no existe factura_actual, calcular desde las facturas (método antiguo)
+            const caja = caiData.caja_asignada;
+            const { data: facturasData } = await supabase
+              .from("facturas")
+              .select("factura")
+              .eq("cajero", usuarioActual.nombre)
+              .eq("caja", caja);
+            let maxFactura = rango_inicio - 1;
+            if (facturasData && facturasData.length > 0) {
+              for (const f of facturasData) {
+                const num = parseInt(f.factura);
+                if (Number.isFinite(num) && num > maxFactura) {
+                  maxFactura = num;
+                }
+              }
+              if (!Number.isFinite(maxFactura)) {
+                setFacturaActual(rango_inicio.toString());
+              } else if (maxFactura + 1 > rango_fin) {
+                setFacturaActual("Límite alcanzado");
+              } else {
+                setFacturaActual((maxFactura + 1).toString());
+              }
             } else {
-              setFacturaActual(facturaActualNum.toString());
+              setFacturaActual(rango_inicio.toString());
             }
-            return;
-          }
-        }
-
-        // Si no existe factura_actual, calcular desde las facturas (método antiguo)
-        const caja = caiData.caja_asignada;
-        const { data: facturasData } = await supabase
-          .from("facturas")
-          .select("factura")
-          .eq("cajero", usuarioActual.nombre)
-          .eq("caja", caja);
-        let maxFactura = rango_inicio - 1;
-        if (facturasData && facturasData.length > 0) {
-          for (const f of facturasData) {
-            const num = parseInt(f.factura);
-            if (Number.isFinite(num) && num > maxFactura) {
-              maxFactura = num;
-            }
-          }
-          if (!Number.isFinite(maxFactura)) {
-            setFacturaActual(rango_inicio.toString());
-          } else if (maxFactura + 1 > rango_fin) {
-            setFacturaActual("Límite alcanzado");
           } else {
-            setFacturaActual((maxFactura + 1).toString());
+            setFacturaActual("");
           }
         } else {
-          setFacturaActual(rango_inicio.toString());
+          // Si no hay conexión, intentar cargar desde cache
+          console.log("⚠ Sin conexión. Cargando CAI desde cache...");
+          const caiCache = await obtenerCaiCache();
+
+          if (caiCache) {
+            console.log("✓ CAI encontrado en cache");
+            setCaiInfo({
+              caja_asignada: caiCache.caja_asignada,
+              nombre_cajero: caiCache.nombre_cajero,
+              cai: caiCache.cai,
+            });
+
+            // Usar factura_actual del cache
+            if (
+              caiCache.factura_actual &&
+              caiCache.factura_actual.trim() !== ""
+            ) {
+              const facturaActualNum = parseInt(caiCache.factura_actual);
+              const rango_fin = parseInt(caiCache.factura_hasta);
+              if (Number.isFinite(facturaActualNum)) {
+                if (facturaActualNum > rango_fin) {
+                  setFacturaActual("Límite alcanzado");
+                } else {
+                  setFacturaActual(facturaActualNum.toString());
+                }
+              }
+            } else {
+              // Usar rango desde
+              setFacturaActual(caiCache.factura_desde);
+            }
+          } else {
+            console.warn("⚠ No hay CAI en cache");
+            setFacturaActual("");
+          }
         }
-      } else {
-        setFacturaActual("");
+      } catch (error) {
+        console.error("Error cargando CAI:", error);
+        // Intentar desde cache si hay error
+        if (!isOnline) {
+          try {
+            const caiCache = await obtenerCaiCache();
+            if (caiCache) {
+              setCaiInfo({
+                caja_asignada: caiCache.caja_asignada,
+                nombre_cajero: caiCache.nombre_cajero,
+                cai: caiCache.cai,
+              });
+              setFacturaActual(
+                caiCache.factura_actual || caiCache.factura_desde,
+              );
+            }
+          } catch (cacheErr) {
+            console.error("Error cargando CAI desde cache:", cacheErr);
+          }
+        }
       }
     }
     fetchCaiYFactura();
-  }, []);
+  }, [usuarioActual, isOnline]);
 
   // Verificar si existe apertura registrada del día
   useEffect(() => {
@@ -602,47 +687,100 @@ export default function PuntoDeVentaView({
       setVerificandoApertura(true);
       try {
         const { start, end } = getLocalDayRange();
-        // Obtener caja asignada
-        let cajaAsignada = caiInfo?.caja_asignada;
-        if (!cajaAsignada) {
-          const { data: caiData } = await supabase
-            .from("cai_facturas")
-            .select("caja_asignada")
+
+        // Si hay conexión, verificar en Supabase
+        if (isOnline) {
+          // Obtener caja asignada
+          let cajaAsignada = caiInfo?.caja_asignada;
+          if (!cajaAsignada) {
+            const { data: caiData } = await supabase
+              .from("cai_facturas")
+              .select("caja_asignada")
+              .eq("cajero_id", usuarioActual.id)
+              .single();
+            cajaAsignada = caiData?.caja_asignada || "";
+          }
+          if (!cajaAsignada) {
+            setAperturaRegistrada(false);
+            setVerificandoApertura(false);
+            return;
+          }
+
+          // Verificar si existe una apertura ACTIVA (estado='APERTURA') en el día
+          const { data: aperturasHoy } = await supabase
+            .from("cierres")
+            .select("id, estado, cajero_id, caja, fecha")
             .eq("cajero_id", usuarioActual.id)
-            .single();
-          cajaAsignada = caiData?.caja_asignada || "";
-        }
-        if (!cajaAsignada) {
-          setAperturaRegistrada(false);
-          setVerificandoApertura(false);
-          return;
-        }
+            .eq("caja", cajaAsignada)
+            .eq("estado", "APERTURA")
+            .gte("fecha", start)
+            .lte("fecha", end);
 
-        // Verificar si existe una apertura ACTIVA (estado='APERTURA') en el día
-        // NO considerar registros con estado='CIERRE' como apertura activa
-        const { data: aperturasHoy } = await supabase
-          .from("cierres")
-          .select("id, estado")
-          .eq("cajero_id", usuarioActual.id)
-          .eq("caja", cajaAsignada)
-          .eq("estado", "APERTURA")
-          .gte("fecha", start)
-          .lte("fecha", end);
-
-        if (aperturasHoy && aperturasHoy.length > 0) {
-          setAperturaRegistrada(true);
+          if (aperturasHoy && aperturasHoy.length > 0) {
+            setAperturaRegistrada(true);
+            // Guardar en cache para uso offline
+            const apertura = aperturasHoy[0];
+            await guardarAperturaCache({
+              id: apertura.id.toString(),
+              cajero_id: apertura.cajero_id,
+              caja: apertura.caja,
+              fecha: apertura.fecha,
+              estado: apertura.estado,
+            });
+          } else {
+            setAperturaRegistrada(false);
+            // Limpiar cache si no hay apertura
+            await limpiarAperturaCache();
+          }
         } else {
-          setAperturaRegistrada(false);
+          // Si no hay conexión, intentar cargar desde cache
+          console.log("⚠ Sin conexión. Verificando apertura desde cache...");
+          const aperturaCache = await obtenerAperturaCache();
+
+          if (aperturaCache) {
+            // Verificar que sea del día actual
+            const fechaCache = aperturaCache.fecha;
+            if (fechaCache >= start && fechaCache <= end) {
+              console.log("✓ Apertura encontrada en cache");
+              setAperturaRegistrada(true);
+            } else {
+              console.log("⚠ Apertura en cache es de otro día");
+              setAperturaRegistrada(false);
+            }
+          } else {
+            console.log("⚠ No hay apertura en cache");
+            setAperturaRegistrada(false);
+          }
         }
       } catch (err) {
         console.error("Error verificando apertura:", err);
-        setAperturaRegistrada(false);
+        // Si hay error y no hay conexión, intentar desde cache
+        if (!isOnline) {
+          try {
+            const { start, end } = getLocalDayRange();
+            const aperturaCache = await obtenerAperturaCache();
+            if (
+              aperturaCache &&
+              aperturaCache.fecha >= start &&
+              aperturaCache.fecha <= end
+            ) {
+              setAperturaRegistrada(true);
+            } else {
+              setAperturaRegistrada(false);
+            }
+          } catch (cacheErr) {
+            console.error("Error verificando cache:", cacheErr);
+            setAperturaRegistrada(false);
+          }
+        } else {
+          setAperturaRegistrada(false);
+        }
       } finally {
         setVerificandoApertura(false);
       }
     }
     verificarApertura();
-  }, [usuarioActual, caiInfo]);
+  }, [usuarioActual, caiInfo, isOnline]);
 
   // Contar cierres sin aclarar del mes actual
   useEffect(() => {
@@ -678,19 +816,22 @@ export default function PuntoDeVentaView({
           .lte("fecha", fechaFin);
 
         if (!error && data) {
-          console.log('🔍 DEBUG - Todos los cierres del mes:', data);
-          
+          console.log("🔍 DEBUG - Todos los cierres del mes:", data);
+
           // Filtrar manualmente los que NO tienen observación "aclarado"
           const sinAclarar = data.filter((cierre) => {
-            const obs = (cierre.observacion || "").toString().toLowerCase().trim();
+            const obs = (cierre.observacion || "")
+              .toString()
+              .toLowerCase()
+              .trim();
             const noAclarado = obs !== "aclarado";
             return noAclarado;
           });
-          
-          console.log('📝 DEBUG - Cierres sin aclarar:', sinAclarar);
+
+          console.log("📝 DEBUG - Cierres sin aclarar:", sinAclarar);
           setCierresSinAclarar(sinAclarar.length);
         } else {
-          console.error('❌ Error obteniendo cierres:', error);
+          console.error("❌ Error obteniendo cierres:", error);
           setCierresSinAclarar(0);
         }
       } catch (err) {
@@ -720,7 +861,9 @@ export default function PuntoDeVentaView({
       try {
         const productosCache = await obtenerProductosCache();
         if (productosCache.length > 0) {
-          console.log(`✓ ${productosCache.length} productos cargados desde cache`);
+          console.log(
+            `✓ ${productosCache.length} productos cargados desde cache`,
+          );
           setProductos(productosCache as any);
           setError("");
         } else {
@@ -872,7 +1015,9 @@ export default function PuntoDeVentaView({
         }
       } catch (supabaseErr) {
         console.error("Error de conexión con Supabase:", supabaseErr);
-        console.log("⚠ Gasto guardado localmente, se sincronizará cuando haya conexión");
+        console.log(
+          "⚠ Gasto guardado localmente, se sincronizará cuando haya conexión",
+        );
       }
 
       // Actualizar contador de pendientes
@@ -3984,7 +4129,9 @@ export default function PuntoDeVentaView({
 
                         // PASO 1: Guardar primero en IndexedDB
                         const envioIdLocal = await guardarEnvioLocal(registro);
-                        console.log(`✓ Envío guardado en IndexedDB (ID: ${envioIdLocal})`);
+                        console.log(
+                          `✓ Envío guardado en IndexedDB (ID: ${envioIdLocal})`,
+                        );
 
                         // PASO 2: Intentar guardar en Supabase
                         try {
@@ -3993,16 +4140,28 @@ export default function PuntoDeVentaView({
                             .insert([registro]);
 
                           if (error) {
-                            console.error("Error insertando pedido de envío en Supabase:", error);
-                            console.log("⚠ Envío guardado localmente, se sincronizará después");
+                            console.error(
+                              "Error insertando pedido de envío en Supabase:",
+                              error,
+                            );
+                            console.log(
+                              "⚠ Envío guardado localmente, se sincronizará después",
+                            );
                           } else {
                             // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
                             await eliminarEnvioLocal(envioIdLocal);
-                            console.log("✓ Envío sincronizado y eliminado de IndexedDB");
+                            console.log(
+                              "✓ Envío sincronizado y eliminado de IndexedDB",
+                            );
                           }
                         } catch (supabaseErr) {
-                          console.error("Error de conexión con Supabase:", supabaseErr);
-                          console.log("⚠ Envío guardado localmente, se sincronizará cuando haya conexión");
+                          console.error(
+                            "Error de conexión con Supabase:",
+                            supabaseErr,
+                          );
+                          console.log(
+                            "⚠ Envío guardado localmente, se sincronizará cuando haya conexión",
+                          );
                         }
 
                         // Actualizar contador de pendientes
@@ -4015,17 +4174,17 @@ export default function PuntoDeVentaView({
                         // Imprimir usando la misma plantilla que recibo/comanda (intentar QZ Tray primero)
                         try {
                           const { data: etiquetaConfig } = await supabase
-                              .from("etiquetas_config")
-                              .select("*")
-                              .eq("nombre", "default")
-                              .single();
-                            const { data: reciboConfig } = await supabase
-                              .from("recibo_config")
-                              .select("*")
-                              .eq("nombre", "default")
-                              .single();
+                            .from("etiquetas_config")
+                            .select("*")
+                            .eq("nombre", "default")
+                            .single();
+                          const { data: reciboConfig } = await supabase
+                            .from("recibo_config")
+                            .select("*")
+                            .eq("nombre", "default")
+                            .single();
 
-                            const comandaHtml = `
+                          const comandaHtml = `
                         <div style='font-family:monospace; width:${
                           etiquetaConfig?.etiqueta_ancho || 80
                         }mm; margin:0; padding:${
@@ -4139,25 +4298,24 @@ export default function PuntoDeVentaView({
                         </div>
                       `;
 
-                            // Calcular subtotal e ISV 15% para pedido de envío
-                            const subtotalEnvio = registro.productos.reduce(
-                              (sum: number, p: any) => {
-                                // Asumimos que todos los productos son comida (tipo por defecto)
-                                return sum + (p.precio / 1.15) * p.cantidad;
-                              },
-                              0,
-                            );
-                            const isv15Envio = registro.productos.reduce(
-                              (sum: number, p: any) => {
-                                return (
-                                  sum +
-                                  (p.precio - p.precio / 1.15) * p.cantidad
-                                );
-                              },
-                              0,
-                            );
+                          // Calcular subtotal e ISV 15% para pedido de envío
+                          const subtotalEnvio = registro.productos.reduce(
+                            (sum: number, p: any) => {
+                              // Asumimos que todos los productos son comida (tipo por defecto)
+                              return sum + (p.precio / 1.15) * p.cantidad;
+                            },
+                            0,
+                          );
+                          const isv15Envio = registro.productos.reduce(
+                            (sum: number, p: any) => {
+                              return (
+                                sum + (p.precio - p.precio / 1.15) * p.cantidad
+                              );
+                            },
+                            0,
+                          );
 
-                            const comprobanteHtml = `
+                          const comprobanteHtml = `
                         <div style='font-family:monospace; width:${
                           reciboConfig?.recibo_ancho || 80
                         }mm; margin:0; padding:${
@@ -4274,7 +4432,7 @@ export default function PuntoDeVentaView({
                         </div>
                       `;
 
-                            const printHtml = `
+                          const printHtml = `
                         <html>
                           <head>
                             <title>Recibo y Comanda</title>
@@ -4295,59 +4453,58 @@ export default function PuntoDeVentaView({
                         </html>
                       `;
 
-                            // Precargar la imagen antes de imprimir
-                            const preloadImage = () => {
-                              return new Promise((resolve) => {
-                                const img = new Image();
-                                img.onload = () => resolve(true);
-                                img.onerror = () => resolve(false);
-                                img.src =
-                                  datosNegocio.logo_url || "/favicon.ico";
-                                setTimeout(() => resolve(false), 2000);
-                              });
-                            };
+                          // Precargar la imagen antes de imprimir
+                          const preloadImage = () => {
+                            return new Promise((resolve) => {
+                              const img = new Image();
+                              img.onload = () => resolve(true);
+                              img.onerror = () => resolve(false);
+                              img.src = datosNegocio.logo_url || "/favicon.ico";
+                              setTimeout(() => resolve(false), 2000);
+                            });
+                          };
 
-                            // Print using browser fallback (QZ Tray integration removed)
-                            try {
-                              await preloadImage();
-                              const printWindow = window.open(
-                                "",
-                                "",
-                                "height=800,width=400",
-                              );
-                              if (printWindow) {
-                                printWindow.document.write(printHtml);
-                                printWindow.document.close();
-                                printWindow.onload = () => {
-                                  setTimeout(() => {
-                                    printWindow.focus();
-                                    printWindow.print();
-                                    printWindow.close();
-                                  }, 500);
-                                };
-                              }
-                            } catch (err) {
-                              console.error(
-                                "Error imprimiendo pedido de envío:",
-                                err,
-                              );
-                              const printWindow = window.open(
-                                "",
-                                "",
-                                "height=800,width=400",
-                              );
-                              if (printWindow) {
-                                printWindow.document.write(printHtml);
-                                printWindow.document.close();
-                                printWindow.onload = () => {
-                                  setTimeout(() => {
-                                    printWindow.focus();
-                                    printWindow.print();
-                                    printWindow.close();
-                                  }, 500);
-                                };
-                              }
+                          // Print using browser fallback (QZ Tray integration removed)
+                          try {
+                            await preloadImage();
+                            const printWindow = window.open(
+                              "",
+                              "",
+                              "height=800,width=400",
+                            );
+                            if (printWindow) {
+                              printWindow.document.write(printHtml);
+                              printWindow.document.close();
+                              printWindow.onload = () => {
+                                setTimeout(() => {
+                                  printWindow.focus();
+                                  printWindow.print();
+                                  printWindow.close();
+                                }, 500);
+                              };
                             }
+                          } catch (err) {
+                            console.error(
+                              "Error imprimiendo pedido de envío:",
+                              err,
+                            );
+                            const printWindow = window.open(
+                              "",
+                              "",
+                              "height=800,width=400",
+                            );
+                            if (printWindow) {
+                              printWindow.document.write(printHtml);
+                              printWindow.document.close();
+                              printWindow.onload = () => {
+                                setTimeout(() => {
+                                  printWindow.focus();
+                                  printWindow.print();
+                                  printWindow.close();
+                                }, 500);
+                              };
+                            }
+                          }
                         } catch (err) {
                           console.error(
                             "Error durante impresión de envío:",
@@ -4529,32 +4686,40 @@ export default function PuntoDeVentaView({
           >
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>⚠️</div>
-              <h3 style={{ 
-                marginTop: 0, 
-                marginBottom: 12,
-                color: "#f57c00",
-                fontSize: 22,
-                fontWeight: 700
-              }}>
+              <h3
+                style={{
+                  marginTop: 0,
+                  marginBottom: 12,
+                  color: "#f57c00",
+                  fontSize: 22,
+                  fontWeight: 700,
+                }}
+              >
                 Sin Conexión a Internet
               </h3>
             </div>
-            <p style={{ 
-              fontSize: 16, 
-              lineHeight: 1.6,
-              marginBottom: 16,
-              textAlign: "center"
-            }}>
-              <strong>El Resumen de Caja</strong> y el <strong>Cierre de Caja</strong> requieren conexión a internet para acceder a los datos del servidor.
+            <p
+              style={{
+                fontSize: 16,
+                lineHeight: 1.6,
+                marginBottom: 16,
+                textAlign: "center",
+              }}
+            >
+              <strong>El Resumen de Caja</strong> y el{" "}
+              <strong>Cierre de Caja</strong> requieren conexión a internet para
+              acceder a los datos del servidor.
             </p>
-            <div style={{
-              background: theme === "lite" ? "#f5f5f5" : "#1a1a1a",
-              padding: 16,
-              borderRadius: 8,
-              marginBottom: 20,
-              fontSize: 14,
-              lineHeight: 1.5
-            }}>
+            <div
+              style={{
+                background: theme === "lite" ? "#f5f5f5" : "#1a1a1a",
+                padding: 16,
+                borderRadius: 8,
+                marginBottom: 20,
+                fontSize: 14,
+                lineHeight: 1.5,
+              }}
+            >
               <strong>Operaciones disponibles sin conexión:</strong>
               <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
                 <li>Facturación de productos ✓</li>
@@ -4563,12 +4728,14 @@ export default function PuntoDeVentaView({
                 <li>Impresión de recibos y comandas ✓</li>
               </ul>
             </div>
-            <p style={{ 
-              fontSize: 14, 
-              textAlign: "center",
-              color: theme === "lite" ? "#666" : "#aaa",
-              marginBottom: 20
-            }}>
+            <p
+              style={{
+                fontSize: 14,
+                textAlign: "center",
+                color: theme === "lite" ? "#666" : "#aaa",
+                marginBottom: 20,
+              }}
+            >
               Verifica tu conexión a internet e intenta nuevamente.
             </p>
             <div
@@ -5688,9 +5855,9 @@ export default function PuntoDeVentaView({
         </div>
 
         {/* Indicador de registros pendientes */}
-        {(pendientesCount.facturas > 0 || 
-          pendientesCount.pagos > 0 || 
-          pendientesCount.gastos > 0 || 
+        {(pendientesCount.facturas > 0 ||
+          pendientesCount.pagos > 0 ||
+          pendientesCount.gastos > 0 ||
           pendientesCount.envios > 0) && (
           <div
             style={{
