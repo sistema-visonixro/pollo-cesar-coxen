@@ -19,6 +19,7 @@ import {
   eliminarEnvioLocal,
   actualizarCacheProductos,
   obtenerProductosCache,
+  guardarProductosCache,
   estaConectado,
   guardarAperturaCache,
   obtenerAperturaCache,
@@ -849,11 +850,36 @@ export default function PuntoDeVentaView({
 
   // Función para cargar productos (desde Supabase o cache)
   const cargarProductos = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
+      // Si está offline, cargar directamente desde cache
+      if (!isOnline) {
+        console.log("⚠ Sin conexión. Cargando productos desde cache...");
+        const productosCache = await obtenerProductosCache();
+        if (productosCache.length > 0) {
+          console.log(
+            `✓ ${productosCache.length} productos cargados desde cache`,
+          );
+          setProductos(productosCache as any);
+          setError("");
+        } else {
+          console.warn("⚠ No hay productos en cache");
+          setError("No hay productos en cache. Conecta a internet.");
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Si está online, cargar desde Supabase
       const { data, error } = await supabase.from("productos").select("*");
       if (error) throw error;
       setProductos(data);
+
+      // Guardar automáticamente en cache para uso offline
+      await guardarProductosCache(data);
+      console.log(`✓ ${data.length} productos guardados en cache`);
+
+      setError("");
       setLoading(false);
     } catch (err) {
       console.error("Error al cargar productos desde Supabase:", err);
@@ -862,7 +888,7 @@ export default function PuntoDeVentaView({
         const productosCache = await obtenerProductosCache();
         if (productosCache.length > 0) {
           console.log(
-            `✓ ${productosCache.length} productos cargados desde cache`,
+            `✓ ${productosCache.length} productos cargados desde cache (fallback)`,
           );
           setProductos(productosCache as any);
           setError("");
@@ -880,7 +906,7 @@ export default function PuntoDeVentaView({
   // Fetch products from Supabase
   useEffect(() => {
     cargarProductos();
-  }, []);
+  }, [isOnline]);
 
   // Bloquear scroll global al montar
   useEffect(() => {
@@ -1230,33 +1256,50 @@ export default function PuntoDeVentaView({
       }
 
       // Registrar apertura con estado='APERTURA' y fondo inicial en 0
-      const { error } = await supabase.from("cierres").insert([
-        {
-          tipo_registro: "apertura",
-          cajero: usuarioActual?.nombre,
-          cajero_id: usuarioActual?.id,
-          caja: cajaAsignada,
-          fecha: formatToHondurasLocal(),
-          fondo_fijo_registrado: 0,
-          fondo_fijo: 0,
-          efectivo_registrado: 0,
-          efectivo_dia: 0,
-          monto_tarjeta_registrado: 0,
-          monto_tarjeta_dia: 0,
-          transferencias_registradas: 0,
-          transferencias_dia: 0,
-          dolares_registrado: 0,
-          dolares_dia: 0,
-          diferencia: 0,
-          estado: "APERTURA",
-        },
-      ]);
+      const fechaApertura = formatToHondurasLocal();
+      const { data: aperturaInsertada, error } = await supabase
+        .from("cierres")
+        .insert([
+          {
+            tipo_registro: "apertura",
+            cajero: usuarioActual?.nombre,
+            cajero_id: usuarioActual?.id,
+            caja: cajaAsignada,
+            fecha: fechaApertura,
+            fondo_fijo_registrado: 0,
+            fondo_fijo: 0,
+            efectivo_registrado: 0,
+            efectivo_dia: 0,
+            monto_tarjeta_registrado: 0,
+            monto_tarjeta_dia: 0,
+            transferencias_registradas: 0,
+            transferencias_dia: 0,
+            dolares_registrado: 0,
+            dolares_dia: 0,
+            diferencia: 0,
+            estado: "APERTURA",
+          },
+        ])
+        .select();
 
       if (error) {
         console.error("Error registrando apertura:", error);
         alert("Error al registrar apertura: " + error.message);
       } else {
         setAperturaRegistrada(true);
+
+        // Guardar en cache para uso offline
+        if (aperturaInsertada && aperturaInsertada.length > 0) {
+          const apertura = aperturaInsertada[0];
+          await guardarAperturaCache({
+            id: apertura.id.toString(),
+            cajero_id: apertura.cajero_id,
+            caja: apertura.caja,
+            fecha: apertura.fecha,
+            estado: apertura.estado,
+          });
+          console.log("✓ Apertura guardada en cache");
+        }
       }
     } catch (err: any) {
       console.error("Error registrando apertura:", err);

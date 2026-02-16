@@ -20,15 +20,22 @@ export default function ResultadosCajaView() {
   useEffect(() => {
     const fetchCierres = async () => {
       setLoading(true);
-      
+
       // Obtener primer y último día del mes actual
       const ahora = new Date();
       const primerDiaMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
-      const ultimoDiaMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59);
-      
+      const ultimoDiaMes = new Date(
+        ahora.getFullYear(),
+        ahora.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+      );
+
       const fechaInicio = primerDiaMes.toISOString();
       const fechaFin = ultimoDiaMes.toISOString();
-      
+
       let query = supabase
         .from("cierres")
         .select("*")
@@ -36,11 +43,11 @@ export default function ResultadosCajaView() {
         .gte("fecha", fechaInicio)
         .lte("fecha", fechaFin)
         .order("fecha", { ascending: false });
-      
+
       if (usuarioActual && usuarioActual.rol === "cajero") {
         query = query.eq("cajero_id", usuarioActual.id);
       }
-      
+
       const { data, error } = await query;
       if (!error && data) {
         setCierres(data);
@@ -394,46 +401,75 @@ export default function ResultadosCajaView() {
                   {(() => {
                     // Calcular la suma total de diferencias de todos los cierres sin aclarar
                     const cierresSinAclarar = cierres.filter(
-                      (c) => !c.observacion || c.observacion.toLowerCase().trim() !== "aclarado"
+                      (c) =>
+                        !c.observacion ||
+                        c.observacion.toLowerCase().trim() !== "aclarado",
                     );
-                    
-                    const efectivoDiffTotal = cierresSinAclarar.reduce((sum, cierre) => {
-                      return sum + parseFloat(
-                        (
-                          (parseFloat(cierre.efectivo_registrado) || 0) -
-                          (parseFloat(cierre.efectivo_dia) || 0)
-                        ).toFixed(2)
-                      );
-                    }, 0);
-                    
-                    const tarjetaDiffTotal = cierresSinAclarar.reduce((sum, cierre) => {
-                      return sum + parseFloat(
-                        (
-                          (parseFloat(cierre.monto_tarjeta_registrado) || 0) -
-                          (parseFloat(cierre.monto_tarjeta_dia) || 0)
-                        ).toFixed(2)
-                      );
-                    }, 0);
-                    
-                    const transDiffTotal = cierresSinAclarar.reduce((sum, cierre) => {
-                      return sum + parseFloat(
-                        (
-                          (parseFloat(cierre.transferencias_registradas) || 0) -
-                          (parseFloat(cierre.transferencias_dia) || 0)
-                        ).toFixed(2)
-                      );
-                    }, 0);
-                    
-                    const dolaresDiffTotal = cierresSinAclarar.reduce((sum, cierre) => {
-                      return sum + parseFloat(
-                        (
-                          (parseFloat(cierre.dolares_registrado) || 0) -
-                          (parseFloat(cierre.dolares_dia) || 0)
-                        ).toFixed(2)
-                      );
-                    }, 0);
-                    
-                    const efectivoDiff = parseFloat(efectivoDiffTotal.toFixed(2));
+
+                    const efectivoDiffTotal = cierresSinAclarar.reduce(
+                      (sum, cierre) => {
+                        return (
+                          sum +
+                          parseFloat(
+                            (
+                              (parseFloat(cierre.efectivo_registrado) || 0) -
+                              (parseFloat(cierre.efectivo_dia) || 0)
+                            ).toFixed(2),
+                          )
+                        );
+                      },
+                      0,
+                    );
+
+                    const tarjetaDiffTotal = cierresSinAclarar.reduce(
+                      (sum, cierre) => {
+                        return (
+                          sum +
+                          parseFloat(
+                            (
+                              (parseFloat(cierre.monto_tarjeta_registrado) ||
+                                0) - (parseFloat(cierre.monto_tarjeta_dia) || 0)
+                            ).toFixed(2),
+                          )
+                        );
+                      },
+                      0,
+                    );
+
+                    const transDiffTotal = cierresSinAclarar.reduce(
+                      (sum, cierre) => {
+                        return (
+                          sum +
+                          parseFloat(
+                            (
+                              (parseFloat(cierre.transferencias_registradas) ||
+                                0) -
+                              (parseFloat(cierre.transferencias_dia) || 0)
+                            ).toFixed(2),
+                          )
+                        );
+                      },
+                      0,
+                    );
+
+                    const dolaresDiffTotal = cierresSinAclarar.reduce(
+                      (sum, cierre) => {
+                        return (
+                          sum +
+                          parseFloat(
+                            (
+                              (parseFloat(cierre.dolares_registrado) || 0) -
+                              (parseFloat(cierre.dolares_dia) || 0)
+                            ).toFixed(2),
+                          )
+                        );
+                      },
+                      0,
+                    );
+
+                    const efectivoDiff = parseFloat(
+                      efectivoDiffTotal.toFixed(2),
+                    );
                     const tarjetaDiff = parseFloat(tarjetaDiffTotal.toFixed(2));
                     const transDiff = parseFloat(transDiffTotal.toFixed(2));
                     const dolaresDiff = parseFloat(dolaresDiffTotal.toFixed(2));
@@ -615,8 +651,14 @@ export default function ResultadosCajaView() {
                 .filter((cierre) => {
                   if (!usuarioActual) return false;
                   // Mostrar solo los cierres sin aclarar del cajero en el mes actual
-                  const sinAclarar = !cierre.observacion || cierre.observacion.toLowerCase().trim() !== "aclarado";
-                  return cierre.cajero_id === usuarioActual.id && cierre.fecha && sinAclarar;
+                  const sinAclarar =
+                    !cierre.observacion ||
+                    cierre.observacion.toLowerCase().trim() !== "aclarado";
+                  return (
+                    cierre.cajero_id === usuarioActual.id &&
+                    cierre.fecha &&
+                    sinAclarar
+                  );
                 })
                 .map((cierre, idx) => (
                   <div

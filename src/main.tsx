@@ -1,27 +1,33 @@
-import { StrictMode, useEffect, useState } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { StrictMode, useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.tsx";
 
-function UpdateNotification({ show, version }: { show: boolean; version: string | null }) {
+function UpdateNotification({
+  show,
+  version,
+}: {
+  show: boolean;
+  version: string | null;
+}) {
   if (!show) return null;
-  
+
   return (
     <div
       style={{
-        position: 'fixed',
+        position: "fixed",
         top: 20,
         right: 20,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: '#fff',
-        padding: '16px 24px',
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        color: "#fff",
+        padding: "16px 24px",
         borderRadius: 12,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+        boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
         zIndex: 999999,
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         gap: 12,
-        animation: 'slideInRight 0.4s ease-out',
+        animation: "slideInRight 0.4s ease-out",
         maxWidth: 350,
       }}
     >
@@ -31,7 +37,7 @@ function UpdateNotification({ show, version }: { show: boolean; version: string 
           ¡Sistema Actualizado!
         </div>
         <div style={{ fontSize: 13, opacity: 0.9 }}>
-          Versión {version || 'nueva'} cargada con éxito
+          Versión {version || "nueva"} cargada con éxito
         </div>
       </div>
       <style>{`
@@ -67,26 +73,26 @@ function Root() {
   // Verificar si acabamos de actualizar (viene del query param _cb)
   useEffect(() => {
     const url = new URL(window.location.href);
-    const cacheBuster = url.searchParams.get('_cb');
-    
+    const cacheBuster = url.searchParams.get("_cb");
+
     if (cacheBuster) {
       // Acabamos de actualizar, mostrar notificación
       const loadVersion = async () => {
         try {
-          const res = await fetch('/version.json', { cache: 'no-store' });
+          const res = await fetch("/version.json", { cache: "no-store" });
           const j = await res.json();
-          const ver = String(j.version || '');
+          const ver = String(j.version || "");
           setUpdatedVersion(ver);
           setShowUpdateNotification(true);
-          
+
           // Ocultar después de 4 segundos
           setTimeout(() => {
             setShowUpdateNotification(false);
           }, 4000);
-          
+
           // Limpiar el query param sin recargar
-          url.searchParams.delete('_cb');
-          window.history.replaceState({}, '', url.toString());
+          url.searchParams.delete("_cb");
+          window.history.replaceState({}, "", url.toString());
         } catch (e) {
           // ignore
         }
@@ -97,13 +103,17 @@ function Root() {
 
   // Función para aplicar la actualización automáticamente
   const applyUpdate = async () => {
-    console.log('🔄 Aplicando actualización automática...');
+    console.log("🔄 Aplicando actualización automática...");
     // try to unregister service workers to ensure fresh files are loaded
     try {
-      if ('serviceWorker' in navigator) {
+      if ("serviceWorker" in navigator) {
         const regs = await navigator.serviceWorker.getRegistrations();
         for (const r of regs) {
-          try { await r.unregister(); } catch (e) { /* ignore */ }
+          try {
+            await r.unregister();
+          } catch (e) {
+            /* ignore */
+          }
         }
       }
     } catch (e) {
@@ -113,7 +123,7 @@ function Root() {
     // This avoids cases where a simple F5 or reload returns a cached index.html.
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set('_cb', String(Date.now()));
+      url.searchParams.set("_cb", String(Date.now()));
       window.location.href = url.toString();
     } catch (e) {
       // fallback
@@ -124,10 +134,10 @@ function Root() {
   // comprobar ahora: expuesto a window via evento
   const checkNow = async (): Promise<string | null> => {
     try {
-      const res = await fetch('/version.json', { cache: 'no-store' });
+      const res = await fetch("/version.json", { cache: "no-store" });
       if (!res.ok) return null;
       const j = await res.json();
-      const ver = String(j.version || j?.ver || j?.v || '');
+      const ver = String(j.version || j?.ver || j?.v || "");
       if (!ver) return null;
       if (!currentVersion) {
         // first load wasn't set; set current and do not prompt
@@ -148,11 +158,11 @@ function Root() {
 
     const load = async () => {
       try {
-        const res = await fetch('/version.json', { cache: 'no-store' });
+        const res = await fetch("/version.json", { cache: "no-store" });
         if (!res.ok) return;
         const j = await res.json();
         if (cancelled) return;
-        const ver = String(j.version || j?.ver || j?.v || '');
+        const ver = String(j.version || j?.ver || j?.v || "");
         setCurrentVersion((prev) => prev || ver);
       } catch (e) {
         // ignore
@@ -164,7 +174,9 @@ function Root() {
       try {
         const ver = await checkNow();
         if (ver) {
-          console.log(`✨ Nueva versión detectada: ${ver}. Actualizando automáticamente...`);
+          console.log(
+            `✨ Nueva versión detectada: ${ver}. Actualizando automáticamente...`,
+          );
           // Aplicar la actualización automáticamente sin pedir confirmación
           await applyUpdate();
         }
@@ -184,36 +196,50 @@ function Root() {
     const onCheck = async () => {
       const ver = await checkNow();
       if (ver) {
-        console.log(`✨ Nueva versión detectada manualmente: ${ver}. Actualizando automáticamente...`);
+        console.log(
+          `✨ Nueva versión detectada manualmente: ${ver}. Actualizando automáticamente...`,
+        );
         await applyUpdate();
-        window.dispatchEvent(new CustomEvent('app:check-update-result', { detail: { updated: true, availableVersion: ver } }));
+        window.dispatchEvent(
+          new CustomEvent("app:check-update-result", {
+            detail: { updated: true, availableVersion: ver },
+          }),
+        );
       } else {
-        window.dispatchEvent(new CustomEvent('app:check-update-result', { detail: { updated: false } }));
+        window.dispatchEvent(
+          new CustomEvent("app:check-update-result", {
+            detail: { updated: false },
+          }),
+        );
       }
     };
-    window.addEventListener('app:check-update', onCheck as EventListener);
-    return () => window.removeEventListener('app:check-update', onCheck as EventListener);
+    window.addEventListener("app:check-update", onCheck as EventListener);
+    return () =>
+      window.removeEventListener("app:check-update", onCheck as EventListener);
   }, [currentVersion]);
 
   return (
     <StrictMode>
-      <UpdateNotification show={showUpdateNotification} version={updatedVersion} />
+      <UpdateNotification
+        show={showUpdateNotification}
+        version={updatedVersion}
+      />
       <App />
     </StrictMode>
-  )
+  );
 }
 
-createRoot(document.getElementById('root')!).render(
-  <Root />
-)
+createRoot(document.getElementById("root")!).render(<Root />);
 
 // Auto-update on service worker messages
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', (event) => {
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("message", (event) => {
     try {
       const data = event.data;
-      if (data && data.type === 'NEW_VERSION_AVAILABLE') {
-        console.log('🔄 Service Worker detectó nueva versión. Recargando automáticamente...');
+      if (data && data.type === "NEW_VERSION_AVAILABLE") {
+        console.log(
+          "🔄 Service Worker detectó nueva versión. Recargando automáticamente...",
+        );
         // Recargar automáticamente sin pedir confirmación
         window.location.reload();
       }
