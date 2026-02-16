@@ -1714,8 +1714,10 @@ export default function PuntoDeVentaView({
             onClick={async () => {
               setShowPedidosModal(true);
               setPedidosLoading(true);
+              let localPendientes: any[] = [];
               try {
-                const localPendientes = (await obtenerEnviosPendientes())
+                // PASO 1: Cargar pedidos locales pendientes desde IndexedDB
+                localPendientes = (await obtenerEnviosPendientes())
                   .filter((envio) => envio.cajero_id === usuarioActual?.id)
                   .map((envio) => ({
                     ...envio,
@@ -1725,21 +1727,40 @@ export default function PuntoDeVentaView({
                     celular: envio.telefono,
                     id: `local-${envio.id}`,
                   }));
+                
+                console.log(`📦 ${localPendientes.length} pedidos locales pendientes cargados desde IndexedDB`);
 
-                const { data, error } = await supabase
-                  .from("pedidos_envio")
-                  .select("*")
-                  .eq("cajero_id", usuarioActual?.id)
-                  .order("created_at", { ascending: false })
-                  .limit(100);
-                if (!error) setPedidosList([...(data || []), ...localPendientes]);
-                else {
-                  console.error("Error cargando pedidos:", error);
+                // PASO 2: Si hay conexión, intentar cargar desde Supabase
+                if (isOnline && estaConectado()) {
+                  try {
+                    const { data, error } = await supabase
+                      .from("pedidos_envio")
+                      .select("*")
+                      .eq("cajero_id", usuarioActual?.id)
+                      .order("created_at", { ascending: false })
+                      .limit(100);
+                    
+                    if (!error && data) {
+                      console.log(`🌐 ${data.length} pedidos cargados desde Supabase`);
+                      setPedidosList([...data, ...localPendientes]);
+                    } else {
+                      console.error("Error cargando pedidos de Supabase:", error);
+                      setPedidosList(localPendientes);
+                    }
+                  } catch (supabaseErr) {
+                    console.error("Error de conexión con Supabase:", supabaseErr);
+                    console.log("⚠ Sin conexión. Mostrando solo pedidos locales");
+                    setPedidosList(localPendientes);
+                  }
+                } else {
+                  // Sin conexión, mostrar solo pedidos locales
+                  console.log("⚠ Sin conexión. Mostrando solo pedidos locales");
                   setPedidosList(localPendientes);
                 }
               } catch (e) {
-                console.error(e);
-                setPedidosList([]);
+                console.error("Error cargando pedidos:", e);
+                // En caso de error crítico, al menos intentar mostrar lo que tenemos
+                setPedidosList(localPendientes);
               } finally {
                 setPedidosLoading(false);
               }
