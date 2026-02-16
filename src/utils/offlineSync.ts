@@ -7,7 +7,7 @@ import { supabase } from "../supabaseClient";
 
 // Nombre de la base de datos
 const DB_NAME = "PuntoVentaOfflineDB";
-const DB_VERSION = 3; // Incrementado para nuevas stores
+const DB_VERSION = 4; // Incrementado para nuevas stores
 
 // Nombres de las tablas (stores)
 const FACTURAS_STORE = "facturas_pendientes";
@@ -17,6 +17,7 @@ const ENVIOS_STORE = "envios_pendientes";
 const PRODUCTOS_STORE = "productos_cache"; // Cache de productos
 const APERTURA_STORE = "apertura_cache"; // Cache de apertura de caja
 const CAI_STORE = "cai_cache"; // Cache de información CAI
+const DATOS_NEGOCIO_STORE = "datos_negocio_cache"; // Cache de datos del negocio
 
 // Tipos
 export interface FacturaPendiente {
@@ -123,6 +124,17 @@ export interface CaiCache {
   timestamp: number;
 }
 
+export interface DatosNegocioCache {
+  id: string;
+  nombre_negocio: string;
+  rtn: string;
+  direccion: string;
+  celular: string;
+  propietario: string;
+  logo_url: string | null;
+  timestamp: number;
+}
+
 // Variable global para la conexión DB
 let db: IDBDatabase | null = null;
 
@@ -220,6 +232,14 @@ export async function initIndexedDB(): Promise<IDBDatabase> {
         });
         caiStore.createIndex("cajero_id", "cajero_id", { unique: false });
         console.log("Store de CAI cache creado");
+      }
+
+      // Crear store para cache de datos del negocio
+      if (!database.objectStoreNames.contains(DATOS_NEGOCIO_STORE)) {
+        database.createObjectStore(DATOS_NEGOCIO_STORE, {
+          keyPath: "id",
+        });
+        console.log("Store de datos del negocio cache creado");
       }
     };
   });
@@ -1241,6 +1261,89 @@ export async function obtenerCaiCache(): Promise<CaiCache | null> {
 
     request.onerror = () => {
       console.error("Error obteniendo CAI desde cache:", request.error);
+      reject(request.error);
+    };
+  });
+}
+
+/**
+ * Guarda datos del negocio en cache
+ */
+export async function guardarDatosNegocioCache(
+  datos: Omit<DatosNegocioCache, "timestamp">,
+): Promise<void> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(
+      [DATOS_NEGOCIO_STORE],
+      "readwrite",
+    );
+    const store = transaction.objectStore(DATOS_NEGOCIO_STORE);
+
+    // Limpiar cache anterior
+    const clearRequest = store.clear();
+
+    clearRequest.onsuccess = () => {
+      const datosConTimestamp: DatosNegocioCache = {
+        ...datos,
+        timestamp: Date.now(),
+      };
+
+      const addRequest = store.add(datosConTimestamp);
+
+      addRequest.onsuccess = () => {
+        console.log("Datos del negocio guardados en cache");
+        resolve();
+      };
+
+      addRequest.onerror = () => {
+        console.error(
+          "Error guardando datos del negocio en cache:",
+          addRequest.error,
+        );
+        reject(addRequest.error);
+      };
+    };
+
+    clearRequest.onerror = () => {
+      console.error(
+        "Error limpiando cache de datos del negocio:",
+        clearRequest.error,
+      );
+      reject(clearRequest.error);
+    };
+  });
+}
+
+/**
+ * Obtiene datos del negocio desde el cache
+ */
+export async function obtenerDatosNegocioCache(): Promise<DatosNegocioCache | null> {
+  const database = await initIndexedDB();
+
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction(
+      [DATOS_NEGOCIO_STORE],
+      "readonly",
+    );
+    const store = transaction.objectStore(DATOS_NEGOCIO_STORE);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const datos = request.result as DatosNegocioCache[];
+      if (datos.length > 0) {
+        resolve(datos[0]);
+      } else {
+        resolve(null);
+      }
+    };
+
+    request.onerror = () => {
+      console.error(
+        "Error obteniendo datos del negocio desde cache:",
+        request.error,
+      );
       reject(request.error);
     };
   });

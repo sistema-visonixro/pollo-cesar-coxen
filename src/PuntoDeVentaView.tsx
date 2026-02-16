@@ -11,8 +11,8 @@ import {
   guardarPagosLocal,
   guardarGastoLocal,
   guardarEnvioLocal,
-  obtenerContadorPendientes,
-  sincronizarTodo,
+  // obtenerContadorPendientes,
+  // sincronizarTodo,
   eliminarFacturaLocal,
   eliminarPagoLocal,
   eliminarGastoLocal,
@@ -310,13 +310,13 @@ export default function PuntoDeVentaView({
 
   // Estado para sincronización offline
   const { conectado: isOnline } = useConexion();
-  const [pendientesCount, setPendientesCount] = useState({
-    facturas: 0,
-    pagos: 0,
-    gastos: 0,
-    envios: 0,
-  });
-  const [sincronizando, setSincronizando] = useState(false);
+  // const [pendientesCount, setPendientesCount] = useState({
+  //   facturas: 0,
+  //   pagos: 0,
+  //   gastos: 0,
+  //   envios: 0,
+  // });
+  // const [sincronizando, setSincronizando] = useState(false);
 
   // Cargar datos del negocio
   const { datos: datosNegocio } = useDatosNegocio();
@@ -394,13 +394,13 @@ export default function PuntoDeVentaView({
     });
 
     // Actualizar contador de pendientes cada 10 segundos
-    const interval = setInterval(async () => {
-      const count = await obtenerContadorPendientes();
-      setPendientesCount(count);
-    }, 10000);
+    // const interval = setInterval(async () => {
+    //   const count = await obtenerContadorPendientes();
+    //   setPendientesCount(count);
+    // }, 10000);
 
     // Obtener contador inicial
-    obtenerContadorPendientes().then(setPendientesCount);
+    // obtenerContadorPendientes().then(setPendientesCount);
 
     // Listener para Ctrl+0 para actualizar cache de productos
     const handleKeyDown = async (e: KeyboardEvent) => {
@@ -434,49 +434,49 @@ export default function PuntoDeVentaView({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      clearInterval(interval);
+      // clearInterval(interval);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
   // Función para sincronizar manualmente
-  const sincronizarManualmente = async () => {
-    if (!isOnline) {
-      alert("No hay conexión a internet");
-      return;
-    }
+  // const sincronizarManualmente = async () => {
+  //   if (!isOnline) {
+  //     alert("No hay conexión a internet");
+  //     return;
+  //   }
 
-    setSincronizando(true);
-    try {
-      const resultado = await sincronizarTodo();
-      const total =
-        resultado.facturas.exitosas +
-        resultado.pagos.exitosos +
-        resultado.gastos.exitosos +
-        resultado.envios.exitosos;
+  //   setSincronizando(true);
+  //   try {
+  //     const resultado = await sincronizarTodo();
+  //     const total =
+  //       resultado.facturas.exitosas +
+  //       resultado.pagos.exitosos +
+  //       resultado.gastos.exitosos +
+  //       resultado.envios.exitosos;
 
-      if (total > 0) {
-        alert(
-          `✓ Sincronización exitosa:\n` +
-            `${resultado.facturas.exitosas} facturas\n` +
-            `${resultado.pagos.exitosos} pagos\n` +
-            `${resultado.gastos.exitosos} gastos\n` +
-            `${resultado.envios.exitosos} envíos`,
-        );
-      } else {
-        alert("No hay registros pendientes por sincronizar");
-      }
+  //     if (total > 0) {
+  //       alert(
+  //         `✓ Sincronización exitosa:\n` +
+  //           `${resultado.facturas.exitosas} facturas\n` +
+  //           `${resultado.pagos.exitosos} pagos\n` +
+  //           `${resultado.gastos.exitosos} gastos\n` +
+  //           `${resultado.envios.exitosos} envíos`,
+  //       );
+  //     } else {
+  //       alert("No hay registros pendientes por sincronizar");
+  //     }
 
-      // Actualizar contador
-      const count = await obtenerContadorPendientes();
-      setPendientesCount(count);
-    } catch (error) {
-      console.error("Error en sincronización manual:", error);
-      alert("Error al sincronizar. Inténtalo de nuevo.");
-    } finally {
-      setSincronizando(false);
-    }
-  };
+  //     // Actualizar contador
+  //     const count = await obtenerContadorPendientes();
+  //     setPendientesCount(count);
+  //   } catch (error) {
+  //     console.error("Error en sincronización manual:", error);
+  //     alert("Error al sincronizar. Inténtalo de nuevo.");
+  //   } finally {
+  //     setSincronizando(false);
+  //   }
+  // };
   const [gastoSuccessMessage, setGastoSuccessMessage] = useState<string>("");
   // Estados para modal de devolución
   const [showDevolucionModal, setShowDevolucionModal] = useState(false);
@@ -1112,8 +1112,8 @@ export default function PuntoDeVentaView({
       }
 
       // Actualizar contador de pendientes
-      const count = await obtenerContadorPendientes();
-      setPendientesCount(count);
+      // const count = await obtenerContadorPendientes();
+      // setPendientesCount(count);
 
       // éxito: cerrar y resetear modal de formulario y mostrar modal de éxito
       cerrarRegistrarGasto();
@@ -2066,8 +2066,8 @@ export default function PuntoDeVentaView({
               }
 
               // Actualizar contador de pendientes
-              const count = await obtenerContadorPendientes();
-              setPendientesCount(count);
+              // const count = await obtenerContadorPendientes();
+              // setPendientesCount(count);
             }
           } catch (err) {
             console.error("Error al procesar pagos:", err);
@@ -2576,8 +2576,8 @@ export default function PuntoDeVentaView({
               }
 
               // Actualizar contador de pendientes
-              const count = await obtenerContadorPendientes();
-              setPendientesCount(count);
+              // const count = await obtenerContadorPendientes();
+              // setPendientesCount(count);
 
               // Actualizar el número de factura actual en la vista
               if (facturaActual !== "Límite alcanzado") {
@@ -4303,8 +4303,8 @@ export default function PuntoDeVentaView({
                         }
 
                         // Actualizar contador de pendientes
-                        const count = await obtenerContadorPendientes();
-                        setPendientesCount(count);
+                        // const count = await obtenerContadorPendientes();
+                        // setPendientesCount(count);
 
                         setLastEnvioSaved(registro);
                         setShowEnvioModal(false);
@@ -5992,8 +5992,8 @@ export default function PuntoDeVentaView({
           {isOnline ? "Conectado" : "Sin conexión"}
         </div>
 
-        {/* Indicador de registros pendientes */}
-        {(pendientesCount.facturas > 0 ||
+        {/* Indicador de registros pendientes - DESHABILITADO */}
+        {/* {(pendientesCount.facturas > 0 ||
           pendientesCount.pagos > 0 ||
           pendientesCount.gastos > 0 ||
           pendientesCount.envios > 0) && (
@@ -6030,7 +6030,7 @@ export default function PuntoDeVentaView({
             )}
             {sincronizando && <div>🔄 Sincronizando...</div>}
           </div>
-        )}
+        )} */}
       </div>
 
       {/* Botón Cerrar Sesión - fijo abajo a la derecha */}
