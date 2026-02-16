@@ -13,8 +13,8 @@ import {
   guardarEnvioLocal,
   // obtenerContadorPendientes,
   sincronizarTodo,
-  eliminarFacturaLocal,
-  eliminarPagoLocal,
+  // eliminarFacturaLocal,
+  // eliminarPagoLocal,
   eliminarGastoLocal,
   eliminarEnvioLocal,
   actualizarCacheProductos,
@@ -2091,48 +2091,47 @@ export default function PuntoDeVentaView({
 
               console.log("Insertando pagos:", pagosToInsert);
 
-              // PASO 1: Guardar primero en IndexedDB
-              const pagosIdsLocales = await guardarPagosLocal(pagosToInsert);
-              console.log(
-                `✓ ${pagosToInsert.length} pagos guardados en IndexedDB`,
-              );
+              // LÓGICA CORREGIDA: Con internet guardar en Supabase, sin internet en IndexedDB
+              if (isOnline && estaConectado()) {
+                // CON INTERNET: Guardar directamente en Supabase (NO usar IndexedDB)
+                try {
+                  const { error: pagoError } = await supabase
+                    .from("pagos")
+                    .insert(pagosToInsert);
 
-              // PASO 2: Intentar guardar en Supabase
-              try {
-                const { error: pagoError } = await supabase
-                  .from("pagos")
-                  .insert(pagosToInsert);
-
-                if (pagoError) {
-                  console.error(
-                    "Error al guardar pagos en Supabase:",
-                    pagoError,
-                  );
-                  console.log(
-                    "⚠ Pagos guardados localmente, se sincronizarán después",
-                  );
-                } else {
-                  // Si se guardaron exitosamente en Supabase, eliminar de IndexedDB
-                  for (const idLocal of pagosIdsLocales) {
-                    await eliminarPagoLocal(idLocal);
+                  if (pagoError) {
+                    console.error(
+                      "Error al guardar pagos en Supabase:",
+                      pagoError,
+                    );
+                    // Si falla con internet, guardar en IndexedDB como respaldo
+                    await guardarPagosLocal(pagosToInsert);
+                    console.log(
+                      "⚠ Error en Supabase. Pagos guardados localmente para sincronización",
+                    );
+                  } else {
+                    console.log(
+                      `✓ ${pagosToInsert.length} pagos guardados en Supabase exitosamente`,
+                    );
                   }
+                } catch (fetchError) {
+                  console.error(
+                    "Error de conexión al guardar pagos:",
+                    fetchError,
+                  );
+                  // Si hay error de conexión, guardar en IndexedDB
+                  await guardarPagosLocal(pagosToInsert);
                   console.log(
-                    "✓ Pagos sincronizados y eliminados de IndexedDB",
+                    "⚠ Sin conexión. Pagos guardados localmente para sincronización",
                   );
                 }
-              } catch (fetchError) {
-                console.error(
-                  "Error de conexión al guardar pagos en Supabase:",
-                  fetchError,
-                );
+              } else {
+                // SIN INTERNET: Guardar solo en IndexedDB para sincronización posterior
+                await guardarPagosLocal(pagosToInsert);
                 console.log(
-                  "⚠ Pagos guardados localmente, se sincronizarán cuando haya conexión",
+                  `✓ ${pagosToInsert.length} pagos guardados en IndexedDB (sin conexión)`,
                 );
               }
-
-              // Actualizar contador de pendientes
-              // const count = await obtenerContadorPendientes();
-              // setPendientesCount(count);
             }
           } catch (err) {
             console.error("Error al procesar pagos:", err);
@@ -2609,59 +2608,74 @@ export default function PuntoDeVentaView({
                   .toFixed(2),
               };
 
-              // PASO 1: Guardar primero en IndexedDB
-              const facturaIdLocal = await guardarFacturaLocal(venta);
-              console.log(
-                `✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`,
-              );
+              // LÓGICA CORREGIDA: Con internet guardar en Supabase, sin internet en IndexedDB
+              if (isOnline && estaConectado()) {
+                // CON INTERNET: Guardar directamente en Supabase (NO usar IndexedDB)
+                try {
+                  const { error: supabaseError } = await supabase
+                    .from("facturas")
+                    .insert([venta]);
 
-              // PASO 2: Intentar guardar en Supabase
-              try {
-                const { error: supabaseError } = await supabase
-                  .from("facturas")
-                  .insert([venta]);
-
-                if (supabaseError) {
-                  console.error("Error guardando en Supabase:", supabaseError);
+                  if (supabaseError) {
+                    console.error("Error guardando factura en Supabase:", supabaseError);
+                    // Si falla con internet, guardar en IndexedDB como respaldo
+                    await guardarFacturaLocal(venta);
+                    console.log(
+                      "⚠ Error en Supabase. Factura guardada localmente para sincronización",
+                    );
+                  } else {
+                    console.log(
+                      `✓ Factura ${venta.factura} guardada en Supabase exitosamente`,
+                    );
+                  }
+                } catch (supabaseErr) {
+                  console.error("Error de conexión al guardar factura:", supabaseErr);
+                  // Si hay error de conexión, guardar en IndexedDB
+                  await guardarFacturaLocal(venta);
                   console.log(
-                    "⚠ Factura guardada localmente, se sincronizará después",
-                  );
-                } else {
-                  // Si se guardó exitosamente en Supabase, eliminar de IndexedDB
-                  await eliminarFacturaLocal(facturaIdLocal);
-                  console.log(
-                    "✓ Factura sincronizada y eliminada de IndexedDB",
+                    "⚠ Sin conexión. Factura guardada localmente para sincronización",
                   );
                 }
-              } catch (supabaseErr) {
-                console.error("Error de conexión con Supabase:", supabaseErr);
+              } else {
+                // SIN INTERNET: Guardar solo en IndexedDB para sincronización posterior
+                await guardarFacturaLocal(venta);
                 console.log(
-                  "⚠ Factura guardada localmente, se sincronizará cuando haya conexión",
+                  `✓ Factura ${venta.factura} guardada en IndexedDB (sin conexión)`,
                 );
               }
 
-              // Actualizar contador de pendientes
-              // const count = await obtenerContadorPendientes();
-              // setPendientesCount(count);
-
               // Actualizar el número de factura actual en la vista
               if (facturaActual !== "Límite alcanzado") {
-                setFacturaActual((parseInt(facturaActual) + 1).toString());
+                const nuevaFactura = (parseInt(facturaActual) + 1).toString();
+                setFacturaActual(nuevaFactura);
 
-                // Actualizar factura_actual en cai_facturas
+                // Actualizar factura_actual en cai_facturas (Supabase)
                 if (usuarioActual?.id) {
                   try {
                     await supabase
                       .from("cai_facturas")
                       .update({
-                        factura_actual: (
-                          parseInt(facturaActual) + 1
-                        ).toString(),
+                        factura_actual: nuevaFactura,
                       })
                       .eq("cajero_id", usuarioActual.id);
+                    console.log(`✓ Factura actual actualizada a ${nuevaFactura} en Supabase`);
                   } catch (err) {
-                    console.error("Error actualizando factura_actual:", err);
+                    console.error("Error actualizando factura_actual en Supabase:", err);
                   }
+                }
+
+                // IMPORTANTE: Actualizar también el cache de CAI para offline
+                try {
+                  const caiCache = await obtenerCaiCache();
+                  if (caiCache) {
+                    await guardarCaiCache({
+                      ...caiCache,
+                      factura_actual: nuevaFactura,
+                    });
+                    console.log(`✓ Factura actual actualizada a ${nuevaFactura} en cache`);
+                  }
+                } catch (err) {
+                  console.error("Error actualizando factura_actual en cache:", err);
                 }
               }
             } catch (err) {
