@@ -1877,7 +1877,7 @@ export default function PuntoDeVentaView({
             ) : resumenData ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div>
-                  <strong>EFECTIVO:</strong>{" "}
+                  <strong>EFECTIVO(LPS):</strong>{" "}
                   {(resumenData.efectivo - resumenData.gastos).toFixed(2)}
                 </div>
 
@@ -2903,39 +2903,6 @@ export default function PuntoDeVentaView({
                     padding: "8px 0",
                   }}
                 >
-                  <button
-                    onClick={() => {
-                      setSubcategoriaFiltro(null);
-                    }}
-                    style={{
-                      padding: "10px 20px",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      color: !subcategoriaFiltro ? "#fff" : "#666",
-                      background: !subcategoriaFiltro ? "#388e3c" : "#e0e0e0",
-                      border: "none",
-                      borderRadius: 20,
-                      cursor: "pointer",
-                      transition: "all 0.3s",
-                      boxShadow: !subcategoriaFiltro
-                        ? "0 4px 8px rgba(56, 142, 60, 0.3)"
-                        : "none",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!subcategoriaFiltro) {
-                        e.currentTarget.style.background = "#2e7d32";
-                      } else {
-                        e.currentTarget.style.background = "#d0d0d0";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = !subcategoriaFiltro
-                        ? "#388e3c"
-                        : "#e0e0e0";
-                    }}
-                  >
-                    TODOS
-                  </button>
                   {subcategorias.map((sub, idx) => {
                     const color = colores[idx % colores.length];
                     const isActive = subcategoriaFiltro === sub;
