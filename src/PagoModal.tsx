@@ -651,7 +651,22 @@ export default function PaymentModal({
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && usdAmount > 0 && parseNumber(monto) > 0) {
-                            agregarPago();
+                            e.preventDefault();
+                            const montoN = parseNumber(monto);
+                            
+                            // Calcular si con este monto se completa el total
+                            const nuevoTotal = totalPaid + montoN;
+                            
+                            if (nuevoTotal >= totalPedido) {
+                              // Si alcanza o supera el total, agregar pago y confirmar automáticamente
+                              agregarPago();
+                              setTimeout(() => {
+                                handleConfirm();
+                              }, 100);
+                            } else {
+                              // Si no alcanza, solo agregar el pago
+                              agregarPago();
+                            }
                           }
                         }}
                         style={inputStyle}
@@ -687,7 +702,23 @@ export default function PaymentModal({
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        agregarPago();
+                        const montoN = parseNumber(monto);
+                        if (montoN <= 0) return;
+                        
+                        // Calcular si con este monto se completa el total
+                        const nuevoTotal = totalPaid + montoN;
+                        
+                        if (nuevoTotal >= totalPedido) {
+                          // Si alcanza o supera el total, agregar pago y confirmar automáticamente
+                          agregarPago();
+                          // Esperar un momento para que se actualice el estado
+                          setTimeout(() => {
+                            handleConfirm();
+                          }, 100);
+                        } else {
+                          // Si no alcanza, solo agregar el pago
+                          agregarPago();
+                        }
                       }
                     }}
                     style={inputStyle}

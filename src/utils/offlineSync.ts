@@ -692,9 +692,25 @@ export async function sincronizarGastos(): Promise<{
 
   for (const gasto of gastosPendientes) {
     try {
-      const { id, timestamp, intentos, ...gastoData } = gasto;
+      const { id, intentos } = gasto;
 
-      const { error } = await supabase.from("gastos").insert([gastoData]);
+      // Extraer fecha de fecha_hora para el campo fecha
+      const fechaHora = gasto.fecha_hora;
+      const fecha = fechaHora ? fechaHora.split('T')[0] : new Date().toISOString().split('T')[0];
+
+      // Transformar campos de IndexedDB a formato Supabase
+      const gastoParaSupabase = {
+        fecha: fecha,
+        fecha_hora: fechaHora,
+        monto: gasto.monto,
+        motivo: gasto.tipo || gasto.descripcion || '', // Usar tipo o descripcion como motivo
+        cajero_id: gasto.cajero_id,
+        caja: gasto.caja,
+      };
+
+      console.log(`🔄 Sincronizando gasto ${id}:`, gastoParaSupabase);
+
+      const { error } = await supabase.from("gastos").insert([gastoParaSupabase]);
 
       if (error) {
         console.error(`Error sincronizando gasto ${id}:`, error);
@@ -705,7 +721,7 @@ export async function sincronizarGastos(): Promise<{
           console.error(`Gasto ${id} ha fallado ${intentos} veces`);
         }
       } else {
-        console.log(`Gasto ${id} sincronizado exitosamente`);
+        console.log(`✓ Gasto ${id} sincronizado exitosamente`);
         await eliminarGastoLocal(gasto.id!);
         exitosos++;
       }
