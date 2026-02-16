@@ -14,45 +14,46 @@ let ultimaVerificacionReal = {
 const CACHE_DURATION = 3000; // 3 segundos de cache
 
 /**
- * Verifica conexión real a Supabase con timeout
+ * Verifica conexión real haciendo ping a un servicio confiable
  */
 async function verificarConexionRealConTimeout(): Promise<boolean> {
   // Si no hay navigator.onLine, definitivamente sin internet
   if (!navigator.onLine) {
+    console.log("❌ navigator.onLine = false");
     return false;
   }
 
   // Usar cache reciente para evitar checks excesivos
   const ahora = Date.now();
   if (ahora - ultimaVerificacionReal.timestamp < CACHE_DURATION) {
+    console.log(`📦 Usando cache: ${ultimaVerificacionReal.conectado ? "CONECTADO" : "DESCONECTADO"}`);
     return ultimaVerificacionReal.conectado;
   }
 
   try {
-    // Timeout de 3 segundos para la verificación
+    // Timeout de 4 segundos para la verificación
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const response = await fetch(
-      "https://rftfclqajbmbbxilrgyf.supabase.co/rest/v1/",
-      {
-        method: "HEAD",
-        signal: controller.signal,
-        cache: "no-store",
-      },
-    );
+    // Intentar conectar a un endpoint confiable (Google)
+    // Usamos mode: 'no-cors' para evitar problemas de CORS
+    await fetch("https://www.google.com/favicon.ico", {
+      method: "GET",
+      mode: "no-cors",
+      signal: controller.signal,
+      cache: "no-store",
+    });
 
     clearTimeout(timeoutId);
 
-    // Si el servidor responde (cualquier código HTTP), hay conexión
-    // Solo si es error de red (catch) no hay conexión
-    const conectado = response.status >= 200 && response.status < 600;
-    ultimaVerificacionReal = { timestamp: ahora, conectado };
-    console.log(`🔍 Verificación conexión: ${response.status} → ${conectado ? "CONECTADO" : "DESCONECTADO"}`);
-    return conectado;
+    // Si llegamos aquí sin error, hay conexión
+    ultimaVerificacionReal = { timestamp: ahora, conectado: true };
+    console.log("✅ Verificación exitosa → CONECTADO");
+    return true;
   } catch (error) {
     // Si falla (timeout, network error, etc), asumir sin conexión
-    console.warn("⚠️ Error verificando conexión:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.warn("⚠️ Error verificando conexión:", errorMsg);
     ultimaVerificacionReal = { timestamp: ahora, conectado: false };
     return false;
   }

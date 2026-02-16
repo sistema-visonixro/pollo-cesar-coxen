@@ -1083,7 +1083,7 @@ export function estaConectado(): boolean {
 }
 
 /**
- * Verifica conexión real a Supabase (asincrónico, con timeout)
+ * Verifica conexión real a internet (asincrónico, con timeout)
  */
 export async function estaConectadoReal(): Promise<boolean> {
   if (!navigator.onLine) {
@@ -1092,20 +1092,18 @@ export async function estaConectadoReal(): Promise<boolean> {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-    const response = await fetch(
-      "https://rftfclqajbmbbxilrgyf.supabase.co/rest/v1/",
-      {
-        method: "HEAD",
-        signal: controller.signal,
-        cache: "no-store",
-      },
-    );
+    // Usar Google como endpoint confiable con mode: no-cors
+    await fetch("https://www.google.com/favicon.ico", {
+      method: "GET",
+      mode: "no-cors",
+      signal: controller.signal,
+      cache: "no-store",
+    });
 
     clearTimeout(timeoutId);
-    // Si el servidor responde (cualquier código), hay conexión
-    return response.status >= 200 && response.status < 600;
+    return true;
   } catch (error) {
     return false;
   }
