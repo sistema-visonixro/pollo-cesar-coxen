@@ -11,6 +11,7 @@ import {
   guardarPagosLocal,
   guardarGastoLocal,
   guardarEnvioLocal,
+  obtenerEnviosPendientes,
   // obtenerContadorPendientes,
   sincronizarTodo,
   // eliminarFacturaLocal,
@@ -368,9 +369,9 @@ export default function PuntoDeVentaView({
   const [showPedidosModal, setShowPedidosModal] = useState(false);
   const [pedidosList, setPedidosList] = useState<any[]>([]);
   const [pedidosLoading, setPedidosLoading] = useState(false);
-  const [pedidosProcessingId, setPedidosProcessingId] = useState<number | null>(
-    null,
-  );
+  const [pedidosProcessingId, setPedidosProcessingId] = useState<
+    string | null
+  >(null);
   const [gastoMonto, setGastoMonto] = useState<string>("");
   const [gastoMotivo, setGastoMotivo] = useState<string>("");
   const [gastoFactura, setGastoFactura] = useState<string>("");
@@ -1714,16 +1715,27 @@ export default function PuntoDeVentaView({
               setShowPedidosModal(true);
               setPedidosLoading(true);
               try {
+                const localPendientes = (await obtenerEnviosPendientes())
+                  .filter((envio) => envio.cajero_id === usuarioActual?.id)
+                  .map((envio) => ({
+                    ...envio,
+                    __localPending: true,
+                    local_id: envio.id,
+                    fecha: envio.fecha_hora,
+                    celular: envio.telefono,
+                    id: `local-${envio.id}`,
+                  }));
+
                 const { data, error } = await supabase
                   .from("pedidos_envio")
                   .select("*")
                   .eq("cajero_id", usuarioActual?.id)
                   .order("created_at", { ascending: false })
                   .limit(100);
-                if (!error) setPedidosList(data || []);
+                if (!error) setPedidosList([...(data || []), ...localPendientes]);
                 else {
                   console.error("Error cargando pedidos:", error);
-                  setPedidosList([]);
+                  setPedidosList(localPendientes);
                 }
               } catch (e) {
                 console.error(e);
@@ -4377,6 +4389,18 @@ export default function PuntoDeVentaView({
                           factura_venta: facturaActual || null,
                         };
 
+                        const registroSupabase = {
+                          productos,
+                          cajero_id: usuarioActual?.id,
+                          caja: cajaAsignada || "",
+                          fecha: registro.fecha_hora,
+                          cliente: envioCliente,
+                          celular: envioCelular,
+                          total: Number(total.toFixed(2)),
+                          costo_envio: parseFloat(envioCosto || "0"),
+                          tipo_pago: envioTipoPago,
+                        };
+
                         // PASO 1: Guardar primero en IndexedDB
                         const envioIdLocal = await guardarEnvioLocal(registro);
                         console.log(
@@ -4387,7 +4411,7 @@ export default function PuntoDeVentaView({
                         try {
                           const { error } = await supabase
                             .from("pedidos_envio")
-                            .insert([registro]);
+                            .insert([registroSupabase]);
 
                           if (error) {
                             console.error(
@@ -4427,12 +4451,12 @@ export default function PuntoDeVentaView({
                             .from("etiquetas_config")
                             .select("*")
                             .eq("nombre", "default")
-                            .single();
+                            .maybeSingle();
                           const { data: reciboConfig } = await supabase
                             .from("recibo_config")
                             .select("*")
                             .eq("nombre", "default")
-                            .single();
+                            .maybeSingle();
 
                           const comandaHtml = `
                         <div style='font-family:monospace; width:${
@@ -5156,7 +5180,7 @@ export default function PuntoDeVentaView({
                     <tbody>
                       {pedidosList.map((p: any, index: number) => (
                         <tr
-                          key={p.id}
+                          key={p.id || `local-fallback-${index}`}
                           style={{
                             borderBottom: "1px solid #eee",
                             background: index % 2 === 0 ? "#fff" : "#f9f9f9",
@@ -5242,13 +5266,22 @@ export default function PuntoDeVentaView({
                               <button
                                 onClick={async () => {
                                   if (!confirm("¿Eliminar pedido?")) return;
-                                  setPedidosProcessingId(p.id);
+                                  const pedidoKey = String(
+                                    p.id || p.local_id || `row-${index}`,
+                                  );
+                                  setPedidosProcessingId(pedidoKey);
                                   try {
-                                    const { error } = await supabase
-                                      .from("pedidos_envio")
-                                      .delete()
-                                      .eq("id", p.id);
-                                    if (error) throw error;
+                                    if (p.__localPending) {
+                                      if (typeof p.local_id === "number") {
+                                        await eliminarEnvioLocal(p.local_id);
+                                      }
+                                    } else {
+                                      const { error } = await supabase
+                                        .from("pedidos_envio")
+                                        .delete()
+                                        .eq("id", p.id);
+                                      if (error) throw error;
+                                    }
                                     setPedidosList((prev) =>
                                       prev.filter((x) => x.id !== p.id),
                                     );
@@ -5262,7 +5295,10 @@ export default function PuntoDeVentaView({
                                     setPedidosProcessingId(null);
                                   }
                                 }}
-                                disabled={pedidosProcessingId === p.id}
+                                disabled={
+                                  pedidosProcessingId ===
+                                  String(p.id || p.local_id || `row-${index}`)
+                                }
                                 style={{
                                   background: "#ffebee",
                                   color: "#d32f2f",
@@ -5283,12 +5319,19 @@ export default function PuntoDeVentaView({
                                   e.currentTarget.style.color = "#d32f2f";
                                 }}
                               >
-                                {pedidosProcessingId === p.id
+                                {pedidosProcessingId ===
+                                String(p.id || p.local_id || `row-${index}`)
                                   ? "..."
                                   : "Eliminar"}
                               </button>
                               <button
                                 onClick={async () => {
+                                  if (p.__localPending) {
+                                    alert(
+                                      "Este pedido aún está pendiente de sincronización con el servidor.",
+                                    );
+                                    return;
+                                  }
                                   if (facturaActual === "Límite alcanzado") {
                                     alert("Límite de facturas alcanzado");
                                     return;
@@ -5299,7 +5342,9 @@ export default function PuntoDeVentaView({
                                     )
                                   )
                                     return;
-                                  setPedidosProcessingId(p.id);
+                                  setPedidosProcessingId(
+                                    String(p.id || p.local_id || `row-${index}`),
+                                  );
                                   try {
                                     const productos = (p.productos || []).map(
                                       (pp: any) => ({
@@ -5410,7 +5455,11 @@ export default function PuntoDeVentaView({
                                     setPedidosProcessingId(null);
                                   }
                                 }}
-                                disabled={pedidosProcessingId === p.id}
+                                disabled={
+                                  p.__localPending ||
+                                  pedidosProcessingId ===
+                                    String(p.id || p.local_id || `row-${index}`)
+                                }
                                 style={{
                                   background: "#e8f5e9",
                                   color: "#2e7d32",
@@ -5431,7 +5480,8 @@ export default function PuntoDeVentaView({
                                   e.currentTarget.style.color = "#2e7d32";
                                 }}
                               >
-                                {pedidosProcessingId === p.id
+                                {pedidosProcessingId ===
+                                String(p.id || p.local_id || `row-${index}`)
                                   ? "..."
                                   : "Entregado y Cobrado"}
                               </button>

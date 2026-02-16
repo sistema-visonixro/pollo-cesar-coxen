@@ -864,7 +864,19 @@ export async function sincronizarEnvios(): Promise<{
 
   for (const envio of enviosPendientes) {
     try {
-      const { id, timestamp, intentos, ...envioData } = envio;
+      const { id, intentos } = envio;
+
+      const envioData = {
+        productos: envio.productos,
+        cajero_id: envio.cajero_id,
+        caja: envio.caja,
+        fecha: envio.fecha_hora,
+        cliente: envio.cliente,
+        celular: envio.telefono,
+        total: envio.total,
+        costo_envio: envio.costo_envio,
+        tipo_pago: envio.tipo_pago,
+      };
 
       const { error } = await supabase
         .from("pedidos_envio")
