@@ -134,7 +134,7 @@ export default function PaymentModal({
     .reduce((s, p) => s + p.monto, 0);
 
   const totalPaid = Number(
-    (efectivoSum + tarjetaSum + transferenciaSum + dolaresSum).toFixed(2)
+    (efectivoSum + tarjetaSum + transferenciaSum + dolaresSum).toFixed(2),
   );
   const remaining = Number((totalPedido - totalPaid).toFixed(2));
   const canConfirm = totalPaid >= totalPedido && totalPaid > 0;
@@ -512,7 +512,13 @@ export default function PaymentModal({
             >
               <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>Tipo de pago</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => {
@@ -529,9 +535,22 @@ export default function PaymentModal({
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: tipo === "efectivo" ? "3px solid #1976d2" : "2px solid #ddd",
-                      background: tipo === "efectivo" ? "#e3f2fd" : theme === "lite" ? "#fff" : "#2a2a2a",
-                      color: tipo === "efectivo" ? "#1976d2" : theme === "lite" ? "#333" : "#f5f5f5",
+                      border:
+                        tipo === "efectivo"
+                          ? "3px solid #1976d2"
+                          : "2px solid #ddd",
+                      background:
+                        tipo === "efectivo"
+                          ? "#e3f2fd"
+                          : theme === "lite"
+                            ? "#fff"
+                            : "#2a2a2a",
+                      color:
+                        tipo === "efectivo"
+                          ? "#1976d2"
+                          : theme === "lite"
+                            ? "#333"
+                            : "#f5f5f5",
                       fontWeight: tipo === "efectivo" ? 700 : 600,
                       fontSize: 15,
                       cursor: "pointer",
@@ -556,9 +575,22 @@ export default function PaymentModal({
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: tipo === "tarjeta" ? "3px solid #1976d2" : "2px solid #ddd",
-                      background: tipo === "tarjeta" ? "#e3f2fd" : theme === "lite" ? "#fff" : "#2a2a2a",
-                      color: tipo === "tarjeta" ? "#1976d2" : theme === "lite" ? "#333" : "#f5f5f5",
+                      border:
+                        tipo === "tarjeta"
+                          ? "3px solid #1976d2"
+                          : "2px solid #ddd",
+                      background:
+                        tipo === "tarjeta"
+                          ? "#e3f2fd"
+                          : theme === "lite"
+                            ? "#fff"
+                            : "#2a2a2a",
+                      color:
+                        tipo === "tarjeta"
+                          ? "#1976d2"
+                          : theme === "lite"
+                            ? "#333"
+                            : "#f5f5f5",
                       fontWeight: tipo === "tarjeta" ? 700 : 600,
                       fontSize: 15,
                       cursor: "pointer",
@@ -583,9 +615,22 @@ export default function PaymentModal({
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: tipo === "transferencia" ? "3px solid #1976d2" : "2px solid #ddd",
-                      background: tipo === "transferencia" ? "#e3f2fd" : theme === "lite" ? "#fff" : "#2a2a2a",
-                      color: tipo === "transferencia" ? "#1976d2" : theme === "lite" ? "#333" : "#f5f5f5",
+                      border:
+                        tipo === "transferencia"
+                          ? "3px solid #1976d2"
+                          : "2px solid #ddd",
+                      background:
+                        tipo === "transferencia"
+                          ? "#e3f2fd"
+                          : theme === "lite"
+                            ? "#fff"
+                            : "#2a2a2a",
+                      color:
+                        tipo === "transferencia"
+                          ? "#1976d2"
+                          : theme === "lite"
+                            ? "#333"
+                            : "#f5f5f5",
                       fontWeight: tipo === "transferencia" ? 700 : 600,
                       fontSize: 15,
                       cursor: "pointer",
@@ -610,9 +655,22 @@ export default function PaymentModal({
                     style={{
                       padding: 12,
                       borderRadius: 8,
-                      border: tipo === "dolares" ? "3px solid #1976d2" : "2px solid #ddd",
-                      background: tipo === "dolares" ? "#e3f2fd" : theme === "lite" ? "#fff" : "#2a2a2a",
-                      color: tipo === "dolares" ? "#1976d2" : theme === "lite" ? "#333" : "#f5f5f5",
+                      border:
+                        tipo === "dolares"
+                          ? "3px solid #1976d2"
+                          : "2px solid #ddd",
+                      background:
+                        tipo === "dolares"
+                          ? "#e3f2fd"
+                          : theme === "lite"
+                            ? "#fff"
+                            : "#2a2a2a",
+                      color:
+                        tipo === "dolares"
+                          ? "#1976d2"
+                          : theme === "lite"
+                            ? "#333"
+                            : "#f5f5f5",
                       fontWeight: tipo === "dolares" ? 700 : 600,
                       fontSize: 15,
                       cursor: "pointer",
@@ -645,18 +703,22 @@ export default function PaymentModal({
                           const v = parseNumber(e.target.value);
                           setUsdAmount(v);
                           const converted = Number(
-                            (v * exchangeRate).toFixed(2)
+                            (v * exchangeRate).toFixed(2),
                           );
                           setMonto(String(converted));
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && usdAmount > 0 && parseNumber(monto) > 0) {
+                          if (
+                            e.key === "Enter" &&
+                            usdAmount > 0 &&
+                            parseNumber(monto) > 0
+                          ) {
                             e.preventDefault();
                             const montoN = parseNumber(monto);
-                            
+
                             // Calcular si con este monto se completa el total
                             const nuevoTotal = totalPaid + montoN;
-                            
+
                             if (nuevoTotal >= totalPedido) {
                               // Si alcanza o supera el total, agregar pago y confirmar automáticamente
                               agregarPago();
@@ -704,10 +766,10 @@ export default function PaymentModal({
                         e.preventDefault();
                         const montoN = parseNumber(monto);
                         if (montoN <= 0) return;
-                        
+
                         // Calcular si con este monto se completa el total
                         const nuevoTotal = totalPaid + montoN;
-                        
+
                         if (nuevoTotal >= totalPedido) {
                           // Si alcanza o supera el total, agregar pago y confirmar automáticamente
                           agregarPago();
@@ -813,7 +875,13 @@ export default function PaymentModal({
                         value={autorizador}
                         onChange={(e) => setAutorizador(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter" && parseNumber(monto) > 0 && banco && tarjeta && autorizador) {
+                          if (
+                            e.key === "Enter" &&
+                            parseNumber(monto) > 0 &&
+                            banco &&
+                            tarjeta &&
+                            autorizador
+                          ) {
                             agregarPago();
                           }
                         }}
@@ -869,7 +937,12 @@ export default function PaymentModal({
                       value={referencia}
                       onChange={(e) => setReferencia(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && parseNumber(monto) > 0 && banco && referencia) {
+                        if (
+                          e.key === "Enter" &&
+                          parseNumber(monto) > 0 &&
+                          banco &&
+                          referencia
+                        ) {
                           agregarPago();
                         }
                       }}

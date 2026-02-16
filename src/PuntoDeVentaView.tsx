@@ -2091,38 +2091,46 @@ export default function PuntoDeVentaView({
 
               console.log("Insertando pagos:", pagosToInsert);
 
-              // LÓGICA CORREGIDA: Con internet guardar en Supabase, sin internet en IndexedDB
-              if (isOnline && estaConectado()) {
-                // CON INTERNET: Guardar directamente en Supabase (NO usar IndexedDB)
+              // LÓGICA MEJORADA: usar solo isOnline (que ya verifica conexión real)
+              if (isOnline) {
+                // CON INTERNET: Intentar guardar en Supabase con timeout
+                let guardadoEnSupabase = false;
+
                 try {
+                  // Timeout de 5 segundos para evitar esperas largas
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
                   const { error: pagoError } = await supabase
                     .from("pagos")
-                    .insert(pagosToInsert);
+                    .insert(pagosToInsert)
+                    .abortSignal(controller.signal);
+
+                  clearTimeout(timeoutId);
 
                   if (pagoError) {
                     console.error(
                       "Error al guardar pagos en Supabase:",
                       pagoError,
                     );
-                    // Si falla con internet, guardar en IndexedDB como respaldo
-                    await guardarPagosLocal(pagosToInsert);
-                    console.log(
-                      "⚠ Error en Supabase. Pagos guardados localmente para sincronización",
-                    );
                   } else {
                     console.log(
                       `✓ ${pagosToInsert.length} pagos guardados en Supabase exitosamente`,
                     );
+                    guardadoEnSupabase = true;
                   }
                 } catch (fetchError) {
                   console.error(
-                    "Error de conexión al guardar pagos:",
+                    "Error de conexión/timeout al guardar pagos:",
                     fetchError,
                   );
-                  // Si hay error de conexión, guardar en IndexedDB
+                }
+
+                // Si falló Supabase, guardar en IndexedDB como respaldo
+                if (!guardadoEnSupabase) {
                   await guardarPagosLocal(pagosToInsert);
                   console.log(
-                    "⚠ Sin conexión. Pagos guardados localmente para sincronización",
+                    "⚠ Fallo en Supabase. Pagos guardados en IndexedDB para sincronización",
                   );
                 }
               } else {
@@ -2135,7 +2143,38 @@ export default function PuntoDeVentaView({
             }
           } catch (err) {
             console.error("Error al procesar pagos:", err);
-            alert("Error al procesar los pagos");
+            // En caso de error crítico, intentar guardar en IndexedDB
+            if (paymentData.pagos && paymentData.pagos.length > 0) {
+              try {
+                const cambioValue = paymentData.totalPaid - total;
+                const pagosEmergencia = paymentData.pagos.map((pago) => ({
+                  tipo: pago.tipo,
+                  monto: pago.monto,
+                  banco: pago.banco || null,
+                  tarjeta: pago.tarjeta || null,
+                  factura: pago.factura || null,
+                  autorizador: pago.autorizador || null,
+                  referencia: pago.referencia || null,
+                  usd_monto: pago.usd_monto || null,
+                  fecha_hora: formatToHondurasLocal(),
+                  cajero: usuarioActual?.nombre || "",
+                  cajero_id: usuarioActual?.id || null,
+                  cliente: nombreCliente,
+                  factura_venta: facturaActual,
+                  recibido: paymentData.totalPaid,
+                  cambio: cambioValue,
+                }));
+                await guardarPagosLocal(pagosEmergencia);
+                console.log(
+                  "💾 Pagos guardados en IndexedDB (modo emergencia)",
+                );
+              } catch (emergErr) {
+                console.error("Error crítico al guardar pagos:", emergErr);
+                alert(
+                  "Error crítico al procesar los pagos. Contacte al administrador.",
+                );
+              }
+            }
             return;
           }
 
@@ -2608,32 +2647,46 @@ export default function PuntoDeVentaView({
                   .toFixed(2),
               };
 
-              // LÓGICA CORREGIDA: Con internet guardar en Supabase, sin internet en IndexedDB
-              if (isOnline && estaConectado()) {
-                // CON INTERNET: Guardar directamente en Supabase (NO usar IndexedDB)
+              // LÓGICA MEJORADA: usar solo isOnline (que ya verifica conexión real)
+              if (isOnline) {
+                // CON INTERNET: Intentar guardar en Supabase con timeout
+                let guardadoEnSupabase = false;
+
                 try {
+                  // Timeout de 5 segundos para evitar esperas largas
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
                   const { error: supabaseError } = await supabase
                     .from("facturas")
-                    .insert([venta]);
+                    .insert([venta])
+                    .abortSignal(controller.signal);
+
+                  clearTimeout(timeoutId);
 
                   if (supabaseError) {
-                    console.error("Error guardando factura en Supabase:", supabaseError);
-                    // Si falla con internet, guardar en IndexedDB como respaldo
-                    await guardarFacturaLocal(venta);
-                    console.log(
-                      "⚠ Error en Supabase. Factura guardada localmente para sincronización",
+                    console.error(
+                      "Error guardando factura en Supabase:",
+                      supabaseError,
                     );
                   } else {
                     console.log(
                       `✓ Factura ${venta.factura} guardada en Supabase exitosamente`,
                     );
+                    guardadoEnSupabase = true;
                   }
                 } catch (supabaseErr) {
-                  console.error("Error de conexión al guardar factura:", supabaseErr);
-                  // Si hay error de conexión, guardar en IndexedDB
+                  console.error(
+                    "Error de conexión/timeout al guardar factura:",
+                    supabaseErr,
+                  );
+                }
+
+                // Si falló Supabase, guardar en IndexedDB como respaldo
+                if (!guardadoEnSupabase) {
                   await guardarFacturaLocal(venta);
                   console.log(
-                    "⚠ Sin conexión. Factura guardada localmente para sincronización",
+                    "⚠ Fallo en Supabase. Factura guardada en IndexedDB para sincronización",
                   );
                 }
               } else {
@@ -2658,9 +2711,14 @@ export default function PuntoDeVentaView({
                         factura_actual: nuevaFactura,
                       })
                       .eq("cajero_id", usuarioActual.id);
-                    console.log(`✓ Factura actual actualizada a ${nuevaFactura} en Supabase`);
+                    console.log(
+                      `✓ Factura actual actualizada a ${nuevaFactura} en Supabase`,
+                    );
                   } catch (err) {
-                    console.error("Error actualizando factura_actual en Supabase:", err);
+                    console.error(
+                      "Error actualizando factura_actual en Supabase:",
+                      err,
+                    );
                   }
                 }
 
@@ -2672,10 +2730,15 @@ export default function PuntoDeVentaView({
                       ...caiCache,
                       factura_actual: nuevaFactura,
                     });
-                    console.log(`✓ Factura actual actualizada a ${nuevaFactura} en cache`);
+                    console.log(
+                      `✓ Factura actual actualizada a ${nuevaFactura} en cache`,
+                    );
                   }
                 } catch (err) {
-                  console.error("Error actualizando factura_actual en cache:", err);
+                  console.error(
+                    "Error actualizando factura_actual en cache:",
+                    err,
+                  );
                 }
               }
             } catch (err) {

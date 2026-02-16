@@ -696,21 +696,25 @@ export async function sincronizarGastos(): Promise<{
 
       // Extraer fecha de fecha_hora para el campo fecha
       const fechaHora = gasto.fecha_hora;
-      const fecha = fechaHora ? fechaHora.split('T')[0] : new Date().toISOString().split('T')[0];
+      const fecha = fechaHora
+        ? fechaHora.split("T")[0]
+        : new Date().toISOString().split("T")[0];
 
       // Transformar campos de IndexedDB a formato Supabase
       const gastoParaSupabase = {
         fecha: fecha,
         fecha_hora: fechaHora,
         monto: gasto.monto,
-        motivo: gasto.tipo || gasto.descripcion || '', // Usar tipo o descripcion como motivo
+        motivo: gasto.tipo || gasto.descripcion || "", // Usar tipo o descripcion como motivo
         cajero_id: gasto.cajero_id,
         caja: gasto.caja,
       };
 
       console.log(`🔄 Sincronizando gasto ${id}:`, gastoParaSupabase);
 
-      const { error } = await supabase.from("gastos").insert([gastoParaSupabase]);
+      const { error } = await supabase
+        .from("gastos")
+        .insert([gastoParaSupabase]);
 
       if (error) {
         console.error(`Error sincronizando gasto ${id}:`, error);
@@ -1070,8 +1074,41 @@ export async function hayProductosEnCache(): Promise<boolean> {
 /**
  * Verifica si la aplicación está conectada a internet
  */
+/**
+ * Verifica si hay conexión a internet (sincrónico, solo navigator.onLine)
+ * Para verificación real, usar estaConectadoReal() del hook useConexion
+ */
 export function estaConectado(): boolean {
   return navigator.onLine;
+}
+
+/**
+ * Verifica conexión real a Supabase (asincrónico, con timeout)
+ */
+export async function estaConectadoReal(): Promise<boolean> {
+  if (!navigator.onLine) {
+    return false;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(
+      "https://rftfclqajbmbbxilrgyf.supabase.co/rest/v1/",
+      {
+        method: "HEAD",
+        signal: controller.signal,
+        cache: "no-store",
+      },
+    );
+
+    clearTimeout(timeoutId);
+    // Si el servidor responde (cualquier código), hay conexión
+    return response.status >= 200 && response.status < 600;
+  } catch (error) {
+    return false;
+  }
 }
 
 /**
