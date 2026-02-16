@@ -718,9 +718,11 @@ export default function PuntoDeVentaView({
             .lte("fecha", end);
 
           if (aperturasHoy && aperturasHoy.length > 0) {
-            setAperturaRegistrada(true);
-            // Guardar en cache para uso offline
             const apertura = aperturasHoy[0];
+            console.log("✓ Apertura encontrada en Supabase:", apertura);
+            setAperturaRegistrada(true);
+
+            // Guardar en cache para uso offline
             await guardarAperturaCache({
               id: apertura.id.toString(),
               cajero_id: apertura.cajero_id,
@@ -728,7 +730,9 @@ export default function PuntoDeVentaView({
               fecha: apertura.fecha,
               estado: apertura.estado,
             });
+            console.log("✓ Apertura guardada en cache");
           } else {
+            console.log("⚠ No hay apertura en Supabase");
             setAperturaRegistrada(false);
             // Limpiar cache si no hay apertura
             await limpiarAperturaCache();
@@ -739,17 +743,21 @@ export default function PuntoDeVentaView({
           const aperturaCache = await obtenerAperturaCache();
 
           if (aperturaCache) {
+            console.log("✓ Apertura encontrada en cache:", aperturaCache);
             // Verificar que sea del día actual
             const fechaCache = aperturaCache.fecha;
+            console.log(
+              `Comparando fecha cache: ${fechaCache} con rango: ${start} - ${end}`,
+            );
             if (fechaCache >= start && fechaCache <= end) {
-              console.log("✓ Apertura encontrada en cache");
+              console.log("✓ Apertura del día actual confirmada");
               setAperturaRegistrada(true);
             } else {
               console.log("⚠ Apertura en cache es de otro día");
               setAperturaRegistrada(false);
             }
           } else {
-            console.log("⚠ No hay apertura en cache");
+            console.warn("⚠ No hay apertura en cache");
             setAperturaRegistrada(false);
           }
         }
@@ -765,6 +773,7 @@ export default function PuntoDeVentaView({
               aperturaCache.fecha >= start &&
               aperturaCache.fecha <= end
             ) {
+              console.log("✓ Apertura recuperada desde cache (fallback)");
               setAperturaRegistrada(true);
             } else {
               setAperturaRegistrada(false);
@@ -2775,6 +2784,34 @@ export default function PuntoDeVentaView({
             })()}
 
           {/* Botón para registrar apertura si no existe */}
+          {verificandoApertura && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                padding: "40px 20px",
+                background: theme === "lite" ? "#e3f2fd" : "#1a2332",
+                borderRadius: 16,
+                marginBottom: 20,
+                border: `2px solid ${theme === "lite" ? "#2196f3" : "#42a5f5"}`,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <p
+                  style={{
+                    margin: "0",
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: theme === "lite" ? "#1565c0" : "#90caf9",
+                  }}
+                >
+                  Verificando apertura de caja...
+                </p>
+              </div>
+            </div>
+          )}
+          
           {aperturaRegistrada === false && !verificandoApertura && (
             <div
               style={{
@@ -2801,22 +2838,24 @@ export default function PuntoDeVentaView({
                 </p>
                 <button
                   onClick={registrarAperturaRapida}
-                  disabled={registrandoApertura}
+                  disabled={registrandoApertura || !isOnline}
                   style={{
                     padding: "12px 32px",
                     fontSize: 16,
                     fontWeight: 700,
-                    background: "#1976d2",
+                    background: !isOnline ? "#999" : "#1976d2",
                     color: "#fff",
                     border: "none",
                     borderRadius: 10,
-                    cursor: registrandoApertura ? "not-allowed" : "pointer",
-                    opacity: registrandoApertura ? 0.6 : 1,
+                    cursor: (registrandoApertura || !isOnline) ? "not-allowed" : "pointer",
+                    opacity: (registrandoApertura || !isOnline) ? 0.6 : 1,
                     boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
                   }}
                 >
                   {registrandoApertura
                     ? "Registrando..."
+                    : !isOnline
+                    ? "SIN CONEXIÓN"
                     : "REGISTRAR APERTURA"}
                 </button>
               </div>
