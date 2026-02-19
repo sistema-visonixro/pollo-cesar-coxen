@@ -48,7 +48,7 @@ interface Seleccion {
   precio: number;
   cantidad: number;
   tipo: "comida" | "bebida" | "complemento";
-  complementos?: string; // "CON TODO", "SIN SALSAS", etc.
+  complementos?: string[]; // Array de selecciones: "CON TODO", "SIN SALSAS", etc.
   piezas?: string; // "PIEZAS VARIAS", "PECHUGA", "ALA, CADERA", etc.
 }
 
@@ -1066,7 +1066,7 @@ export default function PuntoDeVentaView({
             ...producto,
             cantidad: 1,
             tipo: producto.tipo,
-            complementos: "CON TODO",
+            complementos: [],
             piezas: "PIEZAS VARIAS",
           },
         ];
@@ -2259,13 +2259,14 @@ export default function PuntoDeVentaView({
                             }x</div>
                             <div style='font-weight:700;'>${p.nombre}</div>
                             ${
-                              p.complementos
-                                ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>`
+                              p.complementos && p.complementos.length > 0
+                                ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` + 
+                                  p.complementos.map(comp => `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`).join('')
                                 : ""
                             }
                             ${
                               p.piezas && p.piezas !== "PIEZAS VARIAS"
-                                ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
+                                ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍖 Piezas:</div><div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${p.piezas}</span></div>`
                                 : ""
                             }
                           </li>`,
@@ -3426,15 +3427,42 @@ export default function PuntoDeVentaView({
                         order: 1,
                         flex: "2 1 140px",
                         minWidth: 120,
-                        fontWeight: 600,
                         fontSize: 14,
-                        color: theme === "lite" ? "#1976d2" : "#64b5f6",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
                       }}
                     >
-                      {p.nombre}
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: theme === "lite" ? "#1976d2" : "#64b5f6",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {p.nombre}
+                      </div>
+                      {p.complementos && p.complementos.length > 0 && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: theme === "lite" ? "#666" : "#999",
+                            marginTop: 2,
+                          }}
+                        >
+                          {p.complementos.join(", ")}
+                        </div>
+                      )}
+                      {p.piezas && p.piezas !== "PIEZAS VARIAS" && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: theme === "lite" ? "#ff9800" : "#ffb74d",
+                            marginTop: 2,
+                          }}
+                        >
+                          {p.piezas}
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -3685,17 +3713,29 @@ export default function PuntoDeVentaView({
                 "SIN REPOLLO",
                 "SIN ADEREZO",
                 "SIN CEBOLLA",
+                "SALSAS APARTE",
               ].map((opcion) => {
-                const isSelected =
-                  seleccionados[selectedProductIndex]?.complementos === opcion;
+                const currentComplementos = seleccionados[selectedProductIndex]?.complementos || [];
+                const isSelected = currentComplementos.includes(opcion);
                 return (
                   <button
                     key={opcion}
                     onClick={() => {
                       const newSeleccionados = [...seleccionados];
+                      const currentComplementos = newSeleccionados[selectedProductIndex]?.complementos || [];
+                      
+                      let updatedComplementos: string[];
+                      if (isSelected) {
+                        // Deseleccionar
+                        updatedComplementos = currentComplementos.filter(c => c !== opcion);
+                      } else {
+                        // Seleccionar
+                        updatedComplementos = [...currentComplementos, opcion];
+                      }
+                      
                       newSeleccionados[selectedProductIndex] = {
                         ...newSeleccionados[selectedProductIndex],
-                        complementos: opcion,
+                        complementos: updatedComplementos,
                       };
                       setSeleccionados(newSeleccionados);
                     }}
@@ -3722,8 +3762,26 @@ export default function PuntoDeVentaView({
                       boxShadow: isSelected
                         ? "0 4px 15px rgba(76,175,80,0.4)"
                         : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      textAlign: "left",
                     }}
                   >
+                    <span style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 6,
+                      border: isSelected ? "2px solid #fff" : "2px solid #999",
+                      background: isSelected ? "#fff" : "transparent",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 16,
+                      flexShrink: 0,
+                    }}>
+                      {isSelected && "✓"}
+                    </span>
                     {opcion}
                   </button>
                 );
@@ -4523,13 +4581,14 @@ export default function PuntoDeVentaView({
                                         p.nombre
                                       }</div>
                                       ${
-                                        p.complementos
-                                          ? `<div style='font-size:14px; margin-top:4px;'><span style='font-weight:700;'>- ${p.complementos}</span></div>`
+                                        p.complementos && p.complementos.length > 0
+                                          ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` + 
+                                            p.complementos.map(comp => `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`).join('')
                                           : ""
                                       }
                                       ${
                                         p.piezas && p.piezas !== "PIEZAS VARIAS"
-                                          ? `<div style='font-size:14px; margin-top:2px;'><span style='font-weight:700;'>- ${p.piezas}</span></div>`
+                                          ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍖 Piezas:</div><div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${p.piezas}</span></div>`
                                           : ""
                                       }
                                     </li>`,
