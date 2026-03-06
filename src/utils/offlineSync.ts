@@ -712,6 +712,22 @@ export async function sincronizarGastos(): Promise<{
 
       console.log(`🔄 Sincronizando gasto ${id}:`, gastoParaSupabase);
 
+      // Verificar si ya existe en Supabase para evitar duplicados
+      const { data: existente } = await supabase
+        .from("gastos")
+        .select("id")
+        .eq("fecha_hora", gastoParaSupabase.fecha_hora)
+        .eq("monto", gastoParaSupabase.monto)
+        .eq("cajero_id", gastoParaSupabase.cajero_id)
+        .maybeSingle();
+
+      if (existente) {
+        console.log(`⚠ Gasto ${id} ya existe en Supabase, eliminando de IndexedDB`);
+        await eliminarGastoLocal(gasto.id!);
+        exitosos++;
+        continue;
+      }
+
       const { error } = await supabase
         .from("gastos")
         .insert([gastoParaSupabase]);
@@ -877,6 +893,23 @@ export async function sincronizarEnvios(): Promise<{
         costo_envio: envio.costo_envio,
         tipo_pago: envio.tipo_pago,
       };
+
+      // Verificar si ya existe en Supabase para evitar duplicados
+      const { data: existente } = await supabase
+        .from("pedidos_envio")
+        .select("id")
+        .eq("fecha", envioData.fecha)
+        .eq("total", envioData.total)
+        .eq("cajero_id", envioData.cajero_id)
+        .eq("cliente", envioData.cliente)
+        .maybeSingle();
+
+      if (existente) {
+        console.log(`⚠ Envío ${id} ya existe en Supabase, eliminando de IndexedDB`);
+        await eliminarEnvioLocal(envio.id!);
+        exitosos++;
+        continue;
+      }
 
       const { error } = await supabase
         .from("pedidos_envio")

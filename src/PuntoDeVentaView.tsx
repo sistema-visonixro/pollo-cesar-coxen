@@ -369,9 +369,9 @@ export default function PuntoDeVentaView({
   const [showPedidosModal, setShowPedidosModal] = useState(false);
   const [pedidosList, setPedidosList] = useState<any[]>([]);
   const [pedidosLoading, setPedidosLoading] = useState(false);
-  const [pedidosProcessingId, setPedidosProcessingId] = useState<
-    string | null
-  >(null);
+  const [pedidosProcessingId, setPedidosProcessingId] = useState<string | null>(
+    null,
+  );
   const [gastoMonto, setGastoMonto] = useState<string>("");
   const [gastoMotivo, setGastoMotivo] = useState<string>("");
   const [gastoFactura, setGastoFactura] = useState<string>("");
@@ -1103,6 +1103,12 @@ export default function PuntoDeVentaView({
 
   // Guardar gasto en la tabla 'gastos'
   const guardarGasto = async () => {
+    // Prevenir múltiples ejecuciones simultáneas
+    if (guardandoGasto) {
+      console.log("⚠ Ya se está guardando un gasto, ignorando clic adicional");
+      return;
+    }
+    
     // Validaciones básicas
     const montoNum = parseFloat(gastoMonto);
     if (isNaN(montoNum) || montoNum <= 0) {
@@ -1727,8 +1733,10 @@ export default function PuntoDeVentaView({
                     celular: envio.telefono,
                     id: `local-${envio.id}`,
                   }));
-                
-                console.log(`📦 ${localPendientes.length} pedidos locales pendientes cargados desde IndexedDB`);
+
+                console.log(
+                  `📦 ${localPendientes.length} pedidos locales pendientes cargados desde IndexedDB`,
+                );
 
                 // PASO 2: Si hay conexión, intentar cargar desde Supabase
                 if (isOnline && estaConectado()) {
@@ -1739,17 +1747,27 @@ export default function PuntoDeVentaView({
                       .eq("cajero_id", usuarioActual?.id)
                       .order("created_at", { ascending: false })
                       .limit(100);
-                    
+
                     if (!error && data) {
-                      console.log(`🌐 ${data.length} pedidos cargados desde Supabase`);
+                      console.log(
+                        `🌐 ${data.length} pedidos cargados desde Supabase`,
+                      );
                       setPedidosList([...data, ...localPendientes]);
                     } else {
-                      console.error("Error cargando pedidos de Supabase:", error);
+                      console.error(
+                        "Error cargando pedidos de Supabase:",
+                        error,
+                      );
                       setPedidosList(localPendientes);
                     }
                   } catch (supabaseErr) {
-                    console.error("Error de conexión con Supabase:", supabaseErr);
-                    console.log("⚠ Sin conexión. Mostrando solo pedidos locales");
+                    console.error(
+                      "Error de conexión con Supabase:",
+                      supabaseErr,
+                    );
+                    console.log(
+                      "⚠ Sin conexión. Mostrando solo pedidos locales",
+                    );
                     setPedidosList(localPendientes);
                   }
                 } else {
@@ -2260,8 +2278,13 @@ export default function PuntoDeVentaView({
                             <div style='font-weight:700;'>${p.nombre}</div>
                             ${
                               p.complementos && p.complementos.length > 0
-                                ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` + 
-                                  p.complementos.map(comp => `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`).join('')
+                                ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` +
+                                  p.complementos
+                                    .map(
+                                      (comp) =>
+                                        `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`,
+                                    )
+                                    .join("")
                                 : ""
                             }
                             ${
@@ -3715,24 +3738,29 @@ export default function PuntoDeVentaView({
                 "SIN CEBOLLA",
                 "SALSAS APARTE",
               ].map((opcion) => {
-                const currentComplementos = seleccionados[selectedProductIndex]?.complementos || [];
+                const currentComplementos =
+                  seleccionados[selectedProductIndex]?.complementos || [];
                 const isSelected = currentComplementos.includes(opcion);
                 return (
                   <button
                     key={opcion}
                     onClick={() => {
                       const newSeleccionados = [...seleccionados];
-                      const currentComplementos = newSeleccionados[selectedProductIndex]?.complementos || [];
-                      
+                      const currentComplementos =
+                        newSeleccionados[selectedProductIndex]?.complementos ||
+                        [];
+
                       let updatedComplementos: string[];
                       if (isSelected) {
                         // Deseleccionar
-                        updatedComplementos = currentComplementos.filter(c => c !== opcion);
+                        updatedComplementos = currentComplementos.filter(
+                          (c) => c !== opcion,
+                        );
                       } else {
                         // Seleccionar
                         updatedComplementos = [...currentComplementos, opcion];
                       }
-                      
+
                       newSeleccionados[selectedProductIndex] = {
                         ...newSeleccionados[selectedProductIndex],
                         complementos: updatedComplementos,
@@ -3768,18 +3796,22 @@ export default function PuntoDeVentaView({
                       textAlign: "left",
                     }}
                   >
-                    <span style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 6,
-                      border: isSelected ? "2px solid #fff" : "2px solid #999",
-                      background: isSelected ? "#fff" : "transparent",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 16,
-                      flexShrink: 0,
-                    }}>
+                    <span
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: 6,
+                        border: isSelected
+                          ? "2px solid #fff"
+                          : "2px solid #999",
+                        background: isSelected ? "#fff" : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 16,
+                        flexShrink: 0,
+                      }}
+                    >
                       {isSelected && "✓"}
                     </span>
                     {opcion}
@@ -4430,6 +4462,12 @@ export default function PuntoDeVentaView({
                   </button>
                   <button
                     onClick={async () => {
+                      // Prevenir múltiples ejecuciones simultáneas
+                      if (savingEnvio) {
+                        console.log("⚠ Ya se está guardando un pedido, ignorando clic adicional");
+                        return;
+                      }
+                      
                       // Guardar pedido de envío
                       setSavingEnvio(true);
                       try {
@@ -4453,10 +4491,10 @@ export default function PuntoDeVentaView({
                           precio: s.precio,
                           cantidad: s.cantidad,
                         }));
-                        
+
                         // Normalizar tipo de pago a minúsculas para consistencia con tabla pagos
                         const tipoPagoNormalizado = envioTipoPago.toLowerCase();
-                        
+
                         const registro = {
                           productos,
                           cajero_id: usuarioActual?.id,
@@ -4581,9 +4619,15 @@ export default function PuntoDeVentaView({
                                         p.nombre
                                       }</div>
                                       ${
-                                        p.complementos && p.complementos.length > 0
-                                          ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` + 
-                                            p.complementos.map(comp => `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`).join('')
+                                        p.complementos &&
+                                        p.complementos.length > 0
+                                          ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` +
+                                            p.complementos
+                                              .map(
+                                                (comp) =>
+                                                  `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${comp}</span></div>`,
+                                              )
+                                              .join("")
                                           : ""
                                       }
                                       ${
@@ -5421,7 +5465,9 @@ export default function PuntoDeVentaView({
                                   )
                                     return;
                                   setPedidosProcessingId(
-                                    String(p.id || p.local_id || `row-${index}`),
+                                    String(
+                                      p.id || p.local_id || `row-${index}`,
+                                    ),
                                   );
                                   try {
                                     // Preparar datos de productos
@@ -5434,7 +5480,7 @@ export default function PuntoDeVentaView({
                                         tipo: pp.tipo || "comida",
                                       }),
                                     );
-                                    
+
                                     // Calcular subtotales e impuestos
                                     const subTotal = productos.reduce(
                                       (sum: number, item: any) => {
@@ -5472,7 +5518,7 @@ export default function PuntoDeVentaView({
                                             it.cantidad,
                                         0,
                                       );
-                                    
+
                                     // Preparar objeto de venta
                                     const venta = {
                                       fecha_hora: formatToHondurasLocal(),
@@ -5492,9 +5538,11 @@ export default function PuntoDeVentaView({
                                       isv_18: isv18.toFixed(2),
                                       total: Number(p.total || 0).toFixed(2),
                                     };
-                                    
+
                                     // Preparar objeto de pago (normalizar tipo a minúsculas)
-                                    const tipoPago = (p.tipo_pago || "efectivo").toLowerCase();
+                                    const tipoPago = (
+                                      p.tipo_pago || "efectivo"
+                                    ).toLowerCase();
                                     const pago = {
                                       tipo: tipoPago,
                                       monto: Number(p.total || 0),
@@ -5514,52 +5562,85 @@ export default function PuntoDeVentaView({
                                     };
 
                                     // PASO 1: Guardar primero en IndexedDB (siempre)
-                                    console.log("💾 Guardando factura y pago en IndexedDB...");
-                                    const facturaIdLocal = await guardarFacturaLocal(venta);
-                                    const pagosIdsLocal = await guardarPagosLocal([pago]);
-                                    console.log(`✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`);
-                                    console.log(`✓ Pago guardado en IndexedDB (IDs: ${pagosIdsLocal})`);
+                                    console.log(
+                                      "💾 Guardando factura y pago en IndexedDB...",
+                                    );
+                                    const facturaIdLocal =
+                                      await guardarFacturaLocal(venta);
+                                    const pagosIdsLocal =
+                                      await guardarPagosLocal([pago]);
+                                    console.log(
+                                      `✓ Factura guardada en IndexedDB (ID: ${facturaIdLocal})`,
+                                    );
+                                    console.log(
+                                      `✓ Pago guardado en IndexedDB (IDs: ${pagosIdsLocal})`,
+                                    );
 
                                     // PASO 2: Si hay conexión, intentar guardar en Supabase
                                     let guardadoEnSupabase = false;
                                     if (isOnline && estaConectado()) {
                                       try {
-                                        console.log("🌐 Intentando guardar en Supabase...");
-                                        
+                                        console.log(
+                                          "🌐 Intentando guardar en Supabase...",
+                                        );
+
                                         // Guardar factura en Supabase
-                                        const { error: errFact } = await supabase
-                                          .from("facturas")
-                                          .insert([venta]);
-                                        
+                                        const { error: errFact } =
+                                          await supabase
+                                            .from("facturas")
+                                            .insert([venta]);
+
                                         if (errFact) {
-                                          console.error("Error guardando factura en Supabase:", errFact);
+                                          console.error(
+                                            "Error guardando factura en Supabase:",
+                                            errFact,
+                                          );
                                           throw errFact;
                                         }
-                                        
+
                                         // Guardar pago en Supabase
-                                        const { error: errPago } = await supabase
-                                          .from("pagos")
-                                          .insert([pago]);
-                                        
+                                        const { error: errPago } =
+                                          await supabase
+                                            .from("pagos")
+                                            .insert([pago]);
+
                                         if (errPago) {
-                                          console.error("Error guardando pago en Supabase:", errPago);
+                                          console.error(
+                                            "Error guardando pago en Supabase:",
+                                            errPago,
+                                          );
                                           throw errPago;
                                         }
-                                        
-                                        console.log("✓ Factura y pago guardados en Supabase exitosamente");
+
+                                        console.log(
+                                          "✓ Factura y pago guardados en Supabase exitosamente",
+                                        );
                                         guardadoEnSupabase = true;
 
                                         // PASO 3: Si se guardó en Supabase exitosamente, eliminar de IndexedDB
-                                        await eliminarFacturaLocal(facturaIdLocal);
-                                        await eliminarPagoLocal(pagosIdsLocal[0]);
-                                        console.log("✓ Factura y pago eliminados de IndexedDB (sincronizados)");
+                                        await eliminarFacturaLocal(
+                                          facturaIdLocal,
+                                        );
+                                        await eliminarPagoLocal(
+                                          pagosIdsLocal[0],
+                                        );
+                                        console.log(
+                                          "✓ Factura y pago eliminados de IndexedDB (sincronizados)",
+                                        );
                                       } catch (supabaseErr) {
-                                        console.error("Error al guardar en Supabase:", supabaseErr);
-                                        console.log("⚠ Fallo en Supabase. Datos mantenidos en IndexedDB para sincronización posterior");
+                                        console.error(
+                                          "Error al guardar en Supabase:",
+                                          supabaseErr,
+                                        );
+                                        console.log(
+                                          "⚠ Fallo en Supabase. Datos mantenidos en IndexedDB para sincronización posterior",
+                                        );
                                         guardadoEnSupabase = false;
                                       }
                                     } else {
-                                      console.log("⚠ Sin conexión. Datos guardados en IndexedDB para sincronización posterior");
+                                      console.log(
+                                        "⚠ Sin conexión. Datos guardados en IndexedDB para sincronización posterior",
+                                      );
                                     }
 
                                     // PASO 4: Eliminar el pedido de envío
@@ -5567,24 +5648,38 @@ export default function PuntoDeVentaView({
                                       // Si es un pedido local pendiente, eliminarlo de IndexedDB
                                       if (p.__localPending && p.local_id) {
                                         await eliminarEnvioLocal(p.local_id);
-                                        console.log(`✓ Pedido local ${p.local_id} eliminado de IndexedDB`);
+                                        console.log(
+                                          `✓ Pedido local ${p.local_id} eliminado de IndexedDB`,
+                                        );
                                       }
                                       // Si es un pedido de Supabase, eliminarlo de allí
-                                      else if (p.id && !String(p.id).startsWith('local-')) {
+                                      else if (
+                                        p.id &&
+                                        !String(p.id).startsWith("local-")
+                                      ) {
                                         if (isOnline && estaConectado()) {
-                                          const { error: errDel } = await supabase
-                                            .from("pedidos_envio")
-                                            .delete()
-                                            .eq("id", p.id);
+                                          const { error: errDel } =
+                                            await supabase
+                                              .from("pedidos_envio")
+                                              .delete()
+                                              .eq("id", p.id);
                                           if (errDel) {
-                                            console.error("Error eliminando pedido de Supabase:", errDel);
+                                            console.error(
+                                              "Error eliminando pedido de Supabase:",
+                                              errDel,
+                                            );
                                           } else {
-                                            console.log(`✓ Pedido ${p.id} eliminado de Supabase`);
+                                            console.log(
+                                              `✓ Pedido ${p.id} eliminado de Supabase`,
+                                            );
                                           }
                                         }
                                       }
                                     } catch (delErr) {
-                                      console.error("Error al eliminar pedido:", delErr);
+                                      console.error(
+                                        "Error al eliminar pedido:",
+                                        delErr,
+                                      );
                                     }
 
                                     // PASO 5: Incrementar factura actual
@@ -5595,38 +5690,46 @@ export default function PuntoDeVentaView({
                                           : prev,
                                       );
                                     } catch (err) {
-                                      console.error("Error incrementando factura:", err);
+                                      console.error(
+                                        "Error incrementando factura:",
+                                        err,
+                                      );
                                     }
 
                                     // PASO 6: Actualizar lista de pedidos local
                                     setPedidosList((prev) =>
                                       prev.filter((x) => {
                                         // Comparar por ID correcto (puede ser local-X o ID numérico)
-                                        const currentId = String(x.id || x.local_id || '');
-                                        const targetId = String(p.id || p.local_id || '');
+                                        const currentId = String(
+                                          x.id || x.local_id || "",
+                                        );
+                                        const targetId = String(
+                                          p.id || p.local_id || "",
+                                        );
                                         return currentId !== targetId;
                                       }),
                                     );
 
                                     // Mostrar mensaje de éxito
-                                    const mensaje = guardadoEnSupabase 
+                                    const mensaje = guardadoEnSupabase
                                       ? "✓ Pedido procesado y guardado exitosamente"
                                       : "✓ Pedido procesado. Se sincronizará cuando haya conexión";
                                     alert(mensaje);
-                                    
                                   } catch (err) {
                                     console.error(
                                       "Error procesando entrega y cobro:",
                                       err,
                                     );
-                                    alert("Error procesando entrega y cobro. Verifique los datos guardados.");
+                                    alert(
+                                      "Error procesando entrega y cobro. Verifique los datos guardados.",
+                                    );
                                   } finally {
                                     setPedidosProcessingId(null);
                                   }
                                 }}
                                 disabled={
                                   pedidosProcessingId ===
-                                    String(p.id || p.local_id || `row-${index}`)
+                                  String(p.id || p.local_id || `row-${index}`)
                                 }
                                 style={{
                                   background: "#e8f5e9",

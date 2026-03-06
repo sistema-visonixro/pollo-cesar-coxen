@@ -156,6 +156,9 @@ export default function GastosView({ onBack }: GastosViewProps) {
       fetchGastos();
     } catch (error) {
       console.error("Error adding gasto:", error);
+      alert("Error al guardar el gasto: " + (error as any).message);
+    } finally {
+      setLoading(false);
     }
   }
 
