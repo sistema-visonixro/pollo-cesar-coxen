@@ -299,6 +299,60 @@ export default function PuntoDeVentaView({
       setResumenLoading(false);
     }
   }
+
+  // ──── Historial de ventas del día (por cajero y periodo de apertura) ─────
+  async function fetchHistorialVentas() {
+    setShowHistorialVentas(true);
+    setHistorialLoading(true);
+    try {
+      const { end: dayEnd } = getLocalDayRange();
+
+      let cajaAsignada = caiInfo?.caja_asignada;
+      if (!cajaAsignada) {
+        const { data: caiData } = await supabase
+          .from("cai_facturas")
+          .select("caja_asignada")
+          .eq("cajero_id", usuarioActual?.id)
+          .single();
+        cajaAsignada = caiData?.caja_asignada || "";
+      }
+
+      const { data: aperturaActual } = await supabase
+        .from("cierres")
+        .select("fecha")
+        .eq("cajero_id", usuarioActual?.id)
+        .eq("caja", cajaAsignada)
+        .eq("estado", "APERTURA")
+        .order("fecha", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!aperturaActual) {
+        setHistorialLoading(false);
+        alert("No hay apertura de caja registrada. Por favor, registra primero una apertura.");
+        setShowHistorialVentas(false);
+        return;
+      }
+
+      const { data: facturas, error } = await supabase
+        .from("facturas")
+        .select("id, fecha_hora, cliente, total, productos, factura, cajero")
+        .eq("cajero_id", usuarioActual?.id)
+        .gte("fecha_hora", aperturaActual.fecha)
+        .lte("fecha_hora", dayEnd)
+        .not("cliente", "like", "%(DEVOLUCIÓN)%")
+        .order("fecha_hora", { ascending: false });
+
+      if (error) throw error;
+      setHistorialVentasList(facturas || []);
+    } catch (err) {
+      console.error("Error al cargar historial de ventas:", err);
+      setHistorialVentasList([]);
+    } finally {
+      setHistorialLoading(false);
+    }
+  }
+
   const [theme, setTheme] = useState<"lite" | "dark">(() => {
     try {
       const stored = localStorage.getItem("theme");
@@ -525,6 +579,16 @@ export default function PuntoDeVentaView({
     useState(false);
   const [showDevolucionError, setShowDevolucionError] = useState(false);
   const [showDevolucionSuccess, setShowDevolucionSuccess] = useState(false);
+  // ──── Historial de ventas del día ────────────────────────────────────────
+  const [showHistorialVentas, setShowHistorialVentas] = useState(false);
+  const [historialVentasList, setHistorialVentasList] = useState<any[]>([]);
+  const [historialLoading, setHistorialLoading] = useState(false);
+  // Venta seleccionada para imprimir comanda desde historial
+  const [historialComandaVenta, setHistorialComandaVenta] = useState<any>(null);
+  // Modal tipo orden separado para historial (no interfiere con el flujo de venta normal)
+  const [showOrdenHistorialModal, setShowOrdenHistorialModal] = useState(false);
+  // ──── Menú de acciones flotante ───────────────────────────────────────────
+  const [showMenuAcciones, setShowMenuAcciones] = useState(false);
   // Eliminado showFacturaModal
   const [nombreCliente, setNombreCliente] = useState("");
   const [showOrdenModal, setShowOrdenModal] = useState(false);
@@ -1446,6 +1510,147 @@ export default function PuntoDeVentaView({
     }
   };
 
+  // ──── Imprimir factura desde historial ───────────────────────────────────
+  async function imprimirFacturaHistorial(venta: any) {
+    try {
+      const prods: any[] = typeof venta.productos === "string"
+        ? JSON.parse(venta.productos)
+        : venta.productos || [];
+
+      const { data: reciboConfig } = await supabase
+        .from("recibo_config")
+        .select("*")
+        .eq("nombre", "default")
+        .maybeSingle();
+
+      const subtotalRecibo = prods.reduce((sum: number, p: any) => {
+        if (p.tipo === "comida") return sum + (p.precio / 1.15) * p.cantidad;
+        if (p.tipo === "bebida") return sum + (p.precio / 1.18) * p.cantidad;
+        return sum + p.precio * p.cantidad;
+      }, 0);
+      const isv15 = prods
+        .filter((p: any) => p.tipo === "comida")
+        .reduce((sum: number, p: any) => sum + (p.precio - p.precio / 1.15) * p.cantidad, 0);
+      const totalVenta = parseFloat(venta.total) || 0;
+
+      const comprobanteHtml = `
+        <div style='font-family:monospace; width:${reciboConfig?.recibo_ancho || 80}mm; margin:0; padding:${reciboConfig?.recibo_padding || 8}px; background:#fff;'>
+          <div style='text-align:center; margin-bottom:12px;'>
+            <img src='${datosNegocio.logo_url || "/favicon.ico"}' alt='logo' style='width:180px; height:180px;' />
+          </div>
+          <div style='text-align:center; font-size:18px; font-weight:700; margin-bottom:6px;'>${datosNegocio.nombre_negocio.toUpperCase()}</div>
+          <div style='text-align:center; font-size:14px; margin-bottom:3px;'>${datosNegocio.direccion}</div>
+          <div style='text-align:center; font-size:14px; margin-bottom:3px;'>RTN: ${datosNegocio.rtn}</div>
+          <div style='text-align:center; font-size:14px; margin-bottom:3px;'>PROPIETARIO: ${datosNegocio.propietario.toUpperCase()}</div>
+          <div style='text-align:center; font-size:14px; margin-bottom:10px;'>TEL: ${datosNegocio.celular}</div>
+          <div style='border-top:2px solid #000; border-bottom:2px solid #000; padding:6px 0; margin-bottom:10px;'>
+            <div style='text-align:center; font-size:16px; font-weight:700;'>RECIBO DE VENTA</div>
+          </div>
+          <div style='font-size:14px; margin-bottom:3px;'>Cliente: ${venta.cliente || ""}</div>
+          <div style='font-size:14px; margin-bottom:3px;'>Factura: ${venta.factura || ""}</div>
+          <div style='font-size:14px; margin-bottom:10px;'>Fecha: ${venta.fecha_hora ? new Date(venta.fecha_hora).toLocaleString("es-HN", { timeZone: "America/Tegucigalpa" }) : ""}</div>
+          <div style='border-top:1px dashed #000; border-bottom:1px dashed #000; padding:6px 0; margin-bottom:10px;'>
+            <table style='width:100%; font-size:14px; border-collapse:collapse;'>
+              <thead>
+                <tr style='border-bottom:1px solid #000;'>
+                  <th style='text-align:left; padding:3px 0;'>CANT</th>
+                  <th style='text-align:left; padding:3px 0;'>DESCRIPCIÓN</th>
+                  <th style='text-align:right; padding:3px 0;'>P.UNIT</th>
+                  <th style='text-align:right; padding:3px 0;'>TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${prods.map((p: any) => `<tr>
+                  <td style='padding:4px 0;'>${p.cantidad}</td>
+                  <td style='padding:4px 0;'>${p.nombre}</td>
+                  <td style='text-align:right; padding:4px 0;'>L${parseFloat(p.precio).toFixed(2)}</td>
+                  <td style='text-align:right; padding:4px 0;'>L${(parseFloat(p.precio) * p.cantidad).toFixed(2)}</td>
+                </tr>`).join("")}
+              </tbody>
+            </table>
+          </div>
+          <div style='font-size:15px; margin-bottom:3px;'>
+            <span style='float:left;'>SUBTOTAL:</span>
+            <span style='float:right; font-weight:700;'>L ${subtotalRecibo.toFixed(2)}</span>
+            <div style='clear:both;'></div>
+          </div>
+          <div style='font-size:15px; margin-bottom:3px;'>
+            <span style='float:left;'>ISV 15%:</span>
+            <span style='float:right; font-weight:700;'>L ${isv15.toFixed(2)}</span>
+            <div style='clear:both;'></div>
+          </div>
+          <div style='border-top:1px solid #000; margin-top:6px; padding-top:6px; font-size:17px; font-weight:700;'>
+            <span style='float:left;'>TOTAL:</span>
+            <span style='float:right;'>L ${totalVenta.toFixed(2)}</span>
+            <div style='clear:both;'></div>
+          </div>
+          <div style='text-align:center; margin-top:18px; font-size:15px; font-weight:700; border-top:1px dashed #000; padding-top:10px;'>¡GRACIAS POR SU COMPRA!</div>
+          <div style='text-align:center; font-size:14px; margin-top:5px;'>Esperamos verle pronto</div>
+        </div>
+      `;
+      const printHtml = `<html><head><title>Factura</title><style>@page{margin:0;size:auto;}body{margin:0;padding:0;}</style></head><body>${comprobanteHtml}</body></html>`;
+      const printWindow = window.open("", "", "height=800,width=400");
+      if (printWindow) {
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+        printWindow.onload = () => { setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 500); };
+      }
+    } catch (err) {
+      console.error("Error al imprimir factura del historial:", err);
+    }
+  }
+
+  // ──── Imprimir comanda desde historial ───────────────────────────────────
+  async function imprimirComandaHistorial(venta: any, tipoOrdenSeleccionado: "PARA LLEVAR" | "COMER AQUÍ") {
+    try {
+      const prods: any[] = typeof venta.productos === "string"
+        ? JSON.parse(venta.productos)
+        : venta.productos || [];
+
+      const { data: etiquetaConfig } = await supabase
+        .from("etiquetas_config")
+        .select("*")
+        .eq("nombre", "default")
+        .maybeSingle();
+
+      const itemHtml = (p: any) => `
+        <li style='font-size:${etiquetaConfig?.etiqueta_fontsize || 20}px; margin-bottom:6px; padding-bottom:8px; text-align:left; border-bottom:1px solid #000;'>
+          <div style='font-weight:900; font-size:24px; color:#d32f2f;'>${p.cantidad}x</div>
+          <div style='font-weight:700;'>${p.nombre}</div>
+          ${p.complementos?.length ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍗 Complementos:</div>` + p.complementos.map((c: string) => `<div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${c}</span></div>`).join("") : ""}
+          ${p.piezas && p.piezas !== "PIEZAS VARIAS" ? `<div style='font-size:12px; margin-top:6px; font-weight:600; color:#555;'>🍖 Piezas:</div><div style='font-size:14px; margin-top:2px; padding-left:8px;'><span style='font-weight:700;'>• ${p.piezas}</span></div>` : ""}
+        </li>`;
+
+      const seccionHtml = (titulo: string, tipo: string) => {
+        const items = prods.filter((p: any) => p.tipo === tipo);
+        if (!items.length) return "";
+        return `<div style='font-size:18px; font-weight:800; color:#000; margin-top:12px; margin-bottom:8px; padding:6px; background:#f0f0f0; border-radius:4px;'>${titulo}</div>
+        <ul style='list-style:none; padding:0; margin-bottom:12px;'>${items.map(itemHtml).join("")}</ul>`;
+      };
+
+      const comandaHtml = `
+        <div style='font-family:monospace; width:${etiquetaConfig?.etiqueta_ancho || 80}mm; margin:0; padding:${etiquetaConfig?.etiqueta_padding || 8}px;'>
+          <div style='font-size:${etiquetaConfig?.etiqueta_fontsize || 24}px; font-weight:800; color:#000; text-align:center; margin-bottom:6px;'>${etiquetaConfig?.etiqueta_comanda || "COMANDA COCINA"}</div>
+          <div style='font-size:28px; font-weight:900; color:#000; text-align:center; margin:16px 0;'>${tipoOrdenSeleccionado}</div>
+          <div style='font-size:20px; font-weight:800; color:#000; text-align:center; margin-bottom:12px;'>Cliente: <b>${venta.cliente || ""}</b></div>
+          <div style='font-size:14px; font-weight:600; color:#222; text-align:center; margin-bottom:6px;'>Factura: ${venta.factura || ""}</div>
+          ${seccionHtml("COMIDAS", "comida")}
+          ${seccionHtml("COMPLEMENTOS", "complemento")}
+          ${seccionHtml("BEBIDAS", "bebida")}
+        </div>
+      `;
+      const printHtml = `<html><head><title>Comanda</title><style>@page{margin:0;size:auto;}body{margin:0;padding:0;}</style></head><body>${comandaHtml}</body></html>`;
+      const printWindow = window.open("", "", "height=800,width=400");
+      if (printWindow) {
+        printWindow.document.write(printHtml);
+        printWindow.document.close();
+        printWindow.onload = () => { setTimeout(() => { printWindow.focus(); printWindow.print(); printWindow.close(); }, 500); };
+      }
+    } catch (err) {
+      console.error("Error al imprimir comanda del historial:", err);
+    }
+  }
+
   // Calculate total
   const total = seleccionados.reduce(
     (sum, p) => sum + p.precio * p.cantidad,
@@ -1561,329 +1766,46 @@ export default function PuntoDeVentaView({
               ? `Factura: ${facturaActual}`
               : ""}
         </span>
-        {/* Botones de tema y funciones principales en la misma fila */}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            marginLeft: 16,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
-          {/* Botones de tema */}
+        {/* Botón único que abre el menú de acciones */}
+        <div style={{ marginLeft: 16, position: "relative" }}>
           <button
-            onClick={() => {
-              setTheme("dark");
-              localStorage.setItem("theme", "dark");
-            }}
+            onClick={() => setShowMenuAcciones((v) => !v)}
             style={{
-              background: theme === "dark" ? "#1976d2" : "transparent",
-              color:
-                theme === "dark"
-                  ? "#fff"
-                  : theme === "lite"
-                    ? "#1976d2"
-                    : "#fff",
-              border: theme === "dark" ? "none" : "1px solid #1976d2",
-              borderRadius: 6,
-              padding: "6px 10px",
-              fontWeight: 600,
-              fontSize: 12,
-              cursor: "pointer",
-              boxShadow:
-                theme === "dark" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
-            }}
-            title="Activar modo oscuro"
-          >
-            🌙 Oscuro
-          </button>
-          <button
-            onClick={() => {
-              setTheme("lite");
-              localStorage.setItem("theme", "lite");
-            }}
-            style={{
-              background: theme === "lite" ? "#1976d2" : "transparent",
-              color:
-                theme === "lite"
-                  ? "#fff"
-                  : theme === "dark"
-                    ? "#f5f5f5"
-                    : "#1976d2",
-              border:
-                theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 6,
-              padding: "6px 10px",
-              fontWeight: 600,
-              fontSize: 12,
-              cursor: "pointer",
-              boxShadow:
-                theme === "lite" ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
-            }}
-            title="Activar modo claro"
-          >
-            ☀️ Claro
-          </button>
-
-          {/* Separador visual */}
-          <div
-            style={{
-              width: 1,
-              height: 24,
-              background:
-                theme === "lite" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
-            }}
-          />
-
-          {/* Botón Resumen de caja */}
-          <button
-            style={{
-              fontSize: 12,
-              padding: "6px 12px",
-              borderRadius: 6,
-              background: isOnline ? "#1976d2" : "#9e9e9e",
+              background: theme === "lite" ? "#1976d2" : "#263238",
               color: "#fff",
-              fontWeight: 600,
-              border: "none",
-              cursor: isOnline ? "pointer" : "not-allowed",
-              opacity: isOnline ? 1 : 0.6,
-            }}
-            onClick={() => {
-              if (!isOnline) {
-                setShowNoConnectionModal(true);
-                return;
-              }
-              fetchResumenCaja();
-            }}
-            title={
-              isOnline
-                ? "Ver resumen de caja del día"
-                : "Requiere conexión a internet"
-            }
-          >
-            📊 Resumen
-          </button>
-
-          {/* Botón Registrar gasto */}
-          <button
-            onClick={() => {
-              cerrarRegistrarGasto();
-              setShowRegistrarGasto(true);
-            }}
-            style={{
-              fontSize: 12,
-              padding: "6px 12px",
-              borderRadius: 6,
-              background:
-                theme === "lite"
-                  ? "rgba(211,47,47,0.95)"
-                  : "rgba(183,28,28,0.95)",
-              color: "#fff",
-              fontWeight: 600,
-              border: "none",
+              border: theme === "lite" ? "none" : "1px solid rgba(255,255,255,0.15)",
+              borderRadius: 8,
+              padding: "7px 16px",
+              fontWeight: 700,
+              fontSize: 14,
               cursor: "pointer",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
             }}
-            title="Registrar un gasto"
+            title="Opciones"
           >
-            💰 Gasto
-          </button>
-
-          {/* Botón Devolución */}
-          <button
-            onClick={() => {
-              setShowDevolucionModal(true);
-              setDevolucionFactura("");
-              setDevolucionData(null);
-              setDevolucionPassword("");
-            }}
-            style={{
-              fontSize: 12,
-              padding: "6px 12px",
-              borderRadius: 6,
-              background:
-                theme === "lite"
-                  ? "rgba(255,152,0,0.95)"
-                  : "rgba(230,81,0,0.95)",
-              color: "#fff",
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-            }}
-            title="Procesar devolución"
-          >
-            🔄 Devolución
-          </button>
-
-          {/* Botón Domicilios */}
-          <button
-            onClick={async () => {
-              setShowPedidosModal(true);
-              setPedidosLoading(true);
-              let localPendientes: any[] = [];
-              try {
-                // PASO 1: Cargar pedidos locales pendientes desde IndexedDB
-                localPendientes = (await obtenerEnviosPendientes())
-                  .filter((envio) => envio.cajero_id === usuarioActual?.id)
-                  .map((envio) => ({
-                    ...envio,
-                    __localPending: true,
-                    local_id: envio.id,
-                    fecha: envio.fecha_hora,
-                    celular: envio.telefono,
-                    id: `local-${envio.id}`,
-                  }));
-
-                console.log(
-                  `📦 ${localPendientes.length} pedidos locales pendientes cargados desde IndexedDB`,
-                );
-
-                // PASO 2: Si hay conexión, intentar cargar desde Supabase
-                if (isOnline && estaConectado()) {
-                  try {
-                    const { data, error } = await supabase
-                      .from("pedidos_envio")
-                      .select("*")
-                      .eq("cajero_id", usuarioActual?.id)
-                      .order("created_at", { ascending: false })
-                      .limit(100);
-
-                    if (!error && data) {
-                      console.log(
-                        `🌐 ${data.length} pedidos cargados desde Supabase`,
-                      );
-                      setPedidosList([...data, ...localPendientes]);
-                    } else {
-                      console.error(
-                        "Error cargando pedidos de Supabase:",
-                        error,
-                      );
-                      setPedidosList(localPendientes);
-                    }
-                  } catch (supabaseErr) {
-                    console.error(
-                      "Error de conexión con Supabase:",
-                      supabaseErr,
-                    );
-                    console.log(
-                      "⚠ Sin conexión. Mostrando solo pedidos locales",
-                    );
-                    setPedidosList(localPendientes);
-                  }
-                } else {
-                  // Sin conexión, mostrar solo pedidos locales
-                  console.log("⚠ Sin conexión. Mostrando solo pedidos locales");
-                  setPedidosList(localPendientes);
-                }
-              } catch (e) {
-                console.error("Error cargando pedidos:", e);
-                // En caso de error crítico, al menos intentar mostrar lo que tenemos
-                setPedidosList(localPendientes);
-              } finally {
-                setPedidosLoading(false);
-              }
-            }}
-            style={{
-              fontSize: 12,
-              padding: "6px 12px",
-              borderRadius: 6,
-              background: "#388e3c",
-              color: "#fff",
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-            }}
-            title="Ver pedidos a domicilio"
-          >
-            🏠 Domicilios
-          </button>
-
-          {/* Botón Aclaraciones - solo visible si hay 1 o más cierres sin aclarar */}
-          {cierresSinAclarar >= 1 && (
-            <button
-              onClick={() => {
-                if (setView) setView("resultadosCaja");
-              }}
-              style={{
-                fontSize: 12,
-                padding: "6px 12px",
-                borderRadius: 6,
-                background: "#f57c00",
-                color: "#fff",
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-                position: "relative",
-              }}
-              title={`Hay ${cierresSinAclarar} cierre(s) sin aclarar este mes`}
-            >
-              📝 Aclaraciones
+            ☰ Opciones
+            {cierresSinAclarar >= 1 && (
               <span
                 style={{
-                  position: "absolute",
-                  top: -6,
-                  right: -6,
                   background: "#d32f2f",
                   color: "#fff",
                   borderRadius: "50%",
-                  width: 20,
-                  height: 20,
-                  display: "flex",
+                  width: 18,
+                  height: 18,
+                  display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 10,
                   fontWeight: 700,
-                  boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
                 }}
               >
                 {cierresSinAclarar}
               </span>
-            </button>
-          )}
-
-          {/* Botón Registrar cierre - solo visible con apertura activa */}
-          {aperturaRegistrada && (
-            <>
-              <div
-                style={{
-                  width: 1,
-                  height: 24,
-                  background:
-                    theme === "lite"
-                      ? "rgba(0,0,0,0.1)"
-                      : "rgba(255,255,255,0.1)",
-                }}
-              />
-              <button
-                style={{
-                  background: isOnline ? "#fbc02d" : "#9e9e9e",
-                  color: isOnline ? "#333" : "#666",
-                  border: "none",
-                  borderRadius: 6,
-                  padding: "6px 12px",
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: isOnline ? "pointer" : "not-allowed",
-                  boxShadow: isOnline ? "0 2px 8px #fbc02d44" : "none",
-                  opacity: isOnline ? 1 : 0.6,
-                }}
-                onClick={() => {
-                  if (!isOnline) {
-                    setShowNoConnectionModal(true);
-                    return;
-                  }
-                  setShowCierre(true);
-                }}
-                title={
-                  isOnline
-                    ? "Registrar cierre de caja"
-                    : "Requiere conexión a internet"
-                }
-              >
-                🚪 Cierre de Caja
-              </button>
-            </>
-          )}
+            )}
+          </button>
         </div>
         {/* QZ Tray indicators removed */}
       </div>
@@ -3535,6 +3457,417 @@ export default function PuntoDeVentaView({
         </div>
       </div>
 
+      {/* ─── Modal Menú de Acciones ─────────────────────────────────────── */}
+      {showMenuAcciones && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0,
+            width: "100vw", height: "100vh",
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9998,
+          }}
+          onClick={() => setShowMenuAcciones(false)}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#1a1a2e",
+              borderRadius: 20,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+              padding: "28px 24px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              minWidth: 280,
+              maxWidth: 360,
+              width: "90vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Encabezado del menú */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: theme === "lite" ? "#1976d2" : "#90caf9" }}>
+                ☰ Opciones
+              </h3>
+              <button
+                onClick={() => setShowMenuAcciones(false)}
+                style={{ background: "transparent", border: "none", fontSize: 20, cursor: "pointer", color: "#888", lineHeight: 1 }}
+              >✕</button>
+            </div>
+
+            {/* ── SIEMPRE VISIBLES: Tema ── */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <button
+                onClick={() => { setTheme("dark"); localStorage.setItem("theme", "dark"); setShowMenuAcciones(false); }}
+                style={{
+                  background: theme === "dark" ? "#1976d2" : (theme === "lite" ? "#f5f5f5" : "#263238"),
+                  color: theme === "dark" ? "#fff" : (theme === "lite" ? "#555" : "#cfd8dc"),
+                  border: theme === "dark" ? "2px solid #1976d2" : `2px solid ${theme === "lite" ? "#ddd" : "#455a64"}`,
+                  borderRadius: 10, padding: "12px 8px", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", textAlign: "center",
+                  boxShadow: theme === "dark" ? "0 2px 8px #1976d244" : "none",
+                }}
+              >🌙 Oscuro</button>
+              <button
+                onClick={() => { setTheme("lite"); localStorage.setItem("theme", "lite"); setShowMenuAcciones(false); }}
+                style={{
+                  background: theme === "lite" ? "#1976d2" : "#263238",
+                  color: theme === "lite" ? "#fff" : "#cfd8dc",
+                  border: theme === "lite" ? "2px solid #1976d2" : "2px solid #455a64",
+                  borderRadius: 10, padding: "12px 8px", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", textAlign: "center",
+                  boxShadow: theme === "lite" ? "0 2px 8px #1976d244" : "none",
+                }}
+              >☀️ Claro</button>
+            </div>
+
+            {/* Aclaraciones (siempre visible si hay cierres sin aclarar) */}
+            {cierresSinAclarar >= 1 && (
+              <button
+                onClick={() => { setShowMenuAcciones(false); if (setView) setView("resultadosCaja"); }}
+                style={{
+                  background: "#fff3e0",
+                  color: "#e65100",
+                  border: "2px solid #f57c00",
+                  borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                  cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8,
+                }}
+              >
+                <span>📝 Aclaraciones</span>
+                <span style={{
+                  marginLeft: "auto",
+                  background: "#d32f2f", color: "#fff",
+                  borderRadius: "50%", width: 22, height: 22, minWidth: 22,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 800,
+                }}>{cierresSinAclarar}</span>
+              </button>
+            )}
+
+            {/* ── SOLO CON APERTURA ACTIVA ── */}
+            {aperturaRegistrada && (
+              <>
+                <div style={{ height: 1, background: theme === "lite" ? "#e0e0e0" : "#37474f", margin: "2px 0" }} />
+
+                {/* Resumen de caja */}
+                <button
+                  onClick={() => {
+                    setShowMenuAcciones(false);
+                    if (!isOnline) { setShowNoConnectionModal(true); return; }
+                    fetchResumenCaja();
+                  }}
+                  style={{
+                    background: theme === "lite" ? "#e3f2fd" : "#0d2137",
+                    color: isOnline ? (theme === "lite" ? "#1565c0" : "#90caf9") : "#9e9e9e",
+                    border: `2px solid ${isOnline ? (theme === "lite" ? "#1976d2" : "#1565c0") : "#9e9e9e"}`,
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                    cursor: isOnline ? "pointer" : "not-allowed", textAlign: "left",
+                    opacity: isOnline ? 1 : 0.6,
+                  }}
+                >📊 Resumen de Caja</button>
+
+                {/* Historial de Ventas */}
+                <button
+                  onClick={() => {
+                    setShowMenuAcciones(false);
+                    if (!isOnline) { setShowNoConnectionModal(true); return; }
+                    fetchHistorialVentas();
+                  }}
+                  style={{
+                    background: theme === "lite" ? "#f3e5f5" : "#1a0a24",
+                    color: isOnline ? (theme === "lite" ? "#6a1b9a" : "#ce93d8") : "#9e9e9e",
+                    border: `2px solid ${isOnline ? (theme === "lite" ? "#8e24aa" : "#6a1b9a") : "#9e9e9e"}`,
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                    cursor: isOnline ? "pointer" : "not-allowed", textAlign: "left",
+                    opacity: isOnline ? 1 : 0.6,
+                  }}
+                >📋 Historial de Ventas</button>
+
+                {/* Gasto */}
+                <button
+                  onClick={() => { setShowMenuAcciones(false); cerrarRegistrarGasto(); setShowRegistrarGasto(true); }}
+                  style={{
+                    background: theme === "lite" ? "#ffebee" : "#1a0000",
+                    color: theme === "lite" ? "#c62828" : "#ef9a9a",
+                    border: `2px solid ${theme === "lite" ? "#e53935" : "#b71c1c"}`,
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >💰 Gasto</button>
+
+                {/* Devolución */}
+                <button
+                  onClick={() => {
+                    setShowMenuAcciones(false);
+                    setShowDevolucionModal(true);
+                    setDevolucionFactura(""); setDevolucionData(null); setDevolucionPassword("");
+                  }}
+                  style={{
+                    background: theme === "lite" ? "#fff8e1" : "#1a1100",
+                    color: theme === "lite" ? "#e65100" : "#ffcc80",
+                    border: `2px solid ${theme === "lite" ? "#f57c00" : "#e65100"}`,
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >🔄 Devolución</button>
+
+                {/* Domicilios */}
+                <button
+                  onClick={async () => {
+                    setShowMenuAcciones(false);
+                    setShowPedidosModal(true);
+                    setPedidosLoading(true);
+                    let localPendientes: any[] = [];
+                    try {
+                      localPendientes = (await obtenerEnviosPendientes())
+                        .filter((envio) => envio.cajero_id === usuarioActual?.id)
+                        .map((envio) => ({
+                          ...envio, __localPending: true, local_id: envio.id,
+                          fecha: envio.fecha_hora, celular: envio.telefono, id: `local-${envio.id}`,
+                        }));
+                      if (isOnline && estaConectado()) {
+                        try {
+                          const { data, error } = await supabase
+                            .from("pedidos_envio")
+                            .select("*")
+                            .eq("cajero_id", usuarioActual?.id)
+                            .order("created_at", { ascending: false })
+                            .limit(100);
+                          if (!error && data) setPedidosList([...data, ...localPendientes]);
+                          else setPedidosList(localPendientes);
+                        } catch { setPedidosList(localPendientes); }
+                      } else { setPedidosList(localPendientes); }
+                    } catch (e) { console.error("Error cargando pedidos:", e); setPedidosList(localPendientes); }
+                    finally { setPedidosLoading(false); }
+                  }}
+                  style={{
+                    background: theme === "lite" ? "#e8f5e9" : "#001a00",
+                    color: theme === "lite" ? "#2e7d32" : "#a5d6a7",
+                    border: `2px solid ${theme === "lite" ? "#388e3c" : "#1b5e20"}`,
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14,
+                    cursor: "pointer", textAlign: "left",
+                  }}
+                >🏠 Domicilios</button>
+
+                <div style={{ height: 1, background: theme === "lite" ? "#e0e0e0" : "#37474f", margin: "2px 0" }} />
+
+                {/* Cierre de Caja */}
+                <button
+                  onClick={() => {
+                    setShowMenuAcciones(false);
+                    if (!isOnline) { setShowNoConnectionModal(true); return; }
+                    setShowCierre(true);
+                  }}
+                  style={{
+                    background: isOnline ? "#fbc02d" : "#9e9e9e",
+                    color: isOnline ? "#1a1200" : "#666",
+                    border: isOnline ? "2px solid #f9a825" : "2px solid #757575",
+                    borderRadius: 10, padding: "12px 16px", fontWeight: 800, fontSize: 14,
+                    cursor: isOnline ? "pointer" : "not-allowed", textAlign: "left",
+                    opacity: isOnline ? 1 : 0.6,
+                    boxShadow: isOnline ? "0 3px 12px #fbc02d55" : "none",
+                  }}
+                >🚪 Cierre de Caja</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal Historial de Ventas del día ─────────────────────────── */}
+      {showHistorialVentas && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0,
+            width: "100vw", height: "100vh",
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+          }}
+          onClick={() => setShowHistorialVentas(false)}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#1e1e1e",
+              borderRadius: 16,
+              boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
+              padding: "28px 24px",
+              width: "min(95vw, 680px)",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h2 style={{ color: "#1976d2", fontSize: 22, fontWeight: 800, margin: 0 }}>
+                📋 Historial de Ventas del Día
+              </h2>
+              <button
+                onClick={() => setShowHistorialVentas(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  fontSize: 22,
+                  cursor: "pointer",
+                  color: "#888",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {historialLoading ? (
+              <div style={{ textAlign: "center", padding: 32, color: "#1976d2", fontWeight: 700 }}>Cargando...</div>
+            ) : historialVentasList.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 32, color: "#888", fontSize: 16 }}>
+                No hay ventas registradas en este período.
+              </div>
+            ) : (
+              <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+                {/* Encabezado columnas */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "72px 80px 1fr 90px auto",
+                    gap: 6,
+                    padding: "6px 8px",
+                    borderBottom: `2px solid ${theme === "lite" ? "#e0e0e0" : "#444"}`,
+                    fontWeight: 700,
+                    fontSize: 11,
+                    color: theme === "lite" ? "#555" : "#aaa",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <span>Hora</span>
+                  <span>Factura</span>
+                  <span>Cliente</span>
+                  <span style={{ textAlign: "right" }}>Monto</span>
+                  <span style={{ textAlign: "center" }}>Acciones</span>
+                </div>
+                {historialVentasList.map((venta) => {
+                  const horaVenta = venta.fecha_hora
+                    ? new Date(venta.fecha_hora).toLocaleTimeString("es-HN", {
+                        timeZone: "America/Tegucigalpa",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "--:--";
+                  return (
+                    <div
+                      key={venta.id}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "72px 80px 1fr 90px auto",
+                        gap: 6,
+                        padding: "10px 8px",
+                        borderBottom: `1px solid ${theme === "lite" ? "#f0f0f0" : "#333"}`,
+                        alignItems: "center",
+                        fontSize: 13,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: "#1976d2" }}>{horaVenta}</span>
+                      <span style={{ fontWeight: 600, color: theme === "lite" ? "#388e3c" : "#a5d6a7", fontSize: 12 }}>
+                        {venta.factura || "—"}
+                      </span>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {venta.cliente || "(Sin nombre)"}
+                      </span>
+                      <span style={{ textAlign: "right", fontWeight: 700 }}>
+                        L {parseFloat(venta.total || 0).toFixed(2)}
+                      </span>
+                      <div style={{ display: "flex", gap: 5 }}>
+                        <button
+                          onClick={() => { imprimirFacturaHistorial(venta); setShowHistorialVentas(false); }}
+                          style={{
+                            background: "#1976d2",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "5px 9px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                          title="Imprimir factura"
+                        >
+                          🖨 Factura
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHistorialComandaVenta(venta);
+                            setShowHistorialVentas(false);
+                            setShowOrdenHistorialModal(true);
+                          }}
+                          style={{
+                            background: "#388e3c",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "5px 9px",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                          title="Imprimir comanda"
+                        >
+                          📄 Comanda
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Total de ventas */}
+            {!historialLoading && historialVentasList.length > 0 && (
+              <div
+                style={{
+                  borderTop: `2px solid ${theme === "lite" ? "#e0e0e0" : "#444"}`,
+                  paddingTop: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontWeight: 700,
+                  fontSize: 16,
+                }}
+              >
+                <span>{historialVentasList.length} ventas</span>
+                <span style={{ color: "#1976d2" }}>
+                  Total: L {historialVentasList.reduce((sum, v) => sum + parseFloat(v.total || 0), 0).toFixed(2)}
+                </span>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowHistorialVentas(false)}
+              style={{
+                background: "transparent",
+                color: theme === "lite" ? "#555" : "#aaa",
+                border: `1px solid ${theme === "lite" ? "#ccc" : "#555"}`,
+                borderRadius: 8,
+                padding: "10px 20px",
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Modal para seleccionar tipo de ORDEN */}
       {showOrdenModal && (
         <div
@@ -3666,6 +3999,108 @@ export default function PuntoDeVentaView({
                 fontSize: 16,
                 cursor: "pointer",
                 marginTop: 8,
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Modal tipo orden para HISTORIAL (independiente del flujo de venta) ── */}
+      {showOrdenHistorialModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0, left: 0,
+            width: "100vw", height: "100vh",
+            background: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10001,
+          }}
+        >
+          <div
+            style={{
+              background: theme === "lite" ? "#fff" : "#232526",
+              borderRadius: 20,
+              boxShadow: "0 10px 40px rgba(0,0,0,0.4)",
+              padding: "36px 40px",
+              minWidth: 360,
+              maxWidth: 480,
+              width: "90vw",
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              color: theme === "lite" ? "#222" : "#f5f5f5",
+            }}
+          >
+            <h2 style={{ color: "#1976d2", textAlign: "center", fontSize: 26, fontWeight: 800, margin: 0 }}>
+              COMANDA — TIPO DE ORDEN
+            </h2>
+            {historialComandaVenta && (
+              <p style={{ textAlign: "center", color: "#888", fontSize: 14, margin: 0 }}>
+                {historialComandaVenta.cliente || "(Sin nombre)"} · Factura {historialComandaVenta.factura || "—"}
+              </p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <button
+                onClick={() => {
+                  setShowOrdenHistorialModal(false);
+                  if (historialComandaVenta) {
+                    imprimirComandaHistorial(historialComandaVenta, "PARA LLEVAR");
+                    setHistorialComandaVenta(null);
+                  }
+                }}
+                style={{
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "#fff",
+                  borderRadius: 12,
+                  border: "none",
+                  padding: "20px 32px",
+                  fontWeight: 700,
+                  fontSize: 22,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 15px rgba(102,126,234,0.4)",
+                }}
+              >
+                PARA LLEVAR
+              </button>
+              <button
+                onClick={() => {
+                  setShowOrdenHistorialModal(false);
+                  if (historialComandaVenta) {
+                    imprimirComandaHistorial(historialComandaVenta, "COMER AQUÍ");
+                    setHistorialComandaVenta(null);
+                  }
+                }}
+                style={{
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                  color: "#fff",
+                  borderRadius: 12,
+                  border: "none",
+                  padding: "20px 32px",
+                  fontWeight: 700,
+                  fontSize: 22,
+                  cursor: "pointer",
+                  boxShadow: "0 4px 15px rgba(245,87,108,0.4)",
+                }}
+              >
+                COMER AQUÍ
+              </button>
+            </div>
+            <button
+              onClick={() => { setShowOrdenHistorialModal(false); setHistorialComandaVenta(null); }}
+              style={{
+                background: "transparent",
+                color: "#999",
+                border: "2px solid #ddd",
+                borderRadius: 8,
+                padding: "12px 24px",
+                fontWeight: 600,
+                fontSize: 15,
+                cursor: "pointer",
               }}
             >
               Cancelar
